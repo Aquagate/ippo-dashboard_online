@@ -606,7 +606,7 @@
       </div>
       <div class="settings-row">
         <span>保存パス</span>
-        <input type="text" id="msFilePath" placeholder="/Apps/IppoDashboard/ippo_data.json">
+        <input type="text" id="msFilePath" placeholder="ippo_data.json">
       </div>
     </div>
     <div id="redirectWarning" class="settings-warning"></div>
@@ -737,7 +737,7 @@
   const DB_NAME = "ippoDashboardDB";
   const DB_VERSION = 1;
   const GRAPH_SCOPES = ["Files.ReadWrite.AppFolder"];
-  const DEFAULT_FILE_PATH = "/Apps/IppoDashboard/ippo_data.json";
+  const DEFAULT_FILE_PATH = "ippo_data.json";
 
   const CATEGORY_LIST = [
     "仕事・企画",
@@ -1333,9 +1333,25 @@
     return "/" + parts.join("/");
   }
 
+  function normalizeFilePath(path) {
+    let normalized = (path || "").trim();
+    normalized = normalized.replace(/^\/+/, "");
+    if (normalized === "Apps/IppoDashboard") {
+      normalized = "";
+    }
+    if (normalized.startsWith("Apps/IppoDashboard/")) {
+      normalized = normalized.slice("Apps/IppoDashboard/".length);
+    }
+    if (!normalized) {
+      return DEFAULT_FILE_PATH;
+    }
+    return normalized;
+  }
+
   function graphItemUrl() {
-    const encoded = encodePath(appSettings.filePath || DEFAULT_FILE_PATH);
-    return `https://graph.microsoft.com/v1.0/me/drive/root:${encoded}`;
+    const normalized = normalizeFilePath(appSettings.filePath || DEFAULT_FILE_PATH);
+    const encoded = encodePath(normalized);
+    return `https://graph.microsoft.com/v1.0/me/drive/special/approot:${encoded}`;
   }
 
   async function graphRequest(url, options = {}) {
@@ -1351,6 +1367,8 @@
       return { exists: false, data: null, etag: null };
     }
     if (!metaResp.ok) {
+      const errorText = await metaResp.text();
+      console.warn("OneDrive読み込み失敗", metaResp.status, errorText);
       throw new Error(`OneDrive読み込み失敗: ${metaResp.status}`);
     }
     const metaJson = await metaResp.json();
