@@ -1,0 +1,2376 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>今日の一歩ダッシュボード</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-soft: #111827;
+      --bg-softer: #020617;
+      --accent: #38bdf8;
+      --accent-soft: #0f766e;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #1f2933;
+      --danger: #f97373;
+      --good: #4ade80;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0, #020617 55%, #000 100%);
+      color: var(--text);
+    }
+    header {
+      padding: 16px 20px 8px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, rgba(56,189,248,0.16), rgba(15,118,110,0.08));
+    }
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0.04em;
+    }
+    header p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    main {
+      padding: 12px 20px 20px;
+      display: grid;
+      grid-template-columns: minmax(0, 2.1fr) minmax(0, 1.4fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+
+    .panel {
+      background: rgba(15,23,42,0.92);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 12px 14px 14px;
+      box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+    }
+    .panel-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .panel-title span.badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.6);
+      color: var(--muted);
+    }
+    .panel-header small {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .metrics-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .metric-card {
+      flex: 1 1 90px;
+      min-width: 90px;
+      background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(15,118,110,0.25));
+      border-radius: 10px;
+      border: 1px solid rgba(56,189,248,0.3);
+      padding: 6px 8px;
+    }
+    .metric-label {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .metric-value {
+      margin-top: 2px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+    .metric-sub {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .file-input-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+    .file-input-wrap label {
+      padding: 4px 8px;
+      background: rgba(15,23,42,0.9);
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.8);
+      cursor: pointer;
+      font-size: 11px;
+    }
+    .file-input-wrap input[type="file"] { display: none; }
+
+    select, input, textarea, button {
+      font-family: inherit;
+      font-size: 13px;
+    }
+    select, input[type="date"], input[type="text"], input[type="url"] {
+      background: #020617;
+      color: var(--text);
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      padding: 4px 8px;
+    }
+
+    .daily-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .daily-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .daily-sub {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .score-pill {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(15,118,110,0.35);
+      border: 1px solid rgba(45,212,191,0.6);
+      font-size: 11px;
+    }
+    .score-pill strong { font-size: 15px; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    thead { background: rgba(15,23,42,0.9); }
+    th, td {
+      padding: 4px 6px;
+      text-align: left;
+      border-bottom: 1px solid rgba(15,23,42,0.9);
+      vertical-align: top;
+    }
+    th {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+    tbody tr:nth-child(2n) td {
+      background: rgba(15,23,42,0.55);
+    }
+    .entry-text {
+      white-space: normal;
+      word-break: break-all;
+    }
+
+    .category-bar { margin-bottom: 6px; }
+    .category-bar-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .category-bar-fill {
+      position: relative;
+      height: 8px;
+      border-radius: 999px;
+      background: #020617;
+      overflow: hidden;
+      border: 1px solid rgba(30,64,175,0.7);
+    }
+    .category-bar-fill span {
+      position: absolute;
+      top: 0; left: 0; bottom: 0;
+      width: 0;
+      background: linear-gradient(90deg, #38bdf8, #22c55e);
+      transition: width 0.4s ease-out;
+    }
+
+    .next-step-box {
+      margin-top: 8px;
+      padding: 8px 9px;
+      border-radius: 10px;
+      background: radial-gradient(circle at left, rgba(56,189,248,0.25), rgba(15,23,42,0.9));
+      border: 1px solid rgba(56,189,248,0.5);
+    }
+    .next-step-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+    .next-step-main {
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .next-step-main strong { color: var(--good); }
+
+    form {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    textarea {
+      width: 100%;
+      min-height: 70px;
+      resize: vertical;
+      background: #020617;
+      color: var(--text);
+      border-radius: 8px;
+      border: 1px solid rgba(148,163,184,0.7);
+      padding: 6px 8px;
+    }
+    .form-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .form-row label {
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .form-row input[type="date"] {
+      font-size: 12px;
+      padding: 3px 8px;
+    }
+
+    button.primary {
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(90deg, #38bdf8, #22c55e);
+      color: #020617;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    button.primary:hover { filter: brightness(1.05); }
+
+    .btn-ghost {
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.9);
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .btn-ghost:hover {
+      background: rgba(15,23,42,0.8);
+      color: #e5e7eb;
+    }
+
+    .btn-ghost-small {
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      background: transparent;
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .btn-ghost-small:hover {
+      background: rgba(15,23,42,0.8);
+      color: #e5e7eb;
+    }
+
+    .btn-danger {
+      padding: 3px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.9);
+      background: transparent;
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+    }
+    .btn-danger:hover {
+      background: rgba(15,23,42,0.8);
+      color: #e5e7eb;
+    }
+
+    .form-note { font-size: 10px; color: var(--muted); }
+    .message {
+      font-size: 11px;
+      margin-top: 2px;
+    }
+    .message.ok { color: var(--good); }
+    .message.err { color: var(--danger); }
+
+    .empty-state {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 8px 4px;
+    }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      border: 1px solid rgba(148,163,184,0.7);
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .category-select {
+      width: 100%;
+      background: #020617;
+      color: var(--text);
+      border-radius: 999px;
+      border: 1px solid rgba(148,163,184,0.7);
+      font-size: 10px;
+      padding: 2px 4px;
+    }
+
+    .next-memo-list {
+      list-style: none;
+      padding-left: 0;
+      margin: 4px 0 0;
+    }
+
+    .next-memo-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(15,23,42,0.6);
+    }
+
+    .next-memo-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .next-memo-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .next-memo-meta {
+      font-size: 10px;
+      color: var(--muted);
+      margin-left: 20px;
+    }
+
+    .next-memo-input {
+      width: 100%;
+      min-height: 48px;
+      resize: vertical;
+      background: #020617;
+      color: var(--text);
+      border-radius: 8px;
+      border: 1px solid rgba(148,163,184,0.7);
+      padding: 6px 8px;
+    }
+
+    .settings-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      margin-bottom: 6px;
+    }
+    .settings-row {
+      display: grid;
+      grid-template-columns: 120px 1fr;
+      gap: 8px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .settings-row input {
+      width: 100%;
+    }
+    .settings-row-inline {
+      display: grid;
+      grid-template-columns: 120px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .settings-row-inline input {
+      width: 100%;
+    }
+    .settings-help {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .settings-warning {
+      font-size: 10px;
+      color: var(--danger);
+      margin-top: 4px;
+    }
+
+    .sync-status {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 4px;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    .sync-status strong { color: var(--text); font-weight: 600; }
+    .sync-error { color: var(--danger); }
+  </style>
+</head>
+<body>
+<header>
+  <h1>今日の一歩ダッシュボード</h1>
+  <p>うぜんの「一歩」を可視化して、偏りを見て次の一歩を決めるための、個人用モニタ。</p>
+</header>
+
+<main>
+  <section class="panel" id="leftPanel">
+
+    <div class="panel-header">
+      <div class="panel-title">
+        一歩を追加
+        <span class="badge">その場で追記</span>
+      </div>
+      <small>追加した一歩はローカルに即反映し、オンラインならOneDriveへ同期する。</small>
+    </div>
+    <form id="addForm">
+      <label>
+        <span class="form-note">一歩の内容</span>
+        <textarea id="addText" placeholder="例：『〇〇の企画案を部長に投げた』『子供と的当てゲームした』『DX検定の勉強を30分やった』など"></textarea>
+      </label>
+      <div class="form-row">
+        <label>
+          日付：
+          <input type="date" id="addDate">
+        </label>
+        <button type="submit" class="primary">この一歩を追加</button>
+      </div>
+      <div class="form-note">
+        ※カテゴリは文面から自動推定（ 仕事・企画／家族・子ども／健康・身体／環境・暮らし／学び・技術／お金・投資／趣味・遊び／心・メンタル／その他 ）
+      </div>
+      <div id="addMessage" class="message"></div>
+    </form>
+
+    <div class="panel-header" style="margin-top:12px;">
+      <div class="panel-title">
+        日別ログ
+        <span class="badge">今日の一歩一覧</span>
+      </div>
+      <small>日付を選ぶと、その日の一歩・前進率・カテゴリ分布が見える</small>
+    </div>
+
+    <div class="daily-header">
+      <div>
+        <div class="daily-title">
+          <span id="selectedDateLabel">-</span> の一歩
+        </div>
+        <div class="daily-sub">
+          <span id="dailyCountLabel">0件</span>
+        </div>
+      </div>
+      <div style="display:flex; align-items:center; gap:6px;">
+        <select id="dateSelect"></select>
+        <div class="score-pill">
+          <span>前進率</span>
+          <strong id="dailyScore">0.0</strong><span>%</span>
+        </div>
+      </div>
+    </div>
+
+    <div id="dailyTableWrap">
+      <table>
+        <thead>
+        <tr>
+          <th style="width: 38px;">時間</th>
+          <th>一歩の内容</th>
+          <th style="width: 120px;">カテゴリ（編集可）</th>
+          <th style="width: 52px;">操作</th>
+        </tr>
+        </thead>
+        <tbody id="dailyTbody"></tbody>
+      </table>
+    </div>
+    <div id="noDataDaily" class="empty-state" style="display:none;">
+      まだ一歩ログがありません。上の「一歩を追加」から一歩を追加するか、右側の「一歩ログCSVを読み込む」から取り込んでください。
+    </div>
+
+    <div class="panel-header" style="margin-top:12px;">
+      <div class="panel-title">
+        日記
+        <span class="badge">選択した日の一歩から自動生成</span>
+      </div>
+      <small>テキストは自由に編集して、日記アプリなどにコピペできる。</small>
+    </div>
+    <div>
+      <div class="form-row" style="justify-content:flex-end; margin-bottom:4px;">
+        <button type="button" id="regenerateDiaryBtn" class="btn-ghost">日記を再生成</button>
+        <button type="button" id="copyDiaryBtn" class="btn-ghost">日記をコピー</button>
+      </div>
+      <textarea id="diaryOutput" placeholder="ここに、選択中の日付の一歩から自動生成された日記が表示されます。"></textarea>
+      <div id="diaryMessage" class="form-note"></div>
+    </div>
+  </section>
+
+  <section class="panel">
+
+    <div class="panel-header">
+      <div class="panel-title">
+        OneDrive同期
+        <span class="badge">single source of truth</span>
+      </div>
+      <small>Microsoftアカウントでサインインしてデータを同期</small>
+    </div>
+
+    <div class="form-row" style="justify-content:flex-end; margin-bottom:6px;">
+      <button type="button" id="signInBtn" class="btn-ghost">サインイン</button>
+      <button type="button" id="signOutBtn" class="btn-ghost">サインアウト</button>
+      <button type="button" id="syncNowBtn" class="btn-ghost">今すぐ同期</button>
+    </div>
+
+    <div class="sync-status" id="syncStatus">
+      <div>状態: <strong id="syncState">未接続</strong></div>
+      <div>最終同期: <strong id="lastSyncLabel">-</strong></div>
+      <div>未送信: <strong id="pendingCountLabel">0件</strong></div>
+      <div id="syncError" class="sync-error"></div>
+    </div>
+
+    <div class="panel-header" style="margin-top:12px;">
+      <div class="panel-title">
+        OneDrive設定
+        <span class="badge">MSAL / Graph</span>
+      </div>
+      <small>clientId・tenant・redirectUri・保存パス</small>
+    </div>
+
+    <div class="settings-grid">
+      <div class="settings-row">
+        <span>Client ID</span>
+        <input type="text" id="msClientId" placeholder="xxxx-xxxx-xxxx">
+      </div>
+      <div class="settings-row">
+        <span>Tenant</span>
+        <input type="text" id="msTenant" placeholder="common">
+      </div>
+      <div class="settings-row">
+        <span>Redirect URI</span>
+        <input type="url" id="msRedirectUri" placeholder="https://example.com/index.html">
+      </div>
+      <div class="settings-row-inline">
+        <span>推奨Redirect</span>
+        <input type="url" id="msRedirectSuggested" readonly>
+        <button type="button" id="copyRedirectBtn" class="btn-ghost-small">コピー</button>
+      </div>
+      <div class="settings-row">
+        <span>保存パス</span>
+        <input type="text" id="msFilePath" placeholder="/Apps/IppoDashboard/ippo_data.json">
+      </div>
+    </div>
+    <div id="redirectWarning" class="settings-warning"></div>
+    <div class="settings-help">
+      Redirect URIはAzure登録値と完全一致が必要。<br>
+      / と /index.html は別物です。<br>
+      file:// では使えないため、http(s)でホストして開いてください。
+    </div>
+
+    <div class="form-row" style="justify-content:flex-end;">
+      <button type="button" id="saveSettingsBtn" class="btn-ghost">設定を保存</button>
+    </div>
+
+    <div class="panel-header" style="margin-top:12px;">
+      <div class="panel-title">
+        バックアップ
+        <span class="badge">JSON</span>
+      </div>
+      <small>ローカルJSONのエクスポート/インポート</small>
+    </div>
+
+    <div class="form-row" style="justify-content:flex-end;">
+      <button type="button" id="exportJsonBtn" class="btn-ghost">JSONエクスポート</button>
+      <label class="btn-ghost" for="importJsonInput">JSONインポート</label>
+      <input type="file" id="importJsonInput" accept="application/json">
+    </div>
+
+    <div class="top-row" style="margin-top:12px;">
+      <div class="file-input-wrap">
+        <label for="csvInput">一歩ログCSVを読み込む</label>
+        <input type="file" id="csvInput" accept=".csv,text/csv">
+        <span id="fileStatus">まだCSVは読み込んでいません</span>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+        <span class="pill">保存先はOneDrive（ローカルはキャッシュ）</span>
+        <button type="button" id="resetButton" class="btn-ghost">全リセット</button>
+      </div>
+    </div>
+
+    <div class="panel-header">
+      <div class="panel-title">
+        メトリクス
+        <span class="badge">全体サマリ</span>
+      </div>
+      <small id="metricsSubtitle"></small>
+    </div>
+    <div class="metrics-row">
+      <div class="metric-card">
+        <div class="metric-label">累計アクション数</div>
+        <div class="metric-value" id="metricTotal">0</div>
+        <div class="metric-sub">これまでの「一歩」の総数</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">今週の累計</div>
+        <div class="metric-value" id="metricWeekly">0</div>
+        <div class="metric-sub" id="metricWeeklyRange">-</div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">今月の累計</div>
+        <div class="metric-value" id="metricMonthly">0</div>
+        <div class="metric-sub">最新の日付の月ベース</div>
+      </div>
+    </div>
+    <div class="form-row" style="justify-content:flex-end; margin-bottom:8px;">
+      <button type="button" id="exportMonthlyBtn" class="btn-ghost">月次サマリCSV</button>
+      <button type="button" id="exportAllBtn" class="btn-ghost">全件CSV</button>
+    </div>
+
+    <div class="panel-header" style="margin-top:4px;">
+      <div class="panel-title">
+        カテゴリ分布
+        <span class="badge">ここ数日の偏り</span>
+      </div>
+      <small>最近7日間を対象にカテゴリ別の本数を集計</small>
+    </div>
+    <div id="categoryBars"></div>
+    <div id="noCategory" class="empty-state" style="display:none;">
+      データがないので、カテゴリ分布はまだ出せません。
+    </div>
+
+    <div class="next-step-box" id="nextStepBox" style="display:none;">
+      <div class="next-step-label">最近ちょっと手薄なカテゴリ</div>
+      <div class="next-step-main">
+        <div style="margin-bottom:4px;">
+          <strong id="weakCategoryLabel">-</strong> がやや少なめ。
+        </div>
+        <div id="nextStepText"></div>
+      </div>
+    </div>
+    <div id="nextStepEmpty" class="empty-state" style="display:none;">
+      まだ一歩データが少ないので、「次の一歩」レコメンドはお休み中。
+    </div>
+
+    <div class="panel-header" style="margin-top:12px;">
+      <div class="panel-title">
+        次の一歩メモ
+        <span class="badge">あとでやりたいこと置き場</span>
+      </div>
+      <small>「今日は体力ないけど、そのうちやりたい」アイデアをストック。終わったらチェックして消す。</small>
+    </div>
+
+    <form id="nextMemoForm">
+      <label>
+        <span class="form-note">やりたいけど今日はやらない一歩メモ</span>
+        <textarea
+          id="nextMemoInput"
+          class="next-memo-input"
+          placeholder="例：『一歩ダッシュボードの◯◯機能を試す』『○○さんにこの前の企画の反応を聞く』など"
+        ></textarea>
+      </label>
+      <div class="form-row" style="justify-content:flex-end;">
+        <button type="submit" class="btn-ghost">メモを追加</button>
+      </div>
+    </form>
+
+    <div id="nextMemoEmpty" class="empty-state">
+      まだメモはありません。「いつかやる一歩」をここに置いておける。
+    </div>
+    <ul id="nextMemoList" class="next-memo-list"></ul>
+
+  </section>
+</main>
+
+<script src="https://alcdn.msauth.net/browser/2.37.0/js/msal-browser.min.js"></script>
+<script>
+  const STORAGE_KEY = "ippoLogEntries_v2";
+  const NEXT_MEMO_KEY = "ippoNextMemo_v1";
+  const DB_NAME = "ippoDashboardDB";
+  const DB_VERSION = 1;
+  const GRAPH_SCOPES = ["Files.ReadWrite.AppFolder"];
+  const DEFAULT_FILE_PATH = "/Apps/IppoDashboard/ippo_data.json";
+
+  const CATEGORY_LIST = [
+    "仕事・企画",
+    "家族・子ども",
+    "健康・身体",
+    "環境・暮らし",
+    "学び・技術",
+    "お金・投資",
+    "趣味・遊び",
+    "心・メンタル",
+    "その他"
+  ];
+
+  const CATEGORY_SUGGESTIONS = {
+    "仕事・企画": [
+      "いま走らせている企画の『お客さんに一言で伝えるなら？』を3行だけ書き出してみる。",
+      "今日の一歩ログを眺めて、『これはもう1段深掘りしたい』と思うテーマを1つだけメモに書く。",
+      "誰か1人に、『これ手伝ってほしい』と相談したいテーマを1行だけ整理してみる。投げるかどうかはそのあと考えればいい。",
+      "進行中の案件のうち、モヤモヤしているものを1つだけ選び、『理想のゴール』を3行で書く。",
+      "社内チャットかメモアプリに、『今週中に形にしたいアイデア』を1つ宣言しておく。実行するかは別問題。",
+      "「放置すると確実に腐るタスク」を1つ選んで、次の一手（誰に何を聞くか）だけ書き出す。"
+    ],
+    "家族・子ども": [
+      "5分だけ一緒にゲーム／動画／雑談など、『ただ一緒にいるだけ枠』を取ってみる。",
+      "子どもか奥さんに、『今日一番うれしかったこと何？』ってだけ聞いてみる。深堀りしなくてOK。",
+      "明日の予定をざっくり共有して、『ここだけは一緒にいたい時間』を1つだけ決めておく。",
+      "子どもの最近の口癖や行動で『おもしろかったこと』を一つメモに残す。",
+      "家族LINEかメモアプリに、今月うれしかった家族の出来事を1行だけ書く。",
+      "寝る前に『今日助かったこと』を1つだけ家族に伝える。照れたら成功。"
+    ],
+    "健康・身体": [
+      "いまの体調を10段階でざっくりつけてメモる。本気で対策したいなら何から変えるか1個だけ書く。",
+      "家の中を1〜2分だけ歩き回るか、軽いストレッチを1つだけやる。",
+      "今日飲んだカフェイン量と睡眠時間をメモして、『これは多すぎかも』を一言そえる。",
+      "寝る1時間前のスクリーンタイムを、いつもより10分だけ減らしてみる。",
+      "水かノンカフェインの飲み物を1杯足す。理由はあとから考える。",
+      "痛みやだるさがある場所を1つ決めて、『どうすると悪化するか』だけを書き出しておく。"
+    ],
+    "環境・暮らし": [
+      "机の上か周りの『ここだけ片付いてたら気分いい』という四角い範囲を決めて、5分だけ整える。",
+      "仕事部屋の温度・明るさを1段だけよくするアイテム（カーテンの開け方、照明、膝掛けなど）を1つ試す。",
+      "未来の自分にメモを書くつもりで、『こういう環境にしたい』を3行だけ書いてみる。",
+      "PC周りの配線かモニタ配置を、1か所だけマシにする。",
+      "冷蔵庫・食品棚の『ここだけ』ゾーンを1つ決めて、中身を確認して要らないものを1個だけ捨てる。",
+      "「この空間に置きたいもの／置きたくないもの」を1つずつ書き出しておく。買わなくていい。"
+    ],
+    "学び・技術": [
+      "DX検定やコーディングのノートを1ページだけ見返して、『今日はこれだけ覚える』という1トピックを選ぶ。",
+      "ChatGPTやローカルLLMに、『この1文をもう少しわかりやすくして』と投げるだけのミニ実験を1回やる。",
+      "GitHubやコードを開かなくていいので、『次にいじりたいアイデア』を箇条書きで1つだけ書く。",
+      "学び系コンテンツ（動画や記事）を5分だけ見る。途中で止めてもOK。",
+      "『3か月後の自分ができていてほしいこと』を1つ決め、そのための“超小さい一歩”を1行書く。",
+      "学びログ用のメモアプリ／ノートに、今日の学びを1行だけ追加する。中身は適当でいい。"
+    ],
+    "お金・投資": [
+      "今月の投資額と生活費のバランスをざっくり眺めて、『ここだけは死守したいライン』を1つメモに書く。",
+      "証券口座か家計簿を1分だけ開いて、『今日見てよかった数字』を1個だけ拾う。",
+      "将来使いたい用途（教育・老後・趣味など）を1つ決めて、そのための“名前付き口座”イメージを書き出す。",
+      "固定費で『ここ削れそうだな』と思うものを1つ書くだけ書いて、今日は削らなくていい。",
+      "投資日記的に、『今日の相場を一言で言うと？』を1行だけメモ。",
+      "来月までに見直したいお金まわりのテーマを1つ決めて、スマホのメモに残す。"
+    ],
+    "趣味・遊び": [
+      "今やっているゲーム・漫画・小説の『ここ好きだな』ポイントを1つだけ言語化してみる。",
+      "次の休日にやりたい“ちょっとした遊び”を3つ列挙して、その中から1つだけ◎をつける。",
+      "家の中で5分あればできる趣味行動（ギター触る・本を開く・写真フォルダ眺めるなど）を1つだけ実行する。",
+      "子どもと一緒に楽しめそうな遊びを1つ考えて、メモにストックしておく。",
+      "最近気になっている作品やゲームタイトルを3つ並べて、『どれから手をつけるか』★をつける。",
+      "“仕事を一切考えない時間”として、5〜10分だけ趣味タイムを確保して一言ログを書く。"
+    ],
+    "心・メンタル": [
+      "今の気分を3語で書き出す（例：『ねむい・安心・ちょい不安』）。それだけでOK。",
+      "今日いちばん『助かったな』と思った出来事を1つだけ挙げて、自分にナイスとだけ書いておく。",
+      "モヤモヤしているテーマを1行だけ書き出し、『今は保留』と添えて一旦外だしする。",
+      "「これは自分にとって安全地帯だな」と思う場所や時間を1つ書き出す。",
+      "自己肯定感／効力感がちょっと上がった瞬間を1つ思い出して、そのとき何してたか書く。",
+      "明日の自分に向けて、『ここだけは無理しなくていい』というメッセージを1行残す。"
+    ],
+    "その他": [
+      "一歩ログを眺めて、読んでいて自分でクスッとした行動に★マークをつける。",
+      "『これ、誰かに自慢してもいいかも』と思うログを1つ選んで、なぜそう思ったか一言だけ書く。",
+      "『今日は何もしないと決めた』と一歩ログに書いてしまう。意図してサボるのも一歩。",
+      "未来の自分に向けて『今日の一言メモ』を残す。意味がわからなくてもよい。",
+      "過去1週間のログから、『これ続けたら面白そう』を1つ選んで名前をつける（○○チャレンジとか）。",
+      "今の気持ちを3語だけ書く（例：『ねむい・だるい・でも満足』）。"
+    ]
+  };
+
+  const CATEGORY_KEYWORDS = {
+    "家族・子ども": [
+      "子供","子ども","息子","娘","家族","奥さん","妻","嫁",
+      "公園","遊んだ","一緒に","お風呂","寝かしつけ","宿題","プール","運動会"
+    ],
+    "健康・身体": [
+      "睡眠","頭痛","鉄分","歩いた","歩けた","散歩","自炊","ご飯","朝食","昼食","夕食",
+      "食べた","検診","体重","股関節","腰","ジム","運動","ストレッチ",
+      "ランニング","筋トレ","カロリー","血圧","薬","睡眠薬"
+    ],
+    "環境・暮らし": [
+      "机","椅子","オイルヒータ","暖房","観葉植物","ベランダ","仕事部屋",
+      "部屋","片付け","掃除","レイアウト","環境","デスク","イス","照明",
+      "冷蔵庫","洗濯","収納","模様替え","引っ越し","整理","片づけ"
+    ],
+    "仕事・企画": [
+      "新規事業","企画書","企画案","企画部門","dx","bpo","案件",
+      "部長","本部長","上長","上司","営業","提案","見積","資料",
+      "プロジェクト","PJ","キックオフ","会議","mtg","打ち合わせ",
+      "顧客","クライアント","商談","プレゼン","レポート","説明資料"
+    ],
+    "学び・技術": [
+      "勉強","学習","検定","dx検定","試験","資格","問題集",
+      "chatgpt","codex","canvas","github","アプリ","コーディング",
+      "プログラミング","html","javascript","python",
+      "講座","セミナー","勉強会","本を読んだ","技術","ノウハウ","知識"
+    ],
+    "お金・投資": [
+      "投資","株","株式","nisa","つみたて","積立","積み立て","資産","資産形成",
+      "貯金","家計簿","支出","収入","ボーナス","給料","年収","保険",
+      "利回り","口座","インデックス","配当","投信","投資信託","金利","債券"
+    ],
+    "趣味・遊び": [
+      "趣味","遊び","ゲーム","switch","スイッチ","ポケモン",
+      "漫画","マンガ","アニメ","映画","ドラマ","旅行","温泉",
+      "キャンプ","散策","観光","カメラ","写真","steam","読書","小説",
+      "ラーメン","グルメ","カフェ","お出かけ"
+    ],
+    "心・メンタル": [
+      "気分","メンタル","落ち込","不安","ストレス","モヤモヤ","しんど","つらい",
+      "安心","ほっとした","緊張","疲れた","自己肯定感","効力感","やる気",
+      "うれしかった","楽しかった","イライラ","焦り","メンタルケア","心の余裕"
+    ]
+  };
+
+  let entries = [];
+  let nextMemos = [];
+  let appData = createEmptyData();
+  let appSettings = buildDefaultSettings();
+  let msalInstance = null;
+  let msalAccount = null;
+  let dbReady = null;
+
+  function buildDefaultSettings() {
+    return {
+      clientId: "",
+      tenant: "common",
+      redirectUri: window.location.origin + window.location.pathname,
+      filePath: DEFAULT_FILE_PATH
+    };
+  }
+
+  function createEmptyData() {
+    return {
+      schemaVersion: 1,
+      entries: [],
+      memos: []
+    };
+  }
+
+  function openDb() {
+    if (dbReady) return dbReady;
+    dbReady = new Promise((resolve, reject) => {
+      if (!window.indexedDB) {
+        reject(new Error("IndexedDB not supported"));
+        return;
+      }
+      const req = window.indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains("cache")) {
+          db.createObjectStore("cache", { keyPath: "key" });
+        }
+        if (!db.objectStoreNames.contains("meta")) {
+          db.createObjectStore("meta", { keyPath: "key" });
+        }
+        if (!db.objectStoreNames.contains("queue")) {
+          db.createObjectStore("queue", { keyPath: "id", autoIncrement: true });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return dbReady;
+  }
+
+  async function idbGet(store, key) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, "readonly");
+      const req = tx.objectStore(store).get(key);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbPut(store, value) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, "readwrite");
+      const req = tx.objectStore(store).put(value);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbDelete(store, key) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, "readwrite");
+      const req = tx.objectStore(store).delete(key);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function idbGetAll(store) {
+    const db = await openDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(store, "readonly");
+      const req = tx.objectStore(store).getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function generateUuid() {
+    if (window.crypto && window.crypto.randomUUID) return window.crypto.randomUUID();
+    const s = () => Math.floor((1 + Math.random()) * 0x10000).toString(16).substring(1);
+    return `${s()}${s()}-${s()}-${s()}-${s()}-${s()}${s()}${s()}`;
+  }
+
+  function isUuid(value) {
+    return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+  }
+
+  function parseDateStr(str) {
+    const parts = str.split("-");
+    if (parts.length !== 3) return null;
+    const y = Number(parts[0]);
+    const m = Number(parts[1]) - 1;
+    const d = Number(parts[2]);
+    return new Date(y, m, d);
+  }
+
+  function formatDate(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}-${m}-${d}`;
+  }
+
+  function formatDateTimeForRecord(date) {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    const hh = String(date.getHours()).padStart(2, "0");
+    const mm = String(date.getMinutes()).padStart(2, "0");
+    return `${y}/${m}/${d} ${hh}:${mm}`;
+  }
+
+  function getUniqueDatesFromEntries() {
+    const set = new Set(entries.map(e => e.date));
+    return Array.from(set).filter(Boolean).sort();
+  }
+
+  function inferCategory(text) {
+    const t = (text || "").toLowerCase();
+    const scores = {};
+    CATEGORY_LIST.forEach(cat => scores[cat] = 0);
+
+    for (const [cat, words] of Object.entries(CATEGORY_KEYWORDS)) {
+      words.forEach(w => {
+        if (!w) return;
+        const wLower = w.toLowerCase();
+        if (t.includes(wLower)) scores[cat] += 1;
+      });
+    }
+
+    let bestCat = "その他";
+    let bestScore = 0;
+    for (const cat of CATEGORY_LIST) {
+      const s = scores[cat] || 0;
+      if (s > bestScore) {
+        bestScore = s;
+        bestCat = cat;
+      }
+    }
+    if (bestScore === 0) return "その他";
+    return bestCat;
+  }
+
+  function normalizeCategory(cat) {
+    if (!cat) return "その他";
+    if (CATEGORY_LIST.includes(cat)) return cat;
+    if (cat === "その他" || cat === "その他 ") return "その他";
+    return "その他";
+  }
+
+  function cleanupLegacyEntry(raw) {
+    let date = raw.date || raw["日付"] || "";
+    let text = raw.text || raw["内容"] || "";
+    let recordedAt = raw.recordedAt || raw["記録日時"] || "";
+    let category = raw.category || raw["カテゴリ"] || "";
+
+    const m = text.match(/^(.*?),(20\d{2}\/\d{2}\/\d{2} \d{2}:\d{2})(?:,(\d+))?(?:,(\d+))?.*$/);
+    if (m) {
+      text = m[1];
+      if (!recordedAt || /^\d+$/.test(recordedAt)) {
+        recordedAt = m[2];
+      }
+    }
+
+    category = normalizeCategory(category || inferCategory(text));
+    const nowTs = Date.now();
+    return {
+      id: raw.id && isUuid(String(raw.id)) ? String(raw.id) : generateUuid(),
+      date,
+      text,
+      recordedAt,
+      category,
+      ts: raw.ts || nowTs,
+      updatedAt: raw.updatedAt || nowTs,
+      deleted: Boolean(raw.deleted)
+    };
+  }
+
+  function cleanupLegacyMemo(raw) {
+    const nowTs = Date.now();
+    return {
+      id: raw.id && isUuid(String(raw.id)) ? String(raw.id) : generateUuid(),
+      text: raw.text || "",
+      createdAt: raw.createdAt || formatDateTimeForRecord(new Date()),
+      updatedAt: raw.updatedAt || nowTs,
+      done: Boolean(raw.done),
+      deleted: Boolean(raw.deleted)
+    };
+  }
+
+  function refreshDerivedData() {
+    entries = (appData.entries || []).filter(e => !e.deleted);
+    nextMemos = (appData.memos || []).filter(m => !m.deleted);
+  }
+
+  async function loadCachedData() {
+    try {
+      const cached = await idbGet("cache", "data");
+      if (cached && cached.value) {
+        appData = normalizeData(cached.value);
+      }
+    } catch (err) {
+      console.warn("cache load failed", err);
+    }
+    refreshDerivedData();
+  }
+
+  async function saveCachedData() {
+    try {
+      await idbPut("cache", { key: "data", value: appData });
+    } catch (err) {
+      console.warn("cache save failed", err);
+    }
+  }
+
+  async function loadSettings() {
+    try {
+      const stored = await idbGet("meta", "settings");
+      if (stored && stored.value) {
+        appSettings = { ...buildDefaultSettings(), ...stored.value };
+      }
+    } catch (err) {
+      console.warn("settings load failed", err);
+    }
+    applySettingsToUI();
+  }
+
+  async function saveSettings() {
+    await idbPut("meta", { key: "settings", value: appSettings });
+  }
+
+  function applySettingsToUI() {
+    document.getElementById("msClientId").value = appSettings.clientId || "";
+    document.getElementById("msTenant").value = appSettings.tenant || "common";
+    document.getElementById("msRedirectUri").value = appSettings.redirectUri || "";
+    document.getElementById("msFilePath").value = appSettings.filePath || DEFAULT_FILE_PATH;
+    updateRedirectUi();
+  }
+
+  function readSettingsFromUI() {
+    appSettings.clientId = document.getElementById("msClientId").value.trim();
+    appSettings.tenant = document.getElementById("msTenant").value.trim() || "common";
+    appSettings.redirectUri = document.getElementById("msRedirectUri").value.trim() || (window.location.origin + window.location.pathname);
+    appSettings.filePath = document.getElementById("msFilePath").value.trim() || DEFAULT_FILE_PATH;
+  }
+
+  function updateRedirectUi() {
+    const suggested = window.location.origin + window.location.pathname;
+    const suggestedInput = document.getElementById("msRedirectSuggested");
+    if (suggestedInput) suggestedInput.value = suggested;
+
+    const redirectInput = document.getElementById("msRedirectUri");
+    const warningEl = document.getElementById("redirectWarning");
+    if (!redirectInput || !warningEl) return;
+
+    const currentValue = redirectInput.value.trim();
+    if (!currentValue) {
+      warningEl.textContent = "";
+      return;
+    }
+    try {
+      const inputUrl = new URL(currentValue);
+      const currentOrigin = window.location.origin;
+      if (inputUrl.origin !== currentOrigin) {
+        warningEl.textContent = "今開いているURLのoriginと異なるためログインに失敗する可能性があります。";
+      } else {
+        warningEl.textContent = "";
+      }
+    } catch (err) {
+      warningEl.textContent = "Redirect URIの形式が不正です。";
+    }
+  }
+
+  function normalizeData(data) {
+    const safe = data && typeof data === "object" ? data : createEmptyData();
+    const entriesRaw = Array.isArray(safe.entries) ? safe.entries : [];
+    const memosRaw = Array.isArray(safe.memos) ? safe.memos : [];
+    return {
+      schemaVersion: safe.schemaVersion || 1,
+      entries: entriesRaw.map(cleanupLegacyEntry),
+      memos: memosRaw.map(cleanupLegacyMemo)
+    };
+  }
+
+  async function migrateLegacyIfNeeded() {
+    const flag = await idbGet("meta", "migrated");
+    if (flag && flag.value) return;
+
+    let legacyEntries = [];
+    let legacyMemos = [];
+    try {
+      const savedEntries = window.localStorage.getItem(STORAGE_KEY);
+      if (savedEntries) {
+        const parsed = JSON.parse(savedEntries);
+        if (Array.isArray(parsed)) {
+          legacyEntries = parsed.map(cleanupLegacyEntry);
+        }
+      }
+    } catch (err) {
+      console.warn("legacy entries read failed", err);
+    }
+
+    try {
+      const savedMemos = window.localStorage.getItem(NEXT_MEMO_KEY);
+      if (savedMemos) {
+        const parsed = JSON.parse(savedMemos);
+        if (Array.isArray(parsed)) {
+          legacyMemos = parsed.map(cleanupLegacyMemo);
+        }
+      }
+    } catch (err) {
+      console.warn("legacy memos read failed", err);
+    }
+
+    if (legacyEntries.length || legacyMemos.length) {
+      const merged = mergeData(appData, { schemaVersion: 1, entries: legacyEntries, memos: legacyMemos });
+      appData = merged;
+      refreshDerivedData();
+      await saveCachedData();
+      await enqueueChange({ type: "migration", data: appData, ts: Date.now() });
+    }
+
+    await idbPut("meta", { key: "migrated", value: true });
+  }
+
+  async function enqueueChange(op) {
+    await idbPut("queue", op);
+    updatePendingCount();
+  }
+
+  async function clearQueue() {
+    const items = await idbGetAll("queue");
+    for (const item of items) {
+      await idbDelete("queue", item.id);
+    }
+    updatePendingCount();
+  }
+
+  async function updatePendingCount() {
+    const list = await idbGetAll("queue");
+    const count = list.length;
+    document.getElementById("pendingCountLabel").textContent = `${count}件`;
+  }
+
+  function formatSyncTime(ts) {
+    if (!ts) return "-";
+    const d = new Date(ts);
+    return `${d.toLocaleDateString()} ${d.toLocaleTimeString()}`;
+  }
+
+  async function updateSyncMeta(ts, error) {
+    if (ts) {
+      await idbPut("meta", { key: "lastSync", value: ts });
+    }
+    if (typeof error !== "undefined") {
+      await idbPut("meta", { key: "lastError", value: error });
+    }
+    renderSyncStatus();
+  }
+
+  async function renderSyncStatus() {
+    const lastSync = await idbGet("meta", "lastSync");
+    const lastError = await idbGet("meta", "lastError");
+    const stateEl = document.getElementById("syncState");
+    stateEl.textContent = msalAccount ? "サインイン済み" : "未接続";
+    document.getElementById("lastSyncLabel").textContent = formatSyncTime(lastSync && lastSync.value);
+    document.getElementById("syncError").textContent = lastError && lastError.value ? `エラー: ${lastError.value}` : "";
+  }
+
+  function getAccount() {
+    if (!msalInstance) return null;
+    const accounts = msalInstance.getAllAccounts();
+    return accounts && accounts.length ? accounts[0] : null;
+  }
+
+  async function setupMsal() {
+    if (!appSettings.clientId) return;
+    msalInstance = new msal.PublicClientApplication({
+      auth: {
+        clientId: appSettings.clientId,
+        authority: `https://login.microsoftonline.com/${appSettings.tenant || "common"}`,
+        redirectUri: appSettings.redirectUri
+      },
+      cache: {
+        cacheLocation: "localStorage",
+        storeAuthStateInCookie: true
+      }
+    });
+
+    const result = await msalInstance.handleRedirectPromise();
+    if (result && result.account) {
+      msalAccount = result.account;
+    } else {
+      msalAccount = getAccount();
+    }
+  }
+
+  async function signIn() {
+    if (!msalInstance) {
+      alert("先に設定でclientIdを保存してください。");
+      return;
+    }
+    try {
+      const result = await msalInstance.loginPopup({ scopes: GRAPH_SCOPES });
+      msalAccount = result.account;
+    } catch (err) {
+      try {
+        await msalInstance.loginRedirect({ scopes: GRAPH_SCOPES });
+        return;
+      } catch (redirectErr) {
+        await updateSyncMeta(null, redirectErr.message || "ログインに失敗しました");
+      }
+    }
+    await renderSyncStatus();
+    if (navigator.onLine) {
+      await initialSync();
+    }
+  }
+
+  async function signOut() {
+    if (!msalInstance) return;
+    try {
+      await msalInstance.logoutPopup({ account: msalAccount });
+    } catch (err) {
+      console.warn("logout failed", err);
+    }
+    msalAccount = null;
+    await renderSyncStatus();
+  }
+
+  async function getAccessToken() {
+    if (!msalInstance) throw new Error("MSAL未初期化");
+    const account = msalAccount || getAccount();
+    if (!account) throw new Error("サインインが必要です");
+    try {
+      const result = await msalInstance.acquireTokenSilent({ account, scopes: GRAPH_SCOPES });
+      return result.accessToken;
+    } catch (err) {
+      const result = await msalInstance.acquireTokenPopup({ scopes: GRAPH_SCOPES });
+      return result.accessToken;
+    }
+  }
+
+  function encodePath(path) {
+    const parts = path.split("/").filter(Boolean).map(encodeURIComponent);
+    return "/" + parts.join("/");
+  }
+
+  function graphItemUrl() {
+    const encoded = encodePath(appSettings.filePath || DEFAULT_FILE_PATH);
+    return `https://graph.microsoft.com/v1.0/me/drive/root:${encoded}`;
+  }
+
+  async function graphRequest(url, options = {}) {
+    const token = await getAccessToken();
+    const headers = options.headers || {};
+    headers.Authorization = `Bearer ${token}`;
+    return fetch(url, { ...options, headers });
+  }
+
+  async function fetchRemoteData() {
+    const metaResp = await graphRequest(graphItemUrl());
+    if (metaResp.status === 404) {
+      return { exists: false, data: null, etag: null };
+    }
+    if (!metaResp.ok) {
+      throw new Error(`OneDrive読み込み失敗: ${metaResp.status}`);
+    }
+    const metaJson = await metaResp.json();
+    const contentResp = await graphRequest(`${graphItemUrl()}:/content`);
+    if (!contentResp.ok) {
+      throw new Error(`OneDriveコンテンツ取得失敗: ${contentResp.status}`);
+    }
+    const data = await contentResp.json();
+    return { exists: true, data: normalizeData(data), etag: metaJson.eTag };
+  }
+
+  async function putRemoteData(data, etag) {
+    const headers = { "Content-Type": "application/json" };
+    if (etag) headers["If-Match"] = etag;
+    const resp = await graphRequest(`${graphItemUrl()}:/content`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(data)
+    });
+    if (resp.status === 412) {
+      const error = new Error("ETag conflict");
+      error.code = 412;
+      throw error;
+    }
+    if (!resp.ok) {
+      throw new Error(`OneDrive保存失敗: ${resp.status}`);
+    }
+    const meta = await resp.json();
+    return meta.eTag;
+  }
+
+  function mergeData(baseData, incomingData) {
+    const base = normalizeData(baseData);
+    const incoming = normalizeData(incomingData);
+
+    const mergedEntries = new Map();
+    base.entries.forEach(e => mergedEntries.set(e.id, e));
+    incoming.entries.forEach(e => {
+      const current = mergedEntries.get(e.id);
+      if (!current || (e.updatedAt || 0) >= (current.updatedAt || 0)) {
+        mergedEntries.set(e.id, e);
+      }
+    });
+
+    const mergedMemos = new Map();
+    base.memos.forEach(m => mergedMemos.set(m.id, m));
+    incoming.memos.forEach(m => {
+      const current = mergedMemos.get(m.id);
+      if (!current || (m.updatedAt || 0) >= (current.updatedAt || 0)) {
+        mergedMemos.set(m.id, m);
+      }
+    });
+
+    return {
+      schemaVersion: 1,
+      entries: Array.from(mergedEntries.values()),
+      memos: Array.from(mergedMemos.values())
+    };
+  }
+
+  async function initialSync() {
+    try {
+      const remote = await fetchRemoteData();
+      if (!remote.exists) {
+        if (appData.entries.length || appData.memos.length) {
+          const etag = await putRemoteData(appData, null);
+          await idbPut("meta", { key: "etag", value: etag });
+          await updateSyncMeta(Date.now(), "");
+        }
+        return;
+      }
+      const merged = mergeData(remote.data, appData);
+      appData = merged;
+      refreshDerivedData();
+      await saveCachedData();
+      await idbPut("meta", { key: "etag", value: remote.etag });
+      await updateSyncMeta(Date.now(), "");
+      await flushQueue();
+    } catch (err) {
+      await updateSyncMeta(null, err.message || "初期同期失敗");
+    }
+  }
+
+  async function syncNow() {
+    if (!navigator.onLine) {
+      await updateSyncMeta(null, "オフラインのため同期できません");
+      return;
+    }
+    if (!msalAccount) {
+      await updateSyncMeta(null, "サインインが必要です");
+      return;
+    }
+    try {
+      const remote = await fetchRemoteData();
+      const merged = remote.exists ? mergeData(remote.data, appData) : appData;
+      const etag = await putRemoteData(merged, remote.etag || null);
+      appData = merged;
+      refreshDerivedData();
+      await saveCachedData();
+      await idbPut("meta", { key: "etag", value: etag });
+      await clearQueue();
+      await updateSyncMeta(Date.now(), "");
+      renderAll();
+      renderNextMemos();
+    } catch (err) {
+      if (err.code === 412) {
+        try {
+          const latest = await fetchRemoteData();
+          const merged = mergeData(latest.data, appData);
+          const etag = await putRemoteData(merged, latest.etag || null);
+          appData = merged;
+          refreshDerivedData();
+          await saveCachedData();
+          await idbPut("meta", { key: "etag", value: etag });
+          await clearQueue();
+          await updateSyncMeta(Date.now(), "");
+          renderAll();
+          renderNextMemos();
+          return;
+        } catch (retryErr) {
+          await updateSyncMeta(null, retryErr.message || "再同期失敗");
+          return;
+        }
+      }
+      await updateSyncMeta(null, err.message || "同期失敗");
+    }
+  }
+
+  async function flushQueue() {
+    const list = await idbGetAll("queue");
+    if (!list.length) return;
+    await syncNow();
+  }
+
+  async function persistData(reason) {
+    await saveCachedData();
+    if (navigator.onLine && msalAccount) {
+      await syncNow();
+    } else {
+      await enqueueChange({ type: reason || "save", data: appData, ts: Date.now() });
+    }
+  }
+
+  function countCategories(list) {
+    const counts = {};
+    CATEGORY_LIST.forEach(c => counts[c] = 0);
+    list.forEach(e => {
+      const c = normalizeCategory(e.category || inferCategory(e.text));
+      counts[c] += 1;
+    });
+    return counts;
+  }
+
+  function computeMetrics() {
+    if (!entries.length) {
+      return { total: 0, weekly: 0, monthly: 0, weekStart: null, weekEnd: null, baseMonth: null };
+    }
+    const dates = getUniqueDatesFromEntries();
+    const latestStr = dates[dates.length - 1];
+    const latestDate = parseDateStr(latestStr);
+    if (!latestDate) return { total: entries.length, weekly: entries.length, monthly: entries.length };
+
+    const baseYear = latestDate.getFullYear();
+    const baseMonth = latestDate.getMonth();
+
+    const day = latestDate.getDay();
+    const diffToMonday = (day + 6) % 7;
+    const weekStart = new Date(latestDate);
+    weekStart.setDate(weekStart.getDate() - diffToMonday);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    let weekly = 0;
+    let monthly = 0;
+    entries.forEach(e => {
+      const d = parseDateStr(e.date);
+      if (!d) return;
+      if (d >= weekStart && d <= weekEnd) weekly++;
+      if (d.getFullYear() === baseYear && d.getMonth() === baseMonth) monthly++;
+    });
+
+    return { total: entries.length, weekly, monthly, weekStart, weekEnd, baseMonth, baseYear };
+  }
+
+  function getEntriesForDate(dateStr) {
+    return entries.filter(e => e.date === dateStr);
+  }
+
+  function getEntriesInLastNDays(n) {
+    if (!entries.length) return [];
+    const dates = getUniqueDatesFromEntries();
+    const latestStr = dates[dates.length - 1];
+    const latestDate = parseDateStr(latestStr);
+    if (!latestDate) return entries.slice();
+    const threshold = new Date(latestDate);
+    threshold.setDate(threshold.getDate() - (n - 1));
+    return entries.filter(e => {
+      const d = parseDateStr(e.date);
+      return d && d >= threshold && d <= latestDate;
+    });
+  }
+
+  function parseIppoCsv(csvText) {
+    const lines = csvText.split(/\r?\n/);
+    const result = [];
+    let inEntries = false;
+
+    for (let rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+
+      if (!inEntries) {
+        if (line.startsWith("日付,")) {
+          inEntries = true;
+        }
+        continue;
+      }
+
+      const cols = line.split(",");
+      if (cols.length < 2) continue;
+
+      const date = (cols[0] || "").trim();
+      const text = (cols[1] || "").trim();
+      const recordedAt = (cols[2] || "").trim();
+
+      if (!date || !text) continue;
+
+      const entry = cleanupLegacyEntry({
+        date,
+        text,
+        recordedAt,
+        category: inferCategory(text)
+      });
+
+      result.push(entry);
+    }
+
+    return result;
+  }
+
+  function renderNextMemos() {
+    const listEl = document.getElementById("nextMemoList");
+    const emptyEl = document.getElementById("nextMemoEmpty");
+    if (!listEl || !emptyEl) return;
+
+    listEl.innerHTML = "";
+    if (!nextMemos.length) {
+      emptyEl.style.display = "";
+      return;
+    }
+    emptyEl.style.display = "none";
+
+    nextMemos.forEach(memo => {
+      const li = document.createElement("li");
+      li.className = "next-memo-item";
+
+      const label = document.createElement("label");
+      label.className = "next-memo-label";
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "next-memo-check";
+      checkbox.checked = memo.done;
+
+      const textWrap = document.createElement("div");
+      const textSpan = document.createElement("span");
+      textSpan.className = "next-memo-text";
+      textSpan.textContent = memo.text;
+
+      const meta = document.createElement("div");
+      meta.className = "next-memo-meta";
+      meta.textContent = memo.createdAt ? `追加: ${memo.createdAt}` : "";
+
+      textWrap.appendChild(textSpan);
+      if (memo.createdAt) textWrap.appendChild(meta);
+
+      label.appendChild(checkbox);
+      label.appendChild(textWrap);
+
+      const delBtn = document.createElement("button");
+      delBtn.type = "button";
+      delBtn.className = "btn-ghost-small";
+      delBtn.textContent = "削除";
+
+      checkbox.addEventListener("change", async () => {
+        memo.done = checkbox.checked;
+        memo.updatedAt = Date.now();
+        if (memo.done) {
+          const ok = window.confirm("このメモは『終わった』として削除して大丈夫？");
+          if (!ok) {
+            memo.done = false;
+            checkbox.checked = false;
+            return;
+          }
+          memo.deleted = true;
+        }
+        await persistData("memo-update");
+        refreshDerivedData();
+        renderNextMemos();
+      });
+
+      delBtn.addEventListener("click", async () => {
+        const ok = window.confirm("このメモを削除しますか？");
+        if (!ok) return;
+        const target = appData.memos.find(m => m.id === memo.id);
+        if (target) {
+          target.deleted = true;
+          target.updatedAt = Date.now();
+        }
+        await persistData("memo-delete");
+        refreshDerivedData();
+        renderNextMemos();
+      });
+
+      li.appendChild(label);
+      li.appendChild(delBtn);
+      listEl.appendChild(li);
+    });
+  }
+
+  function renderDateSelect() {
+    const select = document.getElementById("dateSelect");
+    const dates = getUniqueDatesFromEntries();
+    select.innerHTML = "";
+    if (!dates.length) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "-";
+      select.appendChild(opt);
+      return;
+    }
+    const sortedDesc = dates.slice().sort().reverse();
+    sortedDesc.forEach(d => {
+      const opt = document.createElement("option");
+      opt.value = d;
+      opt.textContent = d;
+      select.appendChild(opt);
+    });
+    const current = select.getAttribute("data-current");
+    if (current && sortedDesc.includes(current)) select.value = current;
+    else {
+      select.value = sortedDesc[0];
+      select.setAttribute("data-current", sortedDesc[0]);
+    }
+  }
+
+  function renderDiaryForDate(dateStr) {
+    const out = document.getElementById("diaryOutput");
+    const msg = document.getElementById("diaryMessage");
+
+    if (!entries.length || !dateStr || dateStr === "-") {
+      out.value = "";
+      msg.textContent = "一歩がないので、この日の自動日記はまだ作れません。";
+      return;
+    }
+
+    const list = getEntriesForDate(dateStr);
+    if (!list.length) {
+      out.value = "";
+      msg.textContent = "一歩がないので、この日の自動日記はまだ作れません。";
+      return;
+    }
+
+    const counts = countCategories(list);
+    const total = list.length;
+    const nonZeroCats = CATEGORY_LIST.filter(cat => counts[cat] > 0);
+    const topCats = nonZeroCats
+      .slice()
+      .sort((a, b) => (counts[b] || 0) - (counts[a] || 0))
+      .slice(0, 3);
+
+    const withTime = list
+      .slice()
+      .map(e => {
+        const rec = e.recordedAt || "";
+        let hour = null;
+        const parts = rec.split(" ");
+        if (parts.length >= 2) {
+          const t = parts[1];
+          const hh = t.split(":")[0];
+          const hNum = Number(hh);
+          if (!Number.isNaN(hNum)) hour = hNum;
+        }
+        return { entry: e, hour };
+      })
+      .sort((a, b) => (a.entry.recordedAt || "").localeCompare(b.entry.recordedAt || ""));
+
+    const morning = [];
+    const afternoon = [];
+    const night = [];
+
+    withTime.forEach(obj => {
+      const h = obj.hour;
+      if (h == null) {
+        afternoon.push(obj.entry);
+      } else if (h < 12) {
+        morning.push(obj.entry);
+      } else if (h < 18) {
+        afternoon.push(obj.entry);
+      } else {
+        night.push(obj.entry);
+      }
+    });
+
+    const lines = [];
+
+    lines.push(`【${dateStr}のふりかえり】`);
+    lines.push("");
+    lines.push(`今日は「一歩」を${total}件。`);
+
+    if (topCats.length === 1) {
+      lines.push(`特に ${topCats[0]} まわりで動きが多かった一日。`);
+    } else if (topCats.length === 2) {
+      lines.push(`特に ${topCats[0]} と ${topCats[1]} あたりで動きが多かった一日。`);
+    } else if (topCats.length >= 3) {
+      lines.push(
+        `特に ${topCats[0]}・${topCats[1]}・${topCats[2]} あたりに、じわじわと前進が積み上がった。`
+      );
+    }
+
+    function addSlotParagraph(label, arr) {
+      if (!arr.length) return;
+      const picked = arr.slice(0, 2);
+      const quoted = picked.map(e => `「${e.text}」`).join("、");
+      lines.push("");
+      lines.push(`${label}は、${quoted} といった一歩を踏んだ時間帯。`);
+    }
+
+    const anySlot =
+      morning.length > 0 || afternoon.length > 0 || night.length > 0;
+
+    if (anySlot) {
+      addSlotParagraph("午前中", morning);
+      addSlotParagraph("午後", afternoon);
+      addSlotParagraph("夜は", night);
+    } else {
+      const picked = list.slice(0, 3);
+      const quoted = picked.map(e => `「${e.text}」`).join("、");
+      lines.push("");
+      lines.push(`一日を通して、${quoted} といった一歩が積み上がった。`);
+    }
+
+    lines.push("");
+    lines.push("【今日のメモ】");
+    lines.push("・うまくいった／進んだと感じたこと：");
+    lines.push("・ちょっと引っかかっていること：");
+    lines.push("・明日もう一歩だけ続けるなら：");
+
+    lines.push("");
+    lines.push("【明日の自分へのひとこと】");
+    lines.push("＊ここにひとことメモを書く（例：『今日の続きのここだけやる』『無理しすぎない』など）");
+
+    out.value = lines.join("\n");
+    msg.textContent = "時間帯とカテゴリをざっくりまとめたストーリーモードの日記ドラフト。中身は自由に追記・修正OK。";
+  }
+
+  function renderDailyTable(dateStr) {
+    const tbody = document.getElementById("dailyTbody");
+    const label = document.getElementById("selectedDateLabel");
+    const countLabel = document.getElementById("dailyCountLabel");
+    const scoreEl = document.getElementById("dailyScore");
+    const wrap = document.getElementById("dailyTableWrap");
+    const empty = document.getElementById("noDataDaily");
+
+    if (!entries.length || !dateStr || dateStr === "-") {
+      wrap.style.display = "none";
+      empty.style.display = "";
+      label.textContent = "-";
+      countLabel.textContent = "0件";
+      scoreEl.textContent = "0.0";
+      renderDiaryForDate("-");
+      return;
+    }
+
+    const list = getEntriesForDate(dateStr);
+    label.textContent = dateStr || "-";
+    countLabel.textContent = list.length + "件";
+
+    const score = Math.min(list.length * 0.2, 5);
+    scoreEl.textContent = score.toFixed(1);
+
+    tbody.innerHTML = "";
+    list.slice()
+      .sort((a, b) => (a.recordedAt || "").localeCompare(b.recordedAt || ""))
+      .forEach(e => {
+        const tr = document.createElement("tr");
+
+        const tdTime = document.createElement("td");
+        const timePart = (e.recordedAt || "").split(" ")[1] || "";
+        tdTime.textContent = timePart;
+        tr.appendChild(tdTime);
+
+        const tdText = document.createElement("td");
+        tdText.className = "entry-text";
+        tdText.textContent = e.text;
+        tr.appendChild(tdText);
+
+        const tdCat = document.createElement("td");
+        const selectCat = document.createElement("select");
+        selectCat.className = "category-select";
+
+        CATEGORY_LIST.forEach(catName => {
+          const opt = document.createElement("option");
+          opt.value = catName;
+          opt.textContent = catName;
+          selectCat.appendChild(opt);
+        });
+
+        const currentCat = normalizeCategory(e.category || inferCategory(e.text));
+        selectCat.value = currentCat;
+
+        selectCat.addEventListener("change", async () => {
+          const target = appData.entries.find(item => item.id === e.id);
+          if (target) {
+            target.category = selectCat.value;
+            target.updatedAt = Date.now();
+          }
+          await persistData("entry-update");
+          renderMetrics();
+          renderCategoryBars();
+          renderNextStep();
+          const select = document.getElementById("dateSelect");
+          renderDiaryForDate(select.value);
+        });
+
+        tdCat.appendChild(selectCat);
+        tr.appendChild(tdCat);
+
+        const tdAction = document.createElement("td");
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.textContent = "削除";
+        delBtn.className = "btn-danger";
+        delBtn.addEventListener("click", async () => {
+          const ok = window.confirm("この一歩を削除しますか？");
+          if (!ok) return;
+          const target = appData.entries.find(item => item.id === e.id);
+          if (target) {
+            target.deleted = true;
+            target.updatedAt = Date.now();
+          }
+          await persistData("entry-delete");
+          refreshDerivedData();
+          renderAll();
+        });
+        tdAction.appendChild(delBtn);
+        tr.appendChild(tdAction);
+
+        tbody.appendChild(tr);
+      });
+
+    wrap.style.display = "";
+    empty.style.display = "none";
+
+    renderDiaryForDate(dateStr);
+  }
+
+  function renderMetrics() {
+    const m = computeMetrics();
+    document.getElementById("metricTotal").textContent = m.total;
+    document.getElementById("metricWeekly").textContent = m.weekly;
+    document.getElementById("metricMonthly").textContent = m.monthly;
+
+    const subtitle = document.getElementById("metricsSubtitle");
+    const weeklyRange = document.getElementById("metricWeeklyRange");
+
+    if (!entries.length || !m.weekStart || !m.weekEnd) {
+      subtitle.textContent = "データが読み込まれていません";
+      weeklyRange.textContent = "-";
+      return;
+    }
+    const ws = formatDate(m.weekStart);
+    const we = formatDate(m.weekEnd);
+    subtitle.textContent = `最新の日付を基準に集計（週：${ws}〜${we}）`;
+    weeklyRange.textContent = `${ws}〜${we}`;
+  }
+
+  function renderCategoryBars() {
+    const container = document.getElementById("categoryBars");
+    const empty = document.getElementById("noCategory");
+
+    if (!entries.length) {
+      container.innerHTML = "";
+      empty.style.display = "";
+      return;
+    }
+    const lastList = getEntriesInLastNDays(7);
+    const counts = countCategories(lastList);
+    const max = Math.max(...Object.values(counts));
+
+    container.innerHTML = "";
+    CATEGORY_LIST.forEach(cat => {
+      const c = counts[cat] || 0;
+
+      const wrap = document.createElement("div");
+      wrap.className = "category-bar";
+
+      const header = document.createElement("div");
+      header.className = "category-bar-header";
+
+      const left = document.createElement("span");
+      left.textContent = cat;
+      const right = document.createElement("span");
+      right.textContent = c + "件";
+
+      header.appendChild(left);
+      header.appendChild(right);
+
+      const barOuter = document.createElement("div");
+      barOuter.className = "category-bar-fill";
+      const barInner = document.createElement("span");
+      barInner.style.width = max > 0 ? (c / max * 100).toFixed(1) + "%" : "0%";
+      barOuter.appendChild(barInner);
+
+      wrap.appendChild(header);
+      wrap.appendChild(barOuter);
+      container.appendChild(wrap);
+    });
+
+    empty.style.display = "none";
+  }
+
+  function renderNextStep() {
+    const box = document.getElementById("nextStepBox");
+    const empty = document.getElementById("nextStepEmpty");
+    const weakLabel = document.getElementById("weakCategoryLabel");
+    const textEl = document.getElementById("nextStepText");
+
+    if (!entries.length) {
+      box.style.display = "none";
+      empty.style.display = "";
+      return;
+    }
+
+    const lastList = getEntriesInLastNDays(7);
+    if (!lastList.length) {
+      box.style.display = "none";
+      empty.style.display = "";
+      return;
+    }
+
+    const counts = countCategories(lastList);
+    let minCount = Infinity;
+    CATEGORY_LIST.forEach(cat => {
+      const c = counts[cat] || 0;
+      if (c < minCount) minCount = c;
+    });
+
+    const weakCats = CATEGORY_LIST.filter(cat => (counts[cat] || 0) === minCount);
+    if (!weakCats.length) {
+      box.style.display = "none";
+      empty.style.display = "";
+      return;
+    }
+
+    const chosenCat = weakCats[Math.floor(Math.random() * weakCats.length)];
+    weakLabel.textContent = chosenCat;
+
+    const candidates = CATEGORY_SUGGESTIONS[chosenCat] || CATEGORY_SUGGESTIONS["その他"];
+    const suggestion = candidates[Math.floor(Math.random() * candidates.length)];
+    textEl.textContent = suggestion;
+
+    empty.style.display = "none";
+    box.style.display = "";
+  }
+
+  function renderAll() {
+    renderMetrics();
+    renderCategoryBars();
+    renderNextStep();
+
+    renderDateSelect();
+    const dates = getUniqueDatesFromEntries();
+    const select = document.getElementById("dateSelect");
+    let targetDate = select.value;
+    if (!targetDate && dates.length) {
+      targetDate = dates[dates.length - 1];
+      select.value = targetDate;
+    }
+    if (targetDate) renderDailyTable(targetDate);
+    else renderDailyTable("-");
+  }
+
+  function toCsv(rows) {
+    return rows.map(cols => cols.map(c => {
+      const s = (c == null) ? "" : String(c);
+      if (s.includes('"') || s.includes(",") || s.includes("\n") || s.includes("\r")) {
+        return '"' + s.replace(/"/g, '""') + '"';
+      }
+      return s;
+    }).join(",")).join("\r\n");
+  }
+
+  function downloadCsv(filename, rows) {
+    if (!rows || !rows.length) {
+      alert("エクスポートするデータがありません。");
+      return;
+    }
+    const csvText = toCsv(rows);
+    const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  function buildMonthlySummaryRows() {
+    if (!entries.length) return [];
+    const monthMap = {};
+    entries.forEach(e => {
+      const dateStr = e.date || "";
+      if (!dateStr) return;
+      const month = dateStr.slice(0, 7);
+      const cat = normalizeCategory(e.category || inferCategory(e.text));
+      if (!monthMap[month]) monthMap[month] = {};
+      if (!monthMap[month][cat]) monthMap[month][cat] = 0;
+      monthMap[month][cat]++;
+    });
+
+    const months = Object.keys(monthMap).sort();
+    const rows = [["月", "カテゴリ", "件数"]];
+    months.forEach(m => {
+      CATEGORY_LIST.forEach(cat => {
+        const count = monthMap[m][cat] || 0;
+        if (count > 0) rows.push([m, cat, count]);
+      });
+    });
+    return rows;
+  }
+
+  function buildAllEntriesRows() {
+    if (!entries.length) return [];
+    const rows = [["日付", "一歩の内容", "記録日時", "カテゴリ"]];
+    const sorted = entries.slice().sort((a, b) => {
+      const ka = (a.date || "") + " " + (a.recordedAt || "");
+      const kb = (b.date || "") + " " + (b.recordedAt || "");
+      return ka.localeCompare(kb);
+    });
+    sorted.forEach(e => {
+      rows.push([
+        e.date || "",
+        e.text || "",
+        e.recordedAt || "",
+        normalizeCategory(e.category || inferCategory(e.text))
+      ]);
+    });
+    return rows;
+  }
+
+  function exportJson() {
+    const dataStr = JSON.stringify(appData, null, 2);
+    const blob = new Blob([dataStr], { type: "application/json;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ippo_data.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function importJson(file) {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    appData = normalizeData(data);
+    refreshDerivedData();
+    await persistData("json-import");
+    renderAll();
+    renderNextMemos();
+  }
+
+  function setupEvents() {
+    document.getElementById("signInBtn").addEventListener("click", signIn);
+    document.getElementById("signOutBtn").addEventListener("click", signOut);
+    document.getElementById("syncNowBtn").addEventListener("click", syncNow);
+
+    const redirectInput = document.getElementById("msRedirectUri");
+    if (redirectInput) {
+      redirectInput.addEventListener("input", updateRedirectUi);
+    }
+
+    const copyRedirectBtn = document.getElementById("copyRedirectBtn");
+    if (copyRedirectBtn) {
+      copyRedirectBtn.addEventListener("click", async () => {
+        const suggested = window.location.origin + window.location.pathname;
+        try {
+          await navigator.clipboard.writeText(suggested);
+          copyRedirectBtn.textContent = "コピー済み";
+          setTimeout(() => {
+            copyRedirectBtn.textContent = "コピー";
+          }, 1500);
+        } catch (err) {
+          alert("コピーに失敗しました。手動でコピーしてください。");
+        }
+      });
+    }
+
+    document.getElementById("saveSettingsBtn").addEventListener("click", async () => {
+      readSettingsFromUI();
+      await saveSettings();
+      await setupMsal();
+      await renderSyncStatus();
+    });
+
+    document.getElementById("exportJsonBtn").addEventListener("click", exportJson);
+    document.getElementById("importJsonInput").addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      try {
+        await importJson(file);
+      } catch (err) {
+        alert("JSONの読み込みに失敗しました。");
+      } finally {
+        ev.target.value = "";
+      }
+    });
+
+    const select = document.getElementById("dateSelect");
+    select.addEventListener("change", () => {
+      const v = select.value;
+      select.setAttribute("data-current", v);
+      renderDailyTable(v);
+    });
+
+    const csvInput = document.getElementById("csvInput");
+    const fileStatus = document.getElementById("fileStatus");
+    csvInput.addEventListener("change", (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const text = e.target.result;
+        const parsed = parseIppoCsv(text);
+        if (!parsed.length) {
+          fileStatus.textContent = "CSVを読み込んだが、エントリが見つかりませんでした";
+          fileStatus.style.color = "#f97373";
+          return;
+        }
+        appData.entries = parsed;
+        appData.memos = appData.memos || [];
+        refreshDerivedData();
+        await persistData("csv-import");
+        fileStatus.textContent = `${file.name} から ${entries.length}件 読み込み済み`;
+        fileStatus.style.color = "#9ca3af";
+        renderAll();
+      };
+      reader.onerror = () => {
+        fileStatus.textContent = "CSV読み込みに失敗しました";
+        fileStatus.style.color = "#f97373";
+      };
+      reader.readAsText(file, "UTF-8");
+    });
+
+    const addForm = document.getElementById("addForm");
+    const addText = document.getElementById("addText");
+    const addDate = document.getElementById("addDate");
+    const addMsg = document.getElementById("addMessage");
+
+    addForm.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      const text = (addText.value || "").trim();
+      let dateStr = addDate.value;
+      if (!text) {
+        addMsg.textContent = "一歩の内容を入れてください。";
+        addMsg.className = "message err";
+        return;
+      }
+      if (!dateStr) dateStr = formatDate(new Date());
+
+      const now = new Date();
+      const recordAt = formatDateTimeForRecord(now);
+      const nowTs = Date.now();
+
+      const entry = cleanupLegacyEntry({
+        id: generateUuid(),
+        date: dateStr,
+        text: text,
+        recordedAt: recordAt,
+        category: inferCategory(text),
+        ts: nowTs,
+        updatedAt: nowTs,
+        deleted: false
+      });
+
+      appData.entries.push(entry);
+      refreshDerivedData();
+      appData.entries.sort((a, b) => {
+        const ka = (a.date || "") + " " + (a.recordedAt || "");
+        const kb = (b.date || "") + " " + (b.recordedAt || "");
+        return ka.localeCompare(kb);
+      });
+      await persistData("entry-add");
+
+      addText.value = "";
+      addMsg.textContent = "一歩を追加しました。";
+      addMsg.className = "message ok";
+
+      renderAll();
+      const select = document.getElementById("dateSelect");
+      select.value = dateStr;
+      select.setAttribute("data-current", dateStr);
+      renderDailyTable(dateStr);
+    });
+
+    const today = new Date();
+    addDate.value = formatDate(today);
+
+    const resetBtn = document.getElementById("resetButton");
+    resetBtn.addEventListener("click", async () => {
+      const ok = window.confirm("保存されている一歩ログをすべて削除します。本当にリセットしますか？");
+      if (!ok) return;
+
+      appData = createEmptyData();
+      refreshDerivedData();
+      await persistData("reset");
+
+      const fileStatus = document.getElementById("fileStatus");
+      fileStatus.textContent = "データを全てリセットしました";
+      fileStatus.style.color = "#f97373";
+
+      document.getElementById("dailyTbody").innerHTML = "";
+      document.getElementById("dailyTableWrap").style.display = "none";
+      document.getElementById("noDataDaily").style.display = "";
+      document.getElementById("selectedDateLabel").textContent = "-";
+      document.getElementById("dailyCountLabel").textContent = "0件";
+      document.getElementById("dailyScore").textContent = "0.0";
+
+      renderAll();
+      renderDiaryForDate("-");
+    });
+
+    document.getElementById("exportMonthlyBtn").addEventListener("click", () => {
+      const rows = buildMonthlySummaryRows();
+      downloadCsv("ippo-monthly-summary.csv", rows);
+    });
+
+    document.getElementById("exportAllBtn").addEventListener("click", () => {
+      const rows = buildAllEntriesRows();
+      downloadCsv("ippo-all-entries.csv", rows);
+    });
+
+    const regenDiaryBtn = document.getElementById("regenerateDiaryBtn");
+    const copyDiaryBtn = document.getElementById("copyDiaryBtn");
+    const diaryMsg = document.getElementById("diaryMessage");
+
+    regenDiaryBtn.addEventListener("click", () => {
+      const select = document.getElementById("dateSelect");
+      const dateStr = select.value;
+      renderDiaryForDate(dateStr);
+    });
+
+    copyDiaryBtn.addEventListener("click", async () => {
+      const out = document.getElementById("diaryOutput");
+      const text = out.value || "";
+      if (!text.trim()) {
+        diaryMsg.textContent = "コピーする日記がありません。";
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(text);
+        diaryMsg.textContent = "クリップボードにコピーしました。";
+      } catch (err) {
+        diaryMsg.textContent = "コピーに失敗しました。テキストを選択して手動でコピーしてください。";
+      }
+    });
+
+    const memoForm = document.getElementById("nextMemoForm");
+    const memoInput = document.getElementById("nextMemoInput");
+    if (memoForm && memoInput) {
+      memoForm.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+        const text = (memoInput.value || "").trim();
+        if (!text) return;
+
+        const now = new Date();
+        const createdAt = formatDateTimeForRecord(now);
+        const memo = cleanupLegacyMemo({ text, createdAt, done: false, deleted: false, updatedAt: Date.now() });
+        appData.memos.push(memo);
+        refreshDerivedData();
+        await persistData("memo-add");
+        memoInput.value = "";
+        renderNextMemos();
+      });
+    }
+
+    window.addEventListener("online", async () => {
+      await flushQueue();
+      await renderSyncStatus();
+    });
+
+    window.addEventListener("offline", () => {
+      updateSyncMeta(null, "オフラインです");
+    });
+  }
+
+  async function bootstrap() {
+    await openDb();
+    await loadSettings();
+    await loadCachedData();
+    await migrateLegacyIfNeeded();
+    await setupMsal();
+    await renderSyncStatus();
+    await updatePendingCount();
+    setupEvents();
+    renderAll();
+    renderNextMemos();
+
+    if (navigator.onLine && msalAccount) {
+      await initialSync();
+    }
+  }
+
+  document.addEventListener("DOMContentLoaded", () => {
+    bootstrap();
+  });
+</script>
+</body>
+</html>
