@@ -1802,12 +1802,14 @@
             recordedAt: typeof headerMap.recordedAt !== "undefined" ? headerMap.recordedAt : 2,
             category: typeof headerMap.category !== "undefined" ? headerMap.category : -1
           };
+          inEntries = true;
           continue; // ヘッダ行はデータではないので次へ
         }
 
         // 旧式フォールバック（万一 headerMap が取れない場合）
         if (normalizedLine.startsWith("日付,")) {
           columnIndex = { date: 0, text: 1, recordedAt: 2, category: 3 };
+          inEntries = true;
           continue;
         }
 
@@ -1824,7 +1826,6 @@
       // category列が無いCSVにも対応（-1なら空扱い）
       const categoryIndex = (typeof columnIndex?.category === "number") ? columnIndex.category : 3;
       const categoryFromCsv = categoryIndex >= 0 ? (cols[categoryIndex] || "").trim() : "";
-
 
       if (!date || !text) continue;
 
