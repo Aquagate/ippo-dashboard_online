@@ -1,4 +1,3 @@
-index.html
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -145,7 +144,7 @@ index.html
       font-family: inherit;
       font-size: 13px;
     }
-    select, input[type="date"] {
+    select, input[type="date"], input[type="text"] {
       background: #020617;
       color: var(--text);
       border-radius: 999px;
@@ -412,7 +411,7 @@ index.html
       background: rgba(15,23,42,0.8);
       color: #e5e7eb;
     }
-  
+
     /* OneDrive box */
     .onedrive-box{
       margin: 10px 0 12px;
@@ -486,7 +485,18 @@ index.html
       opacity: .9;
       line-height: 1.45;
     }
-
+    .onedrive-status{
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(56,189,248,0.3);
+      background: rgba(2,6,23,0.6);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+    .onedrive-status strong {
+      color: var(--accent);
+    }
   </style>
 </head>
 <body>
@@ -505,7 +515,7 @@ index.html
         一歩を追加
         <span class="badge">その場で追記</span>
       </div>
-      <small>追加した一歩はブラウザに保存され、日別ログと日記にすぐ反映される。</small>
+      <small>追加した一歩はローカルキャッシュに保存され、同期される。</small>
     </div>
     <form id="addForm">
       <label>
@@ -598,12 +608,11 @@ index.html
         <span id="fileStatus">まだCSVは読み込んでいません</span>
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
-        <span class="pill">データはブラウザ(localStorage)にのみ保存</span>
+        <span class="pill">OneDrive同期 + ローカルキャッシュ</span>
         <button type="button" id="resetButton" class="btn-ghost">全リセット</button>
       </div>
     </div>
 
-    
       <!-- OneDrive -->
       <details class="onedrive-box" id="onedriveDetails">
         <summary>OneDrive設定 <span class="onedrive-summary-sub" id="odStatus">未接続</span></summary>
@@ -615,6 +624,12 @@ index.html
             <label>Tenant（任意）
               <input id="odTenant" type="text" placeholder="common / organizations / consumers / テナントID" autocomplete="off" />
             </label>
+            <label>Redirect URI（変更可）
+              <input id="odRedirectInput" type="text" placeholder="http://localhost:5500/" autocomplete="off" />
+            </label>
+            <label>保存先パス（AppFolder内）
+              <input id="odFilePath" type="text" placeholder="/Apps/IppoDashboard/ippo_data.json" autocomplete="off" />
+            </label>
           </div>
 
           <div class="onedrive-actions">
@@ -622,11 +637,21 @@ index.html
             <button class="btn-ghost" id="odClear" type="button">クリア</button>
             <button class="btn-ghost" id="odSignIn" type="button">サインイン</button>
             <button class="btn-ghost" id="odSignOut" type="button" disabled>サインアウト</button>
+            <button class="btn-ghost" id="odSyncNow" type="button" disabled>今すぐ同期</button>
           </div>
 
           <div class="onedrive-actions">
-            <button class="btn-ghost" id="odBackup" type="button" disabled>OneDriveへバックアップ</button>
-            <button class="btn-ghost" id="odRestore" type="button" disabled>OneDriveから復元</button>
+            <button class="btn-ghost" id="odExport" type="button">JSONエクスポート</button>
+            <label class="btn-ghost" for="odImportInput" style="cursor:pointer;">JSONインポート
+              <input id="odImportInput" type="file" accept="application/json" style="display:none;" />
+            </label>
+          </div>
+
+          <div class="onedrive-status" id="odSyncStatus">
+            <div>同期状態: <strong id="odSyncState">未同期</strong></div>
+            <div>最終同期: <span id="odLastSync">-</span></div>
+            <div>未送信件数: <span id="odPendingCount">0</span></div>
+            <div>エラー: <span id="odLastError">-</span></div>
           </div>
 
           <div class="onedrive-hint">
@@ -636,7 +661,7 @@ index.html
               <button class="btn-ghost" id="odCopyRedirect" type="button">コピー</button>
             </div>
             <div class="onedrive-hint-sub">
-              保存先は <b>アプリ専用フォルダ（AppFolder）</b>。ファイル名は <code>ippo-dashboard_backup.json</code>。
+              保存先は <b>アプリ専用フォルダ（AppFolder）</b>。既定は <code>/Apps/IppoDashboard/ippo_data.json</code>。
               （権限: <code>Files.ReadWrite.AppFolder</code>）
             </div>
           </div>
@@ -735,23 +760,45 @@ index.html
   </section>
 </main>
 
-  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 <script>
   const STORAGE_KEY = "ippoLogEntries_v2";
   const NEXT_MEMO_KEY = "ippoNextMemo_v1";
 
-  
-
   // ===== OneDrive (MSAL + Microsoft Graph) =====
-  const OD_SETTINGS_KEY = "ippoOneDriveSettings_v1";
-  const OD_FILE_NAME = "ippo-dashboard_backup.json";
-  const OD_SCOPES = ["User.Read", "Files.ReadWrite.AppFolder", "offline_access"];
+  const OD_SETTINGS_KEY = "ippoOneDriveSettings_v2";
+  const OD_CACHE_KEY = "ippoDataCache_v1";
+  const OD_QUEUE_KEY = "ippoSyncQueue_v1";
+  const OD_MIGRATION_KEY = "ippoMigrationDone_v1";
+  const OD_STATUS_KEY = "ippoSyncStatus_v1";
+
+  const DEFAULT_FILE_PATH = "/Apps/IppoDashboard/ippo_data.json";
+  const OD_SCOPES = ["Files.ReadWrite.AppFolder", "offline_access"];
 
   let odMsalApp = null;
   let odAccount = null;
+  let odEtag = null;
 
-  function odGetRedirectUri() {
-    // MSALのredirectUriは「完全一致」が求められるので、今開いているURLをそのまま使うのが一番安全。
+  let dataCache = { schemaVersion: 1, entries: [], memos: [] };
+
+  function uuid() {
+    if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+    const arr = new Uint8Array(16);
+    window.crypto?.getRandomValues?.(arr);
+    if (!arr.length) {
+      return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+        const r = Math.random() * 16 | 0;
+        const v = c === "x" ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+      });
+    }
+    arr[6] = (arr[6] & 0x0f) | 0x40;
+    arr[8] = (arr[8] & 0x3f) | 0x80;
+    const hex = Array.from(arr, b => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+  }
+
+  function odGetRedirectUriDefault() {
     return location.href.split("#")[0].split("?")[0];
   }
 
@@ -765,11 +812,67 @@ index.html
     localStorage.removeItem(OD_SETTINGS_KEY);
   }
 
+  function odLoadCache() {
+    try {
+      const raw = localStorage.getItem(OD_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.entries) || !Array.isArray(parsed.memos)) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
+  function odLoadSyncMeta() {
+    try {
+      const raw = localStorage.getItem(OD_STATUS_KEY);
+      return raw ? JSON.parse(raw) : {};
+    } catch {
+      return {};
+    }
+  }
+
+  function odSaveSyncMeta(meta) {
+    localStorage.setItem(OD_STATUS_KEY, JSON.stringify(meta));
+  }
+
+  function odSaveCache(cache) {
+    localStorage.setItem(OD_CACHE_KEY, JSON.stringify(cache));
+  }
+
+  function odLoadQueue() {
+    try {
+      const raw = localStorage.getItem(OD_QUEUE_KEY);
+      const parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function odSaveQueue(queue) {
+    localStorage.setItem(OD_QUEUE_KEY, JSON.stringify(queue));
+  }
+
+  function odEnqueueChange() {
+    const queue = odLoadQueue();
+    queue.push({ ts: Date.now() });
+    odSaveQueue(queue);
+    odUpdateSyncStatus();
+  }
+
+  function odClearQueue() {
+    odSaveQueue([]);
+  }
+
   function odEls() {
     return {
       details: document.getElementById("onedriveDetails"),
       clientId: document.getElementById("odClientId"),
       tenant: document.getElementById("odTenant"),
+      redirectInput: document.getElementById("odRedirectInput"),
+      filePath: document.getElementById("odFilePath"),
       status: document.getElementById("odStatus"),
       redirect: document.getElementById("odRedirectUri"),
       copyRedirect: document.getElementById("odCopyRedirect"),
@@ -777,8 +880,13 @@ index.html
       clear: document.getElementById("odClear"),
       signIn: document.getElementById("odSignIn"),
       signOut: document.getElementById("odSignOut"),
-      backup: document.getElementById("odBackup"),
-      restore: document.getElementById("odRestore"),
+      syncNow: document.getElementById("odSyncNow"),
+      exportBtn: document.getElementById("odExport"),
+      importInput: document.getElementById("odImportInput"),
+      syncState: document.getElementById("odSyncState"),
+      lastSync: document.getElementById("odLastSync"),
+      pendingCount: document.getElementById("odPendingCount"),
+      lastError: document.getElementById("odLastError"),
     };
   }
 
@@ -792,22 +900,28 @@ index.html
     const hasSettings = !!(els.clientId?.value?.trim());
     const signedIn = !!odAccount;
     if (els.signOut) els.signOut.disabled = !signedIn;
-    if (els.backup) els.backup.disabled = !(signedIn && hasSettings);
-    if (els.restore) els.restore.disabled = !(signedIn && hasSettings);
     if (els.signIn) els.signIn.disabled = !hasSettings;
+    if (els.syncNow) els.syncNow.disabled = !(signedIn && hasSettings);
   }
 
   function odInitUiDefaults() {
     const els = odEls();
     if (!els.redirect) return;
-    els.redirect.textContent = odGetRedirectUri();
+    els.redirect.textContent = odGetRedirectUriDefault();
 
-    const saved = odLoadSettings();
+    const saved = odLoadSettings() || {};
     if (saved?.clientId && els.clientId) els.clientId.value = saved.clientId;
     if (saved?.tenant && els.tenant) els.tenant.value = saved.tenant;
+    if (els.redirectInput) els.redirectInput.value = saved.redirectUri || odGetRedirectUriDefault();
+    if (els.filePath) els.filePath.value = saved.filePath || DEFAULT_FILE_PATH;
 
     odSetStatus("未接続");
     odUpdateUi();
+    const meta = odLoadSyncMeta();
+    if (els.lastSync) els.lastSync.textContent = meta.lastSync || "-";
+    if (els.lastError) els.lastError.textContent = meta.lastError || "-";
+    odSetSyncState(navigator.onLine ? "待機中" : "オフライン");
+    odUpdateSyncStatus();
   }
 
   function odBuildMsalConfig() {
@@ -815,11 +929,12 @@ index.html
     const clientId = (els.clientId?.value || "").trim();
     if (!clientId) throw new Error("Client ID が未設定です。");
     const tenant = (els.tenant?.value || "").trim() || "common";
+    const redirectUri = (els.redirectInput?.value || "").trim() || odGetRedirectUriDefault();
     return {
       auth: {
         clientId,
         authority: `https://login.microsoftonline.com/${tenant}`,
-        redirectUri: odGetRedirectUri(),
+        redirectUri,
       },
       cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false },
       system: { allowNativeBroker: false },
@@ -831,7 +946,6 @@ index.html
       throw new Error("MSALライブラリが読み込めていません（通信遮断か、CDNが死んでる）。");
     }
     const config = odBuildMsalConfig();
-    // 設定が変わったら作り直す（雑だけど安全）
     odMsalApp = new window.msal.PublicClientApplication(config);
     const accounts = odMsalApp.getAllAccounts();
     odAccount = accounts && accounts.length ? accounts[0] : null;
@@ -845,6 +959,7 @@ index.html
     odAccount = result.account || null;
     odSetStatus(odAccount ? `接続: ${odAccount.username}` : "未接続");
     odUpdateUi();
+    await odFetchAndMergeRemote();
   }
 
   async function odSignOut() {
@@ -863,154 +978,295 @@ index.html
       const r = await odMsalApp.acquireTokenSilent({ account: odAccount, scopes: OD_SCOPES });
       return r.accessToken;
     } catch (e) {
-      // だいたいここに落ちるのは、初回か、期限切れか、ブラウザが意地悪してるとき
       const r = await odMsalApp.acquireTokenPopup({ scopes: OD_SCOPES });
       return r.accessToken;
     }
   }
 
-  async function odUploadBackup() {
-    const token = await odGetToken();
-
-    const payload = {
-      version: 1,
-      exportedAt: new Date().toISOString(),
-      storage: {
-        [STORAGE_KEY]: loadEntries(),
-        [NEXT_MEMO_KEY]: loadNextMemos(),
-      },
-    };
-
-    const url = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${encodeURIComponent(OD_FILE_NAME)}:/content`;
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: {
-        "Authorization": `Bearer ${token}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(payload, null, 2)
-    });
-
-    if (!res.ok) {
-      const t = await res.text().catch(() => "");
-      throw new Error(`バックアップ失敗: ${res.status} ${t}`);
-    }
-
-    odSetStatus(`バックアップ完了: ${odAccount?.username || ""}`);
-    alert("OneDriveへバックアップしました。");
+  function odGetFilePath() {
+    const els = odEls();
+    const fromUi = (els.filePath?.value || "").trim();
+    return fromUi || DEFAULT_FILE_PATH;
   }
 
-  async function odRestoreBackup() {
+  function odGetGraphFileUrl() {
+    const path = odGetFilePath().replace(/^\/?Apps\//, "");
+    const normalized = path.startsWith("/") ? path.slice(1) : path;
+    const encodedPath = normalized.split("/").map(encodeURIComponent).join("/");
+    return `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${encodedPath}:/content`;
+  }
+
+  async function odGetRemoteData() {
     const token = await odGetToken();
-
-    const url = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${encodeURIComponent(OD_FILE_NAME)}:/content`;
+    const url = odGetGraphFileUrl();
     const res = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
-
     if (res.status === 404) {
-      alert("OneDriveにバックアップが見つかりません（まずバックアップして）。");
-      return;
+      return { data: null, etag: null };
     }
     if (!res.ok) {
       const t = await res.text().catch(() => "");
-      throw new Error(`復元失敗: ${res.status} ${t}`);
+      throw new Error(`OneDrive取得失敗: ${res.status} ${t}`);
     }
-
+    const etag = res.headers.get("ETag");
     const raw = await res.text();
     let data;
     try { data = JSON.parse(raw); } catch {
-      throw new Error("バックアップの中身がJSONじゃない（壊れてるか、別のファイルを読んでる）。");
+      throw new Error("OneDriveのJSONが壊れています。");
     }
-
-    const storedEntries = data?.storage?.[STORAGE_KEY];
-    const storedNext = data?.storage?.[NEXT_MEMO_KEY];
-
-    if (!Array.isArray(storedEntries)) throw new Error("バックアップに entries がない/形式が違う。");
-    if (!Array.isArray(storedNext)) throw new Error("バックアップに nextMemos がない/形式が違う。");
-
-    // 反映
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(storedEntries));
-    localStorage.setItem(NEXT_MEMO_KEY, JSON.stringify(storedNext));
-
-    // 画面再描画
-    loadEntriesFromStorage();
-    loadNextMemosFromStorage();
-    renderAll();
-    renderNextMemos();
-
-    odSetStatus(`復元完了: ${odAccount?.username || ""}`);
-    alert("OneDriveから復元しました。");
+    return { data, etag };
   }
 
-  function initOneDriveEvents() {
+  async function odPutRemoteData(data, etag) {
+    const token = await odGetToken();
+    const url = odGetGraphFileUrl();
+    const headers = {
+      "Authorization": `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+    if (etag) headers["If-Match"] = etag;
+    const res = await fetch(url, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(data, null, 2)
+    });
+    if (res.status === 412) {
+      throw new Error("etag_mismatch");
+    }
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(`OneDrive保存失敗: ${res.status} ${t}`);
+    }
+    odEtag = res.headers.get("ETag") || odEtag;
+  }
+
+  function normalizeEntry(entry) {
+    const normalized = {
+      id: entry.id || uuid(),
+      date: entry.date || "",
+      text: entry.text || "",
+      category: normalizeCategory(entry.category || inferCategory(entry.text)),
+      ts: entry.ts || entry.updatedAt || Date.now(),
+      updatedAt: entry.updatedAt || entry.ts || Date.now(),
+      deleted: !!entry.deleted,
+    };
+    return normalized;
+  }
+
+  function normalizeMemo(memo) {
+    return {
+      id: memo.id || uuid(),
+      text: memo.text || "",
+      createdAt: memo.createdAt || Date.now(),
+      updatedAt: memo.updatedAt || memo.createdAt || Date.now(),
+      done: !!memo.done,
+      deleted: !!memo.deleted,
+    };
+  }
+
+  function mergeData(base, incoming) {
+    const merged = { schemaVersion: 1, entries: [], memos: [] };
+    const entryMap = new Map();
+    [...(base?.entries || []), ...(incoming?.entries || [])].forEach(raw => {
+      const e = normalizeEntry(raw);
+      const existing = entryMap.get(e.id);
+      if (!existing || e.updatedAt >= existing.updatedAt) {
+        entryMap.set(e.id, e);
+      }
+    });
+    merged.entries = Array.from(entryMap.values());
+
+    const memoMap = new Map();
+    [...(base?.memos || []), ...(incoming?.memos || [])].forEach(raw => {
+      const m = normalizeMemo(raw);
+      const existing = memoMap.get(m.id);
+      if (!existing || m.updatedAt >= existing.updatedAt) {
+        memoMap.set(m.id, m);
+      }
+    });
+    merged.memos = Array.from(memoMap.values());
+    return merged;
+  }
+
+  async function odFetchAndMergeRemote() {
+    if (!odAccount || !navigator.onLine) return;
+    odSetSyncState("同期中...");
+    try {
+      const remote = await odGetRemoteData();
+      odEtag = remote.etag || odEtag;
+      if (remote.data) {
+        dataCache = mergeData(remote.data, dataCache);
+        odSaveCache(dataCache);
+      } else {
+        await odPutRemoteData(dataCache, null);
+      }
+      loadEntriesFromCache();
+      loadNextMemosFromCache();
+      renderAll();
+      renderNextMemos();
+      odMarkSynced();
+    } catch (err) {
+      odSetSyncError(err?.message || String(err));
+    }
+  }
+
+  function odSetSyncState(state) {
     const els = odEls();
-    if (!els.details) return; // UIが無いなら何もしない
-
-    // まずUIを初期化
-    odInitUiDefaults();
-
-    els.copyRedirect?.addEventListener("click", async () => {
-      const txt = odGetRedirectUri();
-      try {
-        await navigator.clipboard.writeText(txt);
-        alert("コピーしました。");
-      } catch {
-        // clipboard が死んでる環境用にフォールバック
-        const ta = document.createElement("textarea");
-        ta.value = txt;
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand("copy");
-        ta.remove();
-        alert("コピーしました。");
-      }
-    });
-
-    els.save?.addEventListener("click", () => {
-      const clientId = (els.clientId?.value || "").trim();
-      const tenant = (els.tenant?.value || "").trim();
-      if (!clientId) {
-        alert("Client ID を入れてから保存して。");
-        return;
-      }
-      odSaveSettings({ clientId, tenant });
-      odSetStatus("設定保存（未接続）");
-      odUpdateUi();
-    });
-
-    els.clear?.addEventListener("click", () => {
-      if (!confirm("OneDrive設定をクリアします。よろしい？")) return;
-      odClearSettings();
-      if (els.clientId) els.clientId.value = "";
-      if (els.tenant) els.tenant.value = "";
-      odMsalApp = null;
-      odAccount = null;
-      odSetStatus("未接続");
-      odUpdateUi();
-    });
-
-    els.signIn?.addEventListener("click", async () => {
-      try { await odSignIn(); }
-      catch (e) { alert(e?.message || String(e)); }
-    });
-
-    els.signOut?.addEventListener("click", async () => {
-      try { await odSignOut(); }
-      catch (e) { alert(e?.message || String(e)); }
-    });
-
-    els.backup?.addEventListener("click", async () => {
-      try { await odUploadBackup(); }
-      catch (e) { alert(e?.message || String(e)); }
-    });
-
-    els.restore?.addEventListener("click", async () => {
-      if (!confirm("OneDriveの内容で上書き復元します。今のブラウザ内データは置き換わります。よろしい？")) return;
-      try { await odRestoreBackup(); }
-      catch (e) { alert(e?.message || String(e)); }
-    });
+    if (els.syncState) els.syncState.textContent = state;
   }
+
+  function odSetSyncError(message) {
+    const els = odEls();
+    if (els.lastError) els.lastError.textContent = message || "-";
+    if (els.syncState) els.syncState.textContent = "エラー";
+    const meta = odLoadSyncMeta();
+    odSaveSyncMeta({ ...meta, lastError: message || "-" });
+  }
+
+  function odMarkSynced() {
+    const els = odEls();
+    const now = new Date();
+    const lastSync = formatDateTimeForRecord(now);
+    if (els.lastSync) els.lastSync.textContent = lastSync;
+    if (els.lastError) els.lastError.textContent = "-";
+    if (els.syncState) els.syncState.textContent = "同期済み";
+    odSaveSyncMeta({ lastSync, lastError: "-" });
+  }
+
+  function odUpdateSyncStatus() {
+    const els = odEls();
+    const queue = odLoadQueue();
+    if (els.pendingCount) els.pendingCount.textContent = String(queue.length);
+  }
+
+  async function odFlushQueue() {
+    if (!odAccount || !navigator.onLine) return;
+    const queue = odLoadQueue();
+    if (!queue.length) return;
+    odSetSyncState("同期中...");
+    try {
+      const remote = await odGetRemoteData();
+      odEtag = remote.etag || odEtag;
+      if (remote.data) {
+        const merged = mergeData(remote.data, dataCache);
+        dataCache = merged;
+        await odPutRemoteData(dataCache, odEtag);
+      } else {
+        await odPutRemoteData(dataCache, null);
+      }
+      odClearQueue();
+      odSaveCache(dataCache);
+      odMarkSynced();
+      loadEntriesFromCache();
+      loadNextMemosFromCache();
+      renderAll();
+      renderNextMemos();
+    } catch (err) {
+      if (err?.message === "etag_mismatch") {
+        try {
+          const latest = await odGetRemoteData();
+          odEtag = latest.etag || odEtag;
+          dataCache = mergeData(latest.data || { schemaVersion: 1, entries: [], memos: [] }, dataCache);
+          await odPutRemoteData(dataCache, odEtag);
+          odClearQueue();
+          odSaveCache(dataCache);
+          odMarkSynced();
+        } catch (inner) {
+          odSetSyncError(inner?.message || String(inner));
+        }
+      } else {
+        odSetSyncError(err?.message || String(err));
+      }
+    }
+    odUpdateSyncStatus();
+  }
+
+  function storageLoadData() {
+    const cached = odLoadCache();
+    if (cached) {
+      dataCache = cached;
+      return cached;
+    }
+    const fresh = { schemaVersion: 1, entries: [], memos: [] };
+    dataCache = fresh;
+    odSaveCache(fresh);
+    return fresh;
+  }
+
+  function storageSaveData(newData) {
+    dataCache = newData;
+    odSaveCache(newData);
+    odEnqueueChange();
+    if (navigator.onLine) odFlushQueue();
+  }
+
+  function storageEnqueueChange() {
+    odEnqueueChange();
+  }
+
+  function storageFlushQueue() {
+    return odFlushQueue();
+  }
+
+  function migrateLegacyData() {
+    const done = localStorage.getItem(OD_MIGRATION_KEY);
+    if (done) return;
+    const legacyEntriesRaw = localStorage.getItem(STORAGE_KEY);
+    const legacyMemosRaw = localStorage.getItem(NEXT_MEMO_KEY);
+    if (!legacyEntriesRaw && !legacyMemosRaw) {
+      localStorage.setItem(OD_MIGRATION_KEY, "1");
+      return;
+    }
+    let legacyEntries = [];
+    let legacyMemos = [];
+    try { legacyEntries = JSON.parse(legacyEntriesRaw || "[]"); } catch { legacyEntries = []; }
+    try { legacyMemos = JSON.parse(legacyMemosRaw || "[]"); } catch { legacyMemos = []; }
+
+    const mappedEntries = Array.isArray(legacyEntries)
+      ? legacyEntries.map(raw => {
+        const cleaned = cleanupLegacyEntry(raw);
+        return {
+          id: uuid(),
+          date: cleaned.date || "",
+          text: cleaned.text || "",
+          category: normalizeCategory(cleaned.category || inferCategory(cleaned.text)),
+          ts: parseRecordedAtToTs(cleaned.recordedAt) || Date.now(),
+          updatedAt: Date.now(),
+          deleted: false,
+        };
+      })
+      : [];
+
+    const mappedMemos = Array.isArray(legacyMemos)
+      ? legacyMemos.map(m => {
+        const createdAt = parseRecordedAtToTs(m.createdAt) || Date.now();
+        return {
+          id: uuid(),
+          text: m.text || "",
+          createdAt,
+          updatedAt: createdAt,
+          done: false,
+          deleted: false,
+        };
+      })
+      : [];
+
+    dataCache = mergeData(dataCache, { schemaVersion: 1, entries: mappedEntries, memos: mappedMemos });
+    odSaveCache(dataCache);
+    storageEnqueueChange();
+    localStorage.setItem(OD_MIGRATION_KEY, "1");
+  }
+
+  function parseRecordedAtToTs(recordedAt) {
+    if (!recordedAt) return null;
+    if (typeof recordedAt === "number") return recordedAt;
+    const match = recordedAt.match(/(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/);
+    if (!match) return null;
+    const [, y, m, d, hh, mm] = match.map(Number);
+    return new Date(y, m - 1, d, hh, mm).getTime();
+  }
+
   // ===== /OneDrive =====
-const CATEGORY_LIST = [
+  const CATEGORY_LIST = [
     "仕事・企画",
     "家族・子ども",
     "健康・身体",
@@ -1143,22 +1399,17 @@ const CATEGORY_LIST = [
   };
 
   let entries = [];
-  let entryIdCounter = 1;
   let nextMemos = [];
-  let nextMemoIdCounter = 1;
 
-  function ensureEntryId(e) {
-    if (!e.id) e.id = "e" + (entryIdCounter++);
-  }
-
-  function ensureNextMemoId(memo) {
-    if (!memo.id) memo.id = "n" + (nextMemoIdCounter++);
+  function getActiveEntries() {
+    return entries.filter(e => !e.deleted);
   }
 
   function deleteEntryById(id) {
-    const idx = entries.findIndex(en => en.id === id);
-    if (idx === -1) return;
-    entries.splice(idx, 1);
+    const target = entries.find(en => en.id === id);
+    if (!target) return;
+    target.deleted = true;
+    target.updatedAt = Date.now();
     saveEntriesToStorage();
   }
 
@@ -1187,8 +1438,13 @@ const CATEGORY_LIST = [
     return `${y}/${m}/${d} ${hh}:${mm}`;
   }
 
+  function getRecordTime(entry) {
+    const ts = entry.ts || entry.updatedAt || Date.now();
+    return formatDateTimeForRecord(new Date(ts));
+  }
+
   function getUniqueDatesFromEntries() {
-    const set = new Set(entries.map(e => e.date));
+    const set = new Set(getActiveEntries().map(e => e.date));
     return Array.from(set).filter(Boolean).sort();
   }
 
@@ -1231,7 +1487,6 @@ const CATEGORY_LIST = [
     let recordedAt = raw.recordedAt || raw["記録日時"] || "";
     let category = raw.category || raw["カテゴリ"] || "";
 
-    // 例: 「髪切ってきた！,2025/11/29 13:23,67,52」
     const m = text.match(/^(.*?),(20\d{2}\/\d{2}\/\d{2} \d{2}:\d{2})(?:,(\d+))?(?:,(\d+))?.*$/);
     if (m) {
       text = m[1];
@@ -1242,7 +1497,6 @@ const CATEGORY_LIST = [
 
     category = normalizeCategory(category || inferCategory(text));
     const obj = { date, text, recordedAt, category };
-    ensureEntryId(obj);
     return obj;
   }
 
@@ -1257,13 +1511,14 @@ const CATEGORY_LIST = [
   }
 
   function computeMetrics() {
-    if (!entries.length) {
+    const active = getActiveEntries();
+    if (!active.length) {
       return { total: 0, weekly: 0, monthly: 0, weekStart: null, weekEnd: null, baseMonth: null };
     }
     const dates = getUniqueDatesFromEntries();
     const latestStr = dates[dates.length - 1];
     const latestDate = parseDateStr(latestStr);
-    if (!latestDate) return { total: entries.length, weekly: entries.length, monthly: entries.length };
+    if (!latestDate) return { total: active.length, weekly: active.length, monthly: active.length };
 
     const baseYear = latestDate.getFullYear();
     const baseMonth = latestDate.getMonth();
@@ -1277,29 +1532,30 @@ const CATEGORY_LIST = [
 
     let weekly = 0;
     let monthly = 0;
-    entries.forEach(e => {
+    active.forEach(e => {
       const d = parseDateStr(e.date);
       if (!d) return;
       if (d >= weekStart && d <= weekEnd) weekly++;
       if (d.getFullYear() === baseYear && d.getMonth() === baseMonth) monthly++;
     });
 
-    return { total: entries.length, weekly, monthly, weekStart, weekEnd, baseMonth, baseYear };
+    return { total: active.length, weekly, monthly, weekStart, weekEnd, baseMonth, baseYear };
   }
 
   function getEntriesForDate(dateStr) {
-    return entries.filter(e => e.date === dateStr);
+    return entries.filter(e => e.date === dateStr && !e.deleted);
   }
 
   function getEntriesInLastNDays(n) {
-    if (!entries.length) return [];
+    const active = getActiveEntries();
+    if (!active.length) return [];
     const dates = getUniqueDatesFromEntries();
     const latestStr = dates[dates.length - 1];
     const latestDate = parseDateStr(latestStr);
-    if (!latestDate) return entries.slice();
+    if (!latestDate) return active.slice();
     const threshold = new Date(latestDate);
     threshold.setDate(threshold.getDate() - (n - 1));
-    return entries.filter(e => {
+    return active.filter(e => {
       const d = parseDateStr(e.date);
       return d && d >= threshold && d <= latestDate;
     });
@@ -1337,74 +1593,39 @@ const CATEGORY_LIST = [
         category: inferCategory(text)
       });
 
-      result.push(entry);
+      result.push({
+        id: uuid(),
+        date: entry.date || date,
+        text: entry.text || text,
+        category: normalizeCategory(entry.category || inferCategory(text)),
+        ts: parseRecordedAtToTs(entry.recordedAt) || Date.now(),
+        updatedAt: Date.now(),
+        deleted: false,
+      });
     }
 
     return result;
   }
 
-  function loadEntriesFromStorage() {
-    try {
-      const saved = window.localStorage.getItem(STORAGE_KEY);
-      if (!saved) { entries = []; return; }
-      const parsed = JSON.parse(saved);
-
-      if (Array.isArray(parsed)) {
-        entries = parsed
-          .map(cleanupLegacyEntry)
-          .filter(e => e.date && e.text);
-      } else {
-        entries = [];
-      }
-    } catch (err) {
-      console.error("failed to load storage", err);
-      entries = [];
-    }
+  function loadEntriesFromCache() {
+    entries = (dataCache.entries || []).map(normalizeEntry);
   }
 
   function saveEntriesToStorage() {
-    try {
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(entries));
-    } catch (err) {
-      console.error("failed to save storage", err);
-    }
+    const normalized = entries.map(normalizeEntry);
+    const deleted = normalized.filter(e => e.deleted);
+    const active = normalized.filter(e => !e.deleted);
+    dataCache.entries = [...deleted, ...active];
+    storageSaveData(dataCache);
   }
 
-  function loadNextMemosFromStorage() {
-    try {
-      const saved = window.localStorage.getItem(NEXT_MEMO_KEY);
-      if (!saved) {
-        nextMemos = [];
-        return;
-      }
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed)) {
-        nextMemos = parsed
-          .map(m => {
-            const memo = {
-              text: m.text || "",
-              createdAt: m.createdAt || "",
-              id: m.id
-            };
-            ensureNextMemoId(memo);
-            return memo;
-          })
-          .filter(m => m.text);
-      } else {
-        nextMemos = [];
-      }
-    } catch (err) {
-      console.error("failed to load next memos", err);
-      nextMemos = [];
-    }
+  function loadNextMemosFromCache() {
+    nextMemos = (dataCache.memos || []).map(normalizeMemo).filter(m => !m.done && !m.deleted);
   }
 
   function saveNextMemosToStorage() {
-    try {
-      window.localStorage.setItem(NEXT_MEMO_KEY, JSON.stringify(nextMemos));
-    } catch (err) {
-      console.error("failed to save next memos", err);
-    }
+    dataCache.memos = nextMemos.map(normalizeMemo);
+    storageSaveData(dataCache);
   }
 
   function renderNextMemos() {
@@ -1437,7 +1658,7 @@ const CATEGORY_LIST = [
 
       const meta = document.createElement("div");
       meta.className = "next-memo-meta";
-      meta.textContent = memo.createdAt ? `追加: ${memo.createdAt}` : "";
+      meta.textContent = memo.createdAt ? `追加: ${formatDateTimeForRecord(new Date(memo.createdAt))}` : "";
 
       textWrap.appendChild(textSpan);
       if (memo.createdAt) textWrap.appendChild(meta);
@@ -1457,6 +1678,8 @@ const CATEGORY_LIST = [
           checkbox.checked = false;
           return;
         }
+        memo.done = true;
+        memo.updatedAt = Date.now();
         nextMemos = nextMemos.filter(x => x.id !== memo.id);
         saveNextMemosToStorage();
         renderNextMemos();
@@ -1465,6 +1688,8 @@ const CATEGORY_LIST = [
       delBtn.addEventListener("click", () => {
         const ok = window.confirm("このメモを削除しますか？");
         if (!ok) return;
+        memo.deleted = true;
+        memo.updatedAt = Date.now();
         nextMemos = nextMemos.filter(x => x.id !== memo.id);
         saveNextMemosToStorage();
         renderNextMemos();
@@ -1502,12 +1727,11 @@ const CATEGORY_LIST = [
     }
   }
 
-  // 日記生成（ゆるいストーリーモード）
   function renderDiaryForDate(dateStr) {
     const out = document.getElementById("diaryOutput");
     const msg = document.getElementById("diaryMessage");
 
-    if (!entries.length || !dateStr || dateStr === "-") {
+    if (!getActiveEntries().length || !dateStr || dateStr === "-") {
       out.value = "";
       msg.textContent = "一歩がないので、この日の自動日記はまだ作れません。";
       return;
@@ -1531,7 +1755,7 @@ const CATEGORY_LIST = [
     const withTime = list
       .slice()
       .map(e => {
-        const rec = e.recordedAt || "";
+        const rec = getRecordTime(e);
         let hour = null;
         const parts = rec.split(" ");
         if (parts.length >= 2) {
@@ -1542,7 +1766,7 @@ const CATEGORY_LIST = [
         }
         return { entry: e, hour };
       })
-      .sort((a, b) => (a.entry.recordedAt || "").localeCompare(b.entry.recordedAt || ""));
+      .sort((a, b) => getRecordTime(a.entry).localeCompare(getRecordTime(b.entry)));
 
     const morning = [];
     const afternoon = [];
@@ -1621,7 +1845,7 @@ const CATEGORY_LIST = [
     const wrap = document.getElementById("dailyTableWrap");
     const empty = document.getElementById("noDataDaily");
 
-    if (!entries.length || !dateStr || dateStr === "-") {
+    if (!getActiveEntries().length || !dateStr || dateStr === "-") {
       wrap.style.display = "none";
       empty.style.display = "";
       label.textContent = "-";
@@ -1640,12 +1864,12 @@ const CATEGORY_LIST = [
 
     tbody.innerHTML = "";
     list.slice()
-      .sort((a, b) => (a.recordedAt || "").localeCompare(b.recordedAt || ""))
+      .sort((a, b) => getRecordTime(a).localeCompare(getRecordTime(b)))
       .forEach(e => {
         const tr = document.createElement("tr");
 
         const tdTime = document.createElement("td");
-        const timePart = (e.recordedAt || "").split(" ")[1] || "";
+        const timePart = getRecordTime(e).split(" ")[1] || "";
         tdTime.textContent = timePart;
         tr.appendChild(tdTime);
 
@@ -1670,6 +1894,7 @@ const CATEGORY_LIST = [
 
         selectCat.addEventListener("change", () => {
           e.category = selectCat.value;
+          e.updatedAt = Date.now();
           saveEntriesToStorage();
           renderMetrics();
           renderCategoryBars();
@@ -1713,7 +1938,7 @@ const CATEGORY_LIST = [
     const subtitle = document.getElementById("metricsSubtitle");
     const weeklyRange = document.getElementById("metricWeeklyRange");
 
-    if (!entries.length || !m.weekStart || !m.weekEnd) {
+    if (!getActiveEntries().length || !m.weekStart || !m.weekEnd) {
       subtitle.textContent = "データが読み込まれていません";
       weeklyRange.textContent = "-";
       return;
@@ -1728,7 +1953,7 @@ const CATEGORY_LIST = [
     const container = document.getElementById("categoryBars");
     const empty = document.getElementById("noCategory");
 
-    if (!entries.length) {
+    if (!getActiveEntries().length) {
       container.innerHTML = "";
       empty.style.display = "";
       return;
@@ -1775,7 +2000,7 @@ const CATEGORY_LIST = [
     const weakLabel = document.getElementById("weakCategoryLabel");
     const textEl = document.getElementById("nextStepText");
 
-    if (!entries.length) {
+    if (!getActiveEntries().length) {
       box.style.display = "none";
       empty.style.display = "";
       return;
@@ -1858,9 +2083,9 @@ const CATEGORY_LIST = [
   }
 
   function buildMonthlySummaryRows() {
-    if (!entries.length) return [];
+    if (!getActiveEntries().length) return [];
     const monthMap = {};
-    entries.forEach(e => {
+    getActiveEntries().forEach(e => {
       const dateStr = e.date || "";
       if (!dateStr) return;
       const month = dateStr.slice(0, 7);
@@ -1882,22 +2107,56 @@ const CATEGORY_LIST = [
   }
 
   function buildAllEntriesRows() {
-    if (!entries.length) return [];
+    if (!getActiveEntries().length) return [];
     const rows = [["日付", "一歩の内容", "記録日時", "カテゴリ"]];
-    const sorted = entries.slice().sort((a, b) => {
-      const ka = (a.date || "") + " " + (a.recordedAt || "");
-      const kb = (b.date || "") + " " + (b.recordedAt || "");
+    const sorted = getActiveEntries().slice().sort((a, b) => {
+      const ka = (a.date || "") + " " + getRecordTime(a);
+      const kb = (b.date || "") + " " + getRecordTime(b);
       return ka.localeCompare(kb);
     });
     sorted.forEach(e => {
       rows.push([
         e.date || "",
         e.text || "",
-        e.recordedAt || "",
+        getRecordTime(e),
         normalizeCategory(e.category || inferCategory(e.text))
       ]);
     });
     return rows;
+  }
+
+  function downloadJson() {
+    const payload = JSON.stringify(dataCache, null, 2);
+    const blob = new Blob([payload], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ippo_data.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  async function importJsonFile(file) {
+    const text = await file.text();
+    let parsed;
+    try { parsed = JSON.parse(text); } catch {
+      alert("JSONの読み込みに失敗しました。");
+      return;
+    }
+    if (!parsed || !Array.isArray(parsed.entries) || !Array.isArray(parsed.memos)) {
+      alert("JSON形式が違います。");
+      return;
+    }
+    dataCache = mergeData(dataCache, parsed);
+    odSaveCache(dataCache);
+    storageEnqueueChange();
+    loadEntriesFromCache();
+    loadNextMemosFromCache();
+    renderAll();
+    renderNextMemos();
+    if (navigator.onLine) storageFlushQueue();
   }
 
   function setupEvents() {
@@ -1952,19 +2211,20 @@ const CATEGORY_LIST = [
       if (!dateStr) dateStr = formatDate(new Date());
 
       const now = new Date();
-      const recordAt = formatDateTimeForRecord(now);
-
-      const entry = cleanupLegacyEntry({
+      const entry = {
+        id: uuid(),
         date: dateStr,
         text: text,
-        recordedAt: recordAt,
-        category: inferCategory(text)
-      });
+        category: inferCategory(text),
+        ts: now.getTime(),
+        updatedAt: now.getTime(),
+        deleted: false,
+      };
 
       entries.push(entry);
       entries.sort((a, b) => {
-        const ka = (a.date || "") + " " + (a.recordedAt || "");
-        const kb = (b.date || "") + " " + (b.recordedAt || "");
+        const ka = (a.date || "") + " " + getRecordTime(a);
+        const kb = (b.date || "") + " " + getRecordTime(b);
         return ka.localeCompare(kb);
       });
       saveEntriesToStorage();
@@ -1989,7 +2249,10 @@ const CATEGORY_LIST = [
       if (!ok) return;
 
       entries = [];
-      window.localStorage.removeItem(STORAGE_KEY);
+      nextMemos = [];
+      dataCache = { schemaVersion: 1, entries: [], memos: [] };
+      odSaveCache(dataCache);
+      storageEnqueueChange();
 
       const fileStatus = document.getElementById("fileStatus");
       fileStatus.textContent = "データを全てリセットしました";
@@ -2004,6 +2267,7 @@ const CATEGORY_LIST = [
 
       renderAll();
       renderDiaryForDate("-");
+      renderNextMemos();
     });
 
     document.getElementById("exportMonthlyBtn").addEventListener("click", () => {
@@ -2041,7 +2305,6 @@ const CATEGORY_LIST = [
       }
     });
 
-    // 次の一歩メモ（手動）
     const memoForm = document.getElementById("nextMemoForm");
     const memoInput = document.getElementById("nextMemoInput");
     if (memoForm && memoInput) {
@@ -2051,26 +2314,111 @@ const CATEGORY_LIST = [
         if (!text) return;
 
         const now = new Date();
-        const createdAt = formatDateTimeForRecord(now);
-        const memo = { text, createdAt };
-        ensureNextMemoId(memo);
+        const memo = { id: uuid(), text, createdAt: now.getTime(), updatedAt: now.getTime(), done: false };
         nextMemos.push(memo);
         saveNextMemosToStorage();
         memoInput.value = "";
         renderNextMemos();
       });
     }
-  
-    // OneDrive
+
     initOneDriveEvents();
-}
+  }
+
+  function initOneDriveEvents() {
+    const els = odEls();
+    if (!els.details) return;
+
+    odInitUiDefaults();
+
+    els.copyRedirect?.addEventListener("click", async () => {
+      const txt = odGetRedirectUriDefault();
+      try {
+        await navigator.clipboard.writeText(txt);
+        alert("コピーしました。");
+      } catch {
+        const ta = document.createElement("textarea");
+        ta.value = txt;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        alert("コピーしました。");
+      }
+    });
+
+    els.save?.addEventListener("click", () => {
+      const clientId = (els.clientId?.value || "").trim();
+      const tenant = (els.tenant?.value || "").trim();
+      const redirectUri = (els.redirectInput?.value || "").trim() || odGetRedirectUriDefault();
+      const filePath = (els.filePath?.value || "").trim() || DEFAULT_FILE_PATH;
+      if (!clientId) {
+        alert("Client ID を入れてから保存して。");
+        return;
+      }
+      odSaveSettings({ clientId, tenant, redirectUri, filePath });
+      odSetStatus("設定保存（未接続）");
+      odUpdateUi();
+    });
+
+    els.clear?.addEventListener("click", () => {
+      if (!confirm("OneDrive設定をクリアします。よろしい？")) return;
+      odClearSettings();
+      if (els.clientId) els.clientId.value = "";
+      if (els.tenant) els.tenant.value = "";
+      if (els.redirectInput) els.redirectInput.value = odGetRedirectUriDefault();
+      if (els.filePath) els.filePath.value = DEFAULT_FILE_PATH;
+      odMsalApp = null;
+      odAccount = null;
+      odSetStatus("未接続");
+      odUpdateUi();
+    });
+
+    els.signIn?.addEventListener("click", async () => {
+      try { await odSignIn(); }
+      catch (e) { alert(e?.message || String(e)); }
+    });
+
+    els.signOut?.addEventListener("click", async () => {
+      try { await odSignOut(); }
+      catch (e) { alert(e?.message || String(e)); }
+    });
+
+    els.syncNow?.addEventListener("click", async () => {
+      try { await odFlushQueue(); }
+      catch (e) { alert(e?.message || String(e)); }
+    });
+
+    els.exportBtn?.addEventListener("click", () => {
+      downloadJson();
+    });
+
+    els.importInput?.addEventListener("change", async (ev) => {
+      const file = ev.target.files[0];
+      if (!file) return;
+      await importJsonFile(file);
+      ev.target.value = "";
+    });
+  }
+
+  window.addEventListener("online", () => {
+    odSetSyncState("オンライン復帰");
+    storageFlushQueue();
+  });
+  window.addEventListener("offline", () => {
+    odSetSyncState("オフライン");
+  });
 
   document.addEventListener("DOMContentLoaded", () => {
-    loadEntriesFromStorage();
-    loadNextMemosFromStorage();
+    storageLoadData();
+    migrateLegacyData();
+    loadEntriesFromCache();
+    loadNextMemosFromCache();
     setupEvents();
     renderAll();
     renderNextMemos();
+    odUpdateSyncStatus();
+    if (navigator.onLine) storageFlushQueue();
   });
 </script>
 </body>
