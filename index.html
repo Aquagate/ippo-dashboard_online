@@ -1052,8 +1052,29 @@
 
   function normalizeCategory(cat) {
     if (!cat) return "その他";
-    if (CATEGORY_LIST.includes(cat)) return cat;
-    if (cat === "その他" || cat === "その他 ") return "その他";
+    let normalized = String(cat).replace(/\u3000/g, " ").trim();
+    if (!normalized) return "その他";
+
+    normalized = normalized.replace(/[\\/]/g, "・").replace(/･/g, "・");
+    normalized = normalized.replace(/\s+/g, "");
+
+    const aliasMap = {
+      "仕事": "仕事・企画",
+      "家族": "家族・子ども",
+      "健康": "健康・身体",
+      "環境": "環境・暮らし",
+      "学び": "学び・技術",
+      "投資": "お金・投資",
+      "趣味": "趣味・遊び",
+      "メンタル": "心・メンタル"
+    };
+
+    if (aliasMap[normalized]) {
+      normalized = aliasMap[normalized];
+    }
+
+    if (CATEGORY_LIST.includes(normalized)) return normalized;
+    if (normalized === "その他") return "その他";
     return "その他";
   }
 
@@ -1754,6 +1775,7 @@
     const lines = csvText.split(/\r?\n/);
     const result = [];
     let inEntries = false;
+    let columnIndex = null;
 
     for (let rawLine of lines) {
       const line = rawLine.trim();
@@ -1761,7 +1783,34 @@
 
       const normalizedLine = line.replace(/^\uFEFF/, "");
       if (!inEntries) {
-        if (normalizedLine.startsWith("日付,")) {
+// ヘッダ行から列位置を推定（BOM除去 + trim）
+const headerCols = parseCsvLine(normalizedLine).map(col => col.replace(/^\uFEFF/, "").trim());
+const headerMap = {};
+
+headerCols.forEach((col, idx) => {
+  if (col === "日付") headerMap.date = idx;
+  if (col === "一歩の内容" || col === "内容") headerMap.text = idx;
+  if (col === "記録日時") headerMap.recordedAt = idx;
+  if (col === "カテゴリ") headerMap.category = idx;
+});
+
+// date と text が取れたら「ヘッダ行」とみなして列インデックス確定
+if (typeof headerMap.date !== "undefined" && typeof headerMap.text !== "undefined") {
+  columnIndex = {
+    date: headerMap.date,
+    text: headerMap.text,
+    recordedAt: typeof headerMap.recordedAt !== "undefined" ? headerMap.recordedAt : 2,
+    category: typeof headerMap.category !== "undefined" ? headerMap.category : -1
+  };
+  continue; // ヘッダ行はデータではないので次へ
+}
+
+// 旧式フォールバック（万一 headerMap が取れない場合）
+if (normalizedLine.startsWith("日付,")) {
+  columnIndex = { date: 0, text: 1, recordedAt: 2, category: 3 };
+  continue;
+}
+
           inEntries = true;
         }
         continue;
@@ -1770,10 +1819,14 @@
       const cols = parseCsvLine(normalizedLine);
       if (cols.length < 2) continue;
 
-      const date = (cols[0] || "").trim();
-      const text = (cols[1] || "").trim();
-      const recordedAt = (cols[2] || "").trim();
-      const categoryFromCsv = (cols[3] || "").trim();
+const date = (cols[columnIndex?.date ?? 0] || "").trim();
+const text = (cols[columnIndex?.text ?? 1] || "").trim();
+const recordedAt = (cols[columnIndex?.recordedAt ?? 2] || "").trim();
+
+// category列が無いCSVにも対応（-1なら空扱い）
+const categoryIndex = (typeof columnIndex?.category === "number") ? columnIndex.category : 3;
+const categoryFromCsv = categoryIndex >= 0 ? (cols[categoryIndex] || "").trim() : "";
+
 
       if (!date || !text) continue;
 
