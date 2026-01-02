@@ -1723,6 +1723,33 @@
     });
   }
 
+  function parseCsvLine(line) {
+    const cols = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+      if (char === "\"") {
+        if (inQuotes && line[i + 1] === "\"") {
+          current += "\"";
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+      if (char === "," && !inQuotes) {
+        cols.push(current);
+        current = "";
+        continue;
+      }
+      current += char;
+    }
+    cols.push(current);
+    return cols;
+  }
+
   function parseIppoCsv(csvText) {
     const lines = csvText.split(/\r?\n/);
     const result = [];
@@ -1732,19 +1759,21 @@
       const line = rawLine.trim();
       if (!line) continue;
 
+      const normalizedLine = line.replace(/^\uFEFF/, "");
       if (!inEntries) {
-        if (line.startsWith("日付,")) {
+        if (normalizedLine.startsWith("日付,")) {
           inEntries = true;
         }
         continue;
       }
 
-      const cols = line.split(",");
+      const cols = parseCsvLine(normalizedLine);
       if (cols.length < 2) continue;
 
       const date = (cols[0] || "").trim();
       const text = (cols[1] || "").trim();
       const recordedAt = (cols[2] || "").trim();
+      const categoryFromCsv = (cols[3] || "").trim();
 
       if (!date || !text) continue;
 
@@ -1752,7 +1781,7 @@
         date,
         text,
         recordedAt,
-        category: inferCategory(text)
+        category: categoryFromCsv || inferCategory(text)
       });
 
       result.push(entry);
@@ -2368,7 +2397,7 @@
         appData.memos = appData.memos || [];
         refreshDerivedData();
         await persistData("csv-import");
-        fileStatus.textContent = `${file.name} から ${entries.length}件 読み込み済み`;
+        fileStatus.textContent = `${file.name} から ${parsed.length}件 読み込み済み`;
         fileStatus.style.color = "#9ca3af";
         renderAll();
       };
