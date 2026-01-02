@@ -412,6 +412,81 @@ index.html
       background: rgba(15,23,42,0.8);
       color: #e5e7eb;
     }
+  
+    /* OneDrive box */
+    .onedrive-box{
+      margin: 10px 0 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      border-radius: 14px;
+      background: rgba(0,0,0,.18);
+    }
+    .onedrive-box > summary{
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-weight: 700;
+      user-select: none;
+    }
+    .onedrive-box > summary::-webkit-details-marker{ display:none; }
+    .onedrive-summary-sub{
+      font-weight: 600;
+      opacity: .85;
+      font-size: 12px;
+      padding: 4px 10px;
+      border: 1px solid rgba(255,255,255,.12);
+      border-radius: 999px;
+      background: rgba(255,255,255,.06);
+    }
+    .onedrive-body{ margin-top: 10px; }
+    .onedrive-grid{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .onedrive-grid label{
+      display:flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12px;
+      opacity: .95;
+    }
+    .onedrive-actions{
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .onedrive-hint{
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,.10);
+      background: rgba(255,255,255,.05);
+      font-size: 12px;
+      opacity: .92;
+    }
+    .onedrive-hint-row{
+      display:flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+    .onedrive-hint-row code{
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+    }
+    .onedrive-hint-sub{
+      margin-top: 8px;
+      opacity: .9;
+      line-height: 1.45;
+    }
+
   </style>
 </head>
 <body>
@@ -528,7 +603,51 @@ index.html
       </div>
     </div>
 
-    <!-- メトリクス -->
+    
+      <!-- OneDrive -->
+      <details class="onedrive-box" id="onedriveDetails">
+        <summary>OneDrive設定 <span class="onedrive-summary-sub" id="odStatus">未接続</span></summary>
+        <div class="onedrive-body">
+          <div class="onedrive-grid">
+            <label>Client ID（アプリID）
+              <input id="odClientId" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" autocomplete="off" />
+            </label>
+            <label>Tenant（任意）
+              <input id="odTenant" type="text" placeholder="common / organizations / consumers / テナントID" autocomplete="off" />
+            </label>
+          </div>
+
+          <div class="onedrive-actions">
+            <button class="btn-ghost" id="odSave" type="button">保存</button>
+            <button class="btn-ghost" id="odClear" type="button">クリア</button>
+            <button class="btn-ghost" id="odSignIn" type="button">サインイン</button>
+            <button class="btn-ghost" id="odSignOut" type="button" disabled>サインアウト</button>
+          </div>
+
+          <div class="onedrive-actions">
+            <button class="btn-ghost" id="odBackup" type="button" disabled>OneDriveへバックアップ</button>
+            <button class="btn-ghost" id="odRestore" type="button" disabled>OneDriveから復元</button>
+          </div>
+
+          <div class="onedrive-hint">
+            <div class="onedrive-hint-row">
+              <span>推奨Redirect</span>
+              <code id="odRedirectUri"></code>
+              <button class="btn-ghost" id="odCopyRedirect" type="button">コピー</button>
+            </div>
+            <div class="onedrive-hint-sub">
+              保存先は <b>アプリ専用フォルダ（AppFolder）</b>。ファイル名は <code>ippo-dashboard_backup.json</code>。
+              （権限: <code>Files.ReadWrite.AppFolder</code>）
+            </div>
+          </div>
+
+          <div class="onedrive-hint small">
+            重要: <code>file://</code> 直開きだと認証が動かない。Live Server 等で <code>http://localhost</code> で開くこと。
+          </div>
+        </div>
+      </details>
+
+      <!-- メトリクス -->
     <div class="panel-header">
       <div class="panel-title">
         メトリクス
@@ -616,11 +735,282 @@ index.html
   </section>
 </main>
 
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
 <script>
   const STORAGE_KEY = "ippoLogEntries_v2";
   const NEXT_MEMO_KEY = "ippoNextMemo_v1";
 
-  const CATEGORY_LIST = [
+  
+
+  // ===== OneDrive (MSAL + Microsoft Graph) =====
+  const OD_SETTINGS_KEY = "ippoOneDriveSettings_v1";
+  const OD_FILE_NAME = "ippo-dashboard_backup.json";
+  const OD_SCOPES = ["User.Read", "Files.ReadWrite.AppFolder", "offline_access"];
+
+  let odMsalApp = null;
+  let odAccount = null;
+
+  function odGetRedirectUri() {
+    // MSALのredirectUriは「完全一致」が求められるので、今開いているURLをそのまま使うのが一番安全。
+    return location.href.split("#")[0].split("?")[0];
+  }
+
+  function odLoadSettings() {
+    try { return JSON.parse(localStorage.getItem(OD_SETTINGS_KEY) || "null"); } catch { return null; }
+  }
+  function odSaveSettings(s) {
+    localStorage.setItem(OD_SETTINGS_KEY, JSON.stringify(s));
+  }
+  function odClearSettings() {
+    localStorage.removeItem(OD_SETTINGS_KEY);
+  }
+
+  function odEls() {
+    return {
+      details: document.getElementById("onedriveDetails"),
+      clientId: document.getElementById("odClientId"),
+      tenant: document.getElementById("odTenant"),
+      status: document.getElementById("odStatus"),
+      redirect: document.getElementById("odRedirectUri"),
+      copyRedirect: document.getElementById("odCopyRedirect"),
+      save: document.getElementById("odSave"),
+      clear: document.getElementById("odClear"),
+      signIn: document.getElementById("odSignIn"),
+      signOut: document.getElementById("odSignOut"),
+      backup: document.getElementById("odBackup"),
+      restore: document.getElementById("odRestore"),
+    };
+  }
+
+  function odSetStatus(text) {
+    const { status } = odEls();
+    if (status) status.textContent = text;
+  }
+
+  function odUpdateUi() {
+    const els = odEls();
+    const hasSettings = !!(els.clientId?.value?.trim());
+    const signedIn = !!odAccount;
+    if (els.signOut) els.signOut.disabled = !signedIn;
+    if (els.backup) els.backup.disabled = !(signedIn && hasSettings);
+    if (els.restore) els.restore.disabled = !(signedIn && hasSettings);
+    if (els.signIn) els.signIn.disabled = !hasSettings;
+  }
+
+  function odInitUiDefaults() {
+    const els = odEls();
+    if (!els.redirect) return;
+    els.redirect.textContent = odGetRedirectUri();
+
+    const saved = odLoadSettings();
+    if (saved?.clientId && els.clientId) els.clientId.value = saved.clientId;
+    if (saved?.tenant && els.tenant) els.tenant.value = saved.tenant;
+
+    odSetStatus("未接続");
+    odUpdateUi();
+  }
+
+  function odBuildMsalConfig() {
+    const els = odEls();
+    const clientId = (els.clientId?.value || "").trim();
+    if (!clientId) throw new Error("Client ID が未設定です。");
+    const tenant = (els.tenant?.value || "").trim() || "common";
+    return {
+      auth: {
+        clientId,
+        authority: `https://login.microsoftonline.com/${tenant}`,
+        redirectUri: odGetRedirectUri(),
+      },
+      cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false },
+      system: { allowNativeBroker: false },
+    };
+  }
+
+  async function odEnsureMsal() {
+    if (!window.msal || !window.msal.PublicClientApplication) {
+      throw new Error("MSALライブラリが読み込めていません（通信遮断か、CDNが死んでる）。");
+    }
+    const config = odBuildMsalConfig();
+    // 設定が変わったら作り直す（雑だけど安全）
+    odMsalApp = new window.msal.PublicClientApplication(config);
+    const accounts = odMsalApp.getAllAccounts();
+    odAccount = accounts && accounts.length ? accounts[0] : null;
+    odSetStatus(odAccount ? `接続: ${odAccount.username}` : "未接続");
+    odUpdateUi();
+  }
+
+  async function odSignIn() {
+    await odEnsureMsal();
+    const result = await odMsalApp.loginPopup({ scopes: OD_SCOPES, prompt: "select_account" });
+    odAccount = result.account || null;
+    odSetStatus(odAccount ? `接続: ${odAccount.username}` : "未接続");
+    odUpdateUi();
+  }
+
+  async function odSignOut() {
+    if (!odMsalApp) await odEnsureMsal();
+    const account = odAccount;
+    odAccount = null;
+    odUpdateUi();
+    odSetStatus("未接続");
+    if (account) await odMsalApp.logoutPopup({ account });
+  }
+
+  async function odGetToken() {
+    if (!odMsalApp) await odEnsureMsal();
+    if (!odAccount) throw new Error("サインインしてません。");
+    try {
+      const r = await odMsalApp.acquireTokenSilent({ account: odAccount, scopes: OD_SCOPES });
+      return r.accessToken;
+    } catch (e) {
+      // だいたいここに落ちるのは、初回か、期限切れか、ブラウザが意地悪してるとき
+      const r = await odMsalApp.acquireTokenPopup({ scopes: OD_SCOPES });
+      return r.accessToken;
+    }
+  }
+
+  async function odUploadBackup() {
+    const token = await odGetToken();
+
+    const payload = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      storage: {
+        [STORAGE_KEY]: loadEntries(),
+        [NEXT_MEMO_KEY]: loadNextMemos(),
+      },
+    };
+
+    const url = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${encodeURIComponent(OD_FILE_NAME)}:/content`;
+    const res = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload, null, 2)
+    });
+
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(`バックアップ失敗: ${res.status} ${t}`);
+    }
+
+    odSetStatus(`バックアップ完了: ${odAccount?.username || ""}`);
+    alert("OneDriveへバックアップしました。");
+  }
+
+  async function odRestoreBackup() {
+    const token = await odGetToken();
+
+    const url = `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${encodeURIComponent(OD_FILE_NAME)}:/content`;
+    const res = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+
+    if (res.status === 404) {
+      alert("OneDriveにバックアップが見つかりません（まずバックアップして）。");
+      return;
+    }
+    if (!res.ok) {
+      const t = await res.text().catch(() => "");
+      throw new Error(`復元失敗: ${res.status} ${t}`);
+    }
+
+    const raw = await res.text();
+    let data;
+    try { data = JSON.parse(raw); } catch {
+      throw new Error("バックアップの中身がJSONじゃない（壊れてるか、別のファイルを読んでる）。");
+    }
+
+    const storedEntries = data?.storage?.[STORAGE_KEY];
+    const storedNext = data?.storage?.[NEXT_MEMO_KEY];
+
+    if (!Array.isArray(storedEntries)) throw new Error("バックアップに entries がない/形式が違う。");
+    if (!Array.isArray(storedNext)) throw new Error("バックアップに nextMemos がない/形式が違う。");
+
+    // 反映
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(storedEntries));
+    localStorage.setItem(NEXT_MEMO_KEY, JSON.stringify(storedNext));
+
+    // 画面再描画
+    loadEntriesFromStorage();
+    loadNextMemosFromStorage();
+    renderAll();
+    renderNextMemos();
+
+    odSetStatus(`復元完了: ${odAccount?.username || ""}`);
+    alert("OneDriveから復元しました。");
+  }
+
+  function initOneDriveEvents() {
+    const els = odEls();
+    if (!els.details) return; // UIが無いなら何もしない
+
+    // まずUIを初期化
+    odInitUiDefaults();
+
+    els.copyRedirect?.addEventListener("click", async () => {
+      const txt = odGetRedirectUri();
+      try {
+        await navigator.clipboard.writeText(txt);
+        alert("コピーしました。");
+      } catch {
+        // clipboard が死んでる環境用にフォールバック
+        const ta = document.createElement("textarea");
+        ta.value = txt;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+        alert("コピーしました。");
+      }
+    });
+
+    els.save?.addEventListener("click", () => {
+      const clientId = (els.clientId?.value || "").trim();
+      const tenant = (els.tenant?.value || "").trim();
+      if (!clientId) {
+        alert("Client ID を入れてから保存して。");
+        return;
+      }
+      odSaveSettings({ clientId, tenant });
+      odSetStatus("設定保存（未接続）");
+      odUpdateUi();
+    });
+
+    els.clear?.addEventListener("click", () => {
+      if (!confirm("OneDrive設定をクリアします。よろしい？")) return;
+      odClearSettings();
+      if (els.clientId) els.clientId.value = "";
+      if (els.tenant) els.tenant.value = "";
+      odMsalApp = null;
+      odAccount = null;
+      odSetStatus("未接続");
+      odUpdateUi();
+    });
+
+    els.signIn?.addEventListener("click", async () => {
+      try { await odSignIn(); }
+      catch (e) { alert(e?.message || String(e)); }
+    });
+
+    els.signOut?.addEventListener("click", async () => {
+      try { await odSignOut(); }
+      catch (e) { alert(e?.message || String(e)); }
+    });
+
+    els.backup?.addEventListener("click", async () => {
+      try { await odUploadBackup(); }
+      catch (e) { alert(e?.message || String(e)); }
+    });
+
+    els.restore?.addEventListener("click", async () => {
+      if (!confirm("OneDriveの内容で上書き復元します。今のブラウザ内データは置き換わります。よろしい？")) return;
+      try { await odRestoreBackup(); }
+      catch (e) { alert(e?.message || String(e)); }
+    });
+  }
+  // ===== /OneDrive =====
+const CATEGORY_LIST = [
     "仕事・企画",
     "家族・子ども",
     "健康・身体",
@@ -1670,7 +2060,10 @@ index.html
         renderNextMemos();
       });
     }
-  }
+  
+    // OneDrive
+    initOneDriveEvents();
+}
 
   document.addEventListener("DOMContentLoaded", () => {
     loadEntriesFromStorage();
