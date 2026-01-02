@@ -1812,8 +1812,17 @@ if (normalizedLine.startsWith("日付,")) {
 }
 
           inEntries = true;
+          continue; // ヘッダ行はデータではないので次へ
         }
-        continue;
+
+        // 旧式フォールバック（万一 headerMap が取れない場合）
+        if (normalizedLine.startsWith("日付,")) {
+          columnIndex = { date: 0, text: 1, recordedAt: 2, category: 3 };
+          inEntries = true;
+          continue;
+        }
+
+        inEntries = true;
       }
 
       const cols = parseCsvLine(normalizedLine);
