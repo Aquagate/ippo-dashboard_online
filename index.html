@@ -1180,6 +1180,19 @@
     odUpdateSyncStatus();
   }
 
+  async function odAutoConnect() {
+    const settings = odLoadSettings();
+    if (!settings?.clientId) return;
+    try {
+      await odEnsureMsal();
+      if (odAccount && navigator.onLine) {
+        await odFetchAndMergeRemote();
+      }
+    } catch (err) {
+      odSetSyncError(err?.message || String(err));
+    }
+  }
+
   function storageLoadData() {
     const cached = odLoadCache();
     if (cached) {
@@ -2409,7 +2422,7 @@
     odSetSyncState("オフライン");
   });
 
-  document.addEventListener("DOMContentLoaded", () => {
+  document.addEventListener("DOMContentLoaded", async () => {
     storageLoadData();
     migrateLegacyData();
     loadEntriesFromCache();
@@ -2418,6 +2431,7 @@
     renderAll();
     renderNextMemos();
     odUpdateSyncStatus();
+    await odAutoConnect();
     if (navigator.onLine) storageFlushQueue();
   });
 </script>
