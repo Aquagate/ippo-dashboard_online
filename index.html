@@ -606,7 +606,7 @@
       </div>
       <div class="settings-row">
         <span>保存パス</span>
-        <input type="text" id="msFilePath" placeholder="/Apps/IppoDashboard/ippo_data.json">
+        <input type="text" id="msFilePath" placeholder="ippo_data.json">
       </div>
     </div>
     <div id="redirectWarning" class="settings-warning"></div>
@@ -642,6 +642,7 @@
       </div>
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
         <span class="pill">保存先はOneDrive（ローカルはキャッシュ）</span>
+        <button type="button" id="repairButton" class="btn-ghost">重複修復</button>
         <button type="button" id="resetButton" class="btn-ghost">全リセット</button>
       </div>
     </div>
@@ -737,7 +738,7 @@
   const DB_NAME = "ippoDashboardDB";
   const DB_VERSION = 1;
   const GRAPH_SCOPES = ["Files.ReadWrite.AppFolder"];
-  const DEFAULT_FILE_PATH = "/Apps/IppoDashboard/ippo_data.json";
+  const DEFAULT_FILE_PATH = "ippo_data.json";
 
   const CATEGORY_LIST = [
     "仕事・企画",
@@ -972,6 +973,27 @@
     return typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
   }
 
+  function fnv1aHash(text) {
+    let hash = 0x811c9dc5;
+    for (let i = 0; i < text.length; i += 1) {
+      hash ^= text.charCodeAt(i);
+      hash = (hash + ((hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24))) >>> 0;
+    }
+    return hash.toString(16).padStart(8, "0");
+  }
+
+  function buildEntryFingerprint(entry) {
+    return `${entry.date || ""}|${entry.recordedAt || ""}|${(entry.text || "").trim()}`;
+  }
+
+  function buildMemoFingerprint(memo) {
+    return `${memo.createdAt || ""}|${(memo.text || "").trim()}`;
+  }
+
+  function buildLegacyId(prefix, fingerprint) {
+    return `${prefix}-${fnv1aHash(fingerprint)}`;
+  }
+
   function parseDateStr(str) {
     const parts = str.split("-");
     if (parts.length !== 3) return null;
@@ -1030,8 +1052,29 @@
 
   function normalizeCategory(cat) {
     if (!cat) return "その他";
-    if (CATEGORY_LIST.includes(cat)) return cat;
-    if (cat === "その他" || cat === "その他 ") return "その他";
+    let normalized = String(cat).replace(/\u3000/g, " ").trim();
+    if (!normalized) return "その他";
+
+    normalized = normalized.replace(/[\\/]/g, "・").replace(/･/g, "・");
+    normalized = normalized.replace(/\s+/g, "");
+
+    const aliasMap = {
+      "仕事": "仕事・企画",
+      "家族": "家族・子ども",
+      "健康": "健康・身体",
+      "環境": "環境・暮らし",
+      "学び": "学び・技術",
+      "投資": "お金・投資",
+      "趣味": "趣味・遊び",
+      "メンタル": "心・メンタル"
+    };
+
+    if (aliasMap[normalized]) {
+      normalized = aliasMap[normalized];
+    }
+
+    if (CATEGORY_LIST.includes(normalized)) return normalized;
+    if (normalized === "その他") return "その他";
     return "その他";
   }
 
@@ -1051,8 +1094,21 @@
 
     category = normalizeCategory(category || inferCategory(text));
     const nowTs = Date.now();
+    const rawId = raw.id ? String(raw.id) : "";
+    let entryId = "";
+    if (rawId) {
+      if (isUuid(rawId)) {
+        entryId = rawId;
+      } else if (/^e\d+$/i.test(rawId)) {
+        entryId = buildLegacyId("legacy", buildEntryFingerprint({ date, recordedAt, text }));
+      } else {
+        entryId = rawId;
+      }
+    } else {
+      entryId = generateUuid();
+    }
     return {
-      id: raw.id && isUuid(String(raw.id)) ? String(raw.id) : generateUuid(),
+      id: entryId,
       date,
       text,
       recordedAt,
@@ -1065,13 +1121,93 @@
 
   function cleanupLegacyMemo(raw) {
     const nowTs = Date.now();
+    const rawId = raw.id ? String(raw.id) : "";
+    let memoId = "";
+    if (rawId) {
+      if (isUuid(rawId)) {
+        memoId = rawId;
+      } else if (/^n\d+$/i.test(rawId)) {
+        memoId = buildLegacyId("legacy", buildMemoFingerprint({ createdAt: raw.createdAt || "", text: raw.text || "" }));
+      } else {
+        memoId = rawId;
+      }
+    } else {
+      memoId = generateUuid();
+    }
     return {
-      id: raw.id && isUuid(String(raw.id)) ? String(raw.id) : generateUuid(),
+      id: memoId,
       text: raw.text || "",
       createdAt: raw.createdAt || formatDateTimeForRecord(new Date()),
       updatedAt: raw.updatedAt || nowTs,
       done: Boolean(raw.done),
       deleted: Boolean(raw.deleted)
+    };
+  }
+
+  function repairDuplicatesInData(data) {
+    const normalized = normalizeData(data);
+    const entryMap = new Map();
+    normalized.entries.forEach((entry) => {
+      const fingerprint = buildEntryFingerprint(entry);
+      const updatedAt = entry.updatedAt || 0;
+      const existing = entryMap.get(fingerprint);
+      if (!existing) {
+        entryMap.set(fingerprint, {
+          item: { ...entry },
+          updatedAt,
+          deleted: Boolean(entry.deleted)
+        });
+        return;
+      }
+      const mergedDeleted = existing.deleted || entry.deleted;
+      const shouldReplace = updatedAt >= existing.updatedAt;
+      const base = shouldReplace ? entry : existing.item;
+      entryMap.set(fingerprint, {
+        item: {
+          ...base,
+          updatedAt: Math.max(existing.updatedAt, updatedAt),
+          deleted: mergedDeleted
+        },
+        updatedAt: Math.max(existing.updatedAt, updatedAt),
+        deleted: mergedDeleted
+      });
+    });
+
+    const memoMap = new Map();
+    normalized.memos.forEach((memo) => {
+      const fingerprint = buildMemoFingerprint(memo);
+      const updatedAt = memo.updatedAt || 0;
+      const existing = memoMap.get(fingerprint);
+      if (!existing) {
+        memoMap.set(fingerprint, {
+          item: { ...memo },
+          updatedAt,
+          done: Boolean(memo.done),
+          deleted: Boolean(memo.deleted)
+        });
+        return;
+      }
+      const mergedDone = existing.done || memo.done;
+      const mergedDeleted = existing.deleted || memo.deleted;
+      const shouldReplace = updatedAt >= existing.updatedAt;
+      const base = shouldReplace ? memo : existing.item;
+      memoMap.set(fingerprint, {
+        item: {
+          ...base,
+          updatedAt: Math.max(existing.updatedAt, updatedAt),
+          done: mergedDone,
+          deleted: mergedDeleted
+        },
+        updatedAt: Math.max(existing.updatedAt, updatedAt),
+        done: mergedDone,
+        deleted: mergedDeleted
+      });
+    });
+
+    return {
+      schemaVersion: 1,
+      entries: Array.from(entryMap.values()).map(v => v.item),
+      memos: Array.from(memoMap.values()).map(v => v.item)
     };
   }
 
@@ -1333,9 +1469,25 @@
     return "/" + parts.join("/");
   }
 
+  function normalizeFilePath(path) {
+    let normalized = (path || "").trim();
+    normalized = normalized.replace(/^\/+/, "");
+    if (normalized === "Apps/IppoDashboard") {
+      normalized = "";
+    }
+    if (normalized.startsWith("Apps/IppoDashboard/")) {
+      normalized = normalized.slice("Apps/IppoDashboard/".length);
+    }
+    if (!normalized) {
+      return DEFAULT_FILE_PATH;
+    }
+    return normalized;
+  }
+
   function graphItemUrl() {
-    const encoded = encodePath(appSettings.filePath || DEFAULT_FILE_PATH);
-    return `https://graph.microsoft.com/v1.0/me/drive/root:${encoded}`;
+    const normalized = normalizeFilePath(appSettings.filePath || DEFAULT_FILE_PATH);
+    const encoded = encodePath(normalized);
+    return `https://graph.microsoft.com/v1.0/me/drive/special/approot:${encoded}`;
   }
 
   async function graphRequest(url, options = {}) {
@@ -1351,6 +1503,8 @@
       return { exists: false, data: null, etag: null };
     }
     if (!metaResp.ok) {
+      const errorText = await metaResp.text();
+      console.warn("OneDrive読み込み失敗", metaResp.status, errorText);
       throw new Error(`OneDrive読み込み失敗: ${metaResp.status}`);
     }
     const metaJson = await metaResp.json();
@@ -1416,14 +1570,17 @@
       const remote = await fetchRemoteData();
       if (!remote.exists) {
         if (appData.entries.length || appData.memos.length) {
-          const etag = await putRemoteData(appData, null);
+          const repaired = repairDuplicatesInData(appData);
+          const etag = await putRemoteData(repaired, null);
+          appData = repaired;
           await idbPut("meta", { key: "etag", value: etag });
           await updateSyncMeta(Date.now(), "");
         }
         return;
       }
       const merged = mergeData(remote.data, appData);
-      appData = merged;
+      const repaired = repairDuplicatesInData(merged);
+      appData = repaired;
       refreshDerivedData();
       await saveCachedData();
       await idbPut("meta", { key: "etag", value: remote.etag });
@@ -1431,6 +1588,24 @@
       await flushQueue();
     } catch (err) {
       await updateSyncMeta(null, err.message || "初期同期失敗");
+    }
+  }
+
+  async function overwriteRemoteData(data) {
+    const stored = await idbGet("meta", "etag");
+    const storedEtag = stored ? stored.value : null;
+    try {
+      const etag = await putRemoteData(data, storedEtag || null);
+      await idbPut("meta", { key: "etag", value: etag });
+      return etag;
+    } catch (err) {
+      if (err.code === 412) {
+        const latest = await fetchRemoteData();
+        const etag = await putRemoteData(data, latest.etag || null);
+        await idbPut("meta", { key: "etag", value: etag });
+        return etag;
+      }
+      throw err;
     }
   }
 
@@ -1444,10 +1619,25 @@
       return;
     }
     try {
+      const queueItems = await idbGetAll("queue");
+      const hasReset = queueItems.some(item => item.type === "reset");
+      if (hasReset) {
+        const repaired = repairDuplicatesInData(appData);
+        appData = repaired;
+        refreshDerivedData();
+        await saveCachedData();
+        await overwriteRemoteData(repaired);
+        await clearQueue();
+        await updateSyncMeta(Date.now(), "");
+        renderAll();
+        renderNextMemos();
+        return;
+      }
       const remote = await fetchRemoteData();
       const merged = remote.exists ? mergeData(remote.data, appData) : appData;
-      const etag = await putRemoteData(merged, remote.etag || null);
-      appData = merged;
+      const repaired = repairDuplicatesInData(merged);
+      const etag = await putRemoteData(repaired, remote.etag || null);
+      appData = repaired;
       refreshDerivedData();
       await saveCachedData();
       await idbPut("meta", { key: "etag", value: etag });
@@ -1460,8 +1650,9 @@
         try {
           const latest = await fetchRemoteData();
           const merged = mergeData(latest.data, appData);
-          const etag = await putRemoteData(merged, latest.etag || null);
-          appData = merged;
+          const repaired = repairDuplicatesInData(merged);
+          const etag = await putRemoteData(repaired, latest.etag || null);
+          appData = repaired;
           refreshDerivedData();
           await saveCachedData();
           await idbPut("meta", { key: "etag", value: etag });
@@ -1553,39 +1744,102 @@
     });
   }
 
+  function parseCsvLine(line) {
+    const cols = [];
+    let current = "";
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i += 1) {
+      const char = line[i];
+      if (char === "\"") {
+        if (inQuotes && line[i + 1] === "\"") {
+          current += "\"";
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+        continue;
+      }
+      if (char === "," && !inQuotes) {
+        cols.push(current);
+        current = "";
+        continue;
+      }
+      current += char;
+    }
+    cols.push(current);
+    return cols;
+  }
+
   function parseIppoCsv(csvText) {
     const lines = csvText.split(/\r?\n/);
     const result = [];
     let inEntries = false;
+    let columnIndex = null;
 
     for (let rawLine of lines) {
       const line = rawLine.trim();
-      if (!line) continue;
+      if (line) {
+        const normalizedLine = line.replace(/^\uFEFF/, "");
+        let isDataLine = true;
+        if (!inEntries) {
+          // ヘッダ行から列位置を推定（BOM除去 + trim）
+          const headerCols = parseCsvLine(normalizedLine).map(col => col.replace(/^\uFEFF/, "").trim());
+          const headerMap = {};
 
-      if (!inEntries) {
-        if (line.startsWith("日付,")) {
+          headerCols.forEach((col, idx) => {
+            if (col === "日付") headerMap.date = idx;
+            if (col === "一歩の内容" || col === "内容") headerMap.text = idx;
+            if (col === "記録日時") headerMap.recordedAt = idx;
+            if (col === "カテゴリ") headerMap.category = idx;
+          });
+
+          // date と text が取れたら「ヘッダ行」とみなして列インデックス確定
+          if (typeof headerMap.date !== "undefined" && typeof headerMap.text !== "undefined") {
+            columnIndex = {
+              date: headerMap.date,
+              text: headerMap.text,
+              recordedAt: typeof headerMap.recordedAt !== "undefined" ? headerMap.recordedAt : 2,
+              category: typeof headerMap.category !== "undefined" ? headerMap.category : -1
+            };
+            inEntries = true;
+            isDataLine = false;
+          }
+
+          // 旧式フォールバック（万一 headerMap が取れない場合）
+          if (isDataLine && normalizedLine.startsWith("日付,")) {
+            columnIndex = { date: 0, text: 1, recordedAt: 2, category: 3 };
+            inEntries = true;
+            isDataLine = false;
+          }
+
           inEntries = true;
         }
-        continue;
+
+        if (isDataLine) {
+          const cols = parseCsvLine(normalizedLine);
+          if (cols.length >= 2) {
+            const date = (cols[columnIndex?.date ?? 0] || "").trim();
+            const text = (cols[columnIndex?.text ?? 1] || "").trim();
+            const recordedAt = (cols[columnIndex?.recordedAt ?? 2] || "").trim();
+
+            // category列が無いCSVにも対応（-1なら空扱い）
+            const categoryIndex = (typeof columnIndex?.category === "number") ? columnIndex.category : 3;
+            const categoryFromCsv = categoryIndex >= 0 ? (cols[categoryIndex] || "").trim() : "";
+
+            if (date && text) {
+              const entry = cleanupLegacyEntry({
+                date,
+                text,
+                recordedAt,
+                category: categoryFromCsv || inferCategory(text)
+              });
+
+              result.push(entry);
+            }
+          }
+        }
       }
-
-      const cols = line.split(",");
-      if (cols.length < 2) continue;
-
-      const date = (cols[0] || "").trim();
-      const text = (cols[1] || "").trim();
-      const recordedAt = (cols[2] || "").trim();
-
-      if (!date || !text) continue;
-
-      const entry = cleanupLegacyEntry({
-        date,
-        text,
-        recordedAt,
-        category: inferCategory(text)
-      });
-
-      result.push(entry);
     }
 
     return result;
@@ -2198,7 +2452,7 @@
         appData.memos = appData.memos || [];
         refreshDerivedData();
         await persistData("csv-import");
-        fileStatus.textContent = `${file.name} から ${entries.length}件 読み込み済み`;
+        fileStatus.textContent = `${file.name} から ${parsed.length}件 読み込み済み`;
         fileStatus.style.color = "#9ca3af";
         renderAll();
       };
@@ -2263,6 +2517,30 @@
     const today = new Date();
     addDate.value = formatDate(today);
 
+    const repairBtn = document.getElementById("repairButton");
+    repairBtn.addEventListener("click", async () => {
+      const ok = window.confirm("同じ内容が重複している一歩ログ/メモを整理します。実行しますか？");
+      if (!ok) return;
+
+      appData = repairDuplicatesInData(appData);
+      refreshDerivedData();
+      await saveCachedData();
+      renderAll();
+      renderNextMemos();
+
+      const currentDate = document.getElementById("dateSelect").value;
+      if (currentDate) {
+        renderDailyTable(currentDate);
+        renderDiaryForDate(currentDate);
+      }
+
+      const fileStatus = document.getElementById("fileStatus");
+      fileStatus.textContent = "重複修復が完了しました";
+      fileStatus.style.color = "#4ade80";
+
+      await persistData("repair");
+    });
+
     const resetBtn = document.getElementById("resetButton");
     resetBtn.addEventListener("click", async () => {
       const ok = window.confirm("保存されている一歩ログをすべて削除します。本当にリセットしますか？");
@@ -2270,7 +2548,24 @@
 
       appData = createEmptyData();
       refreshDerivedData();
-      await persistData("reset");
+      renderAll();
+      renderNextMemos();
+      await saveCachedData();
+      await clearQueue();
+      await updateSyncMeta(null, "");
+
+      if (navigator.onLine && msalAccount) {
+        try {
+          await overwriteRemoteData(appData);
+          await updateSyncMeta(Date.now(), "");
+        } catch (err) {
+          await updateSyncMeta(null, err.message || "OneDriveのリセット保存に失敗しました");
+        }
+      } else {
+        await clearQueue();
+        await enqueueChange({ type: "reset", data: appData, ts: Date.now() });
+        await updateSyncMeta(null, "オフラインまたは未サインインのため、次回同期でOneDriveを上書きします");
+      }
 
       const fileStatus = document.getElementById("fileStatus");
       fileStatus.textContent = "データを全てリセットしました";
