@@ -1779,7 +1779,39 @@
 
     for (let rawLine of lines) {
       const line = rawLine.trim();
-      if (!line) continue;
+      if (line) {
+        const normalizedLine = line.replace(/^\uFEFF/, "");
+        let isDataLine = true;
+        if (!inEntries) {
+          // ヘッダ行から列位置を推定（BOM除去 + trim）
+          const headerCols = parseCsvLine(normalizedLine).map(col => col.replace(/^\uFEFF/, "").trim());
+          const headerMap = {};
+
+          headerCols.forEach((col, idx) => {
+            if (col === "日付") headerMap.date = idx;
+            if (col === "一歩の内容" || col === "内容") headerMap.text = idx;
+            if (col === "記録日時") headerMap.recordedAt = idx;
+            if (col === "カテゴリ") headerMap.category = idx;
+          });
+
+          // date と text が取れたら「ヘッダ行」とみなして列インデックス確定
+          if (typeof headerMap.date !== "undefined" && typeof headerMap.text !== "undefined") {
+            columnIndex = {
+              date: headerMap.date,
+              text: headerMap.text,
+              recordedAt: typeof headerMap.recordedAt !== "undefined" ? headerMap.recordedAt : 2,
+              category: typeof headerMap.category !== "undefined" ? headerMap.category : -1
+            };
+            inEntries = true;
+            isDataLine = false;
+          }
+
+          // 旧式フォールバック（万一 headerMap が取れない場合）
+          if (isDataLine && normalizedLine.startsWith("日付,")) {
+            columnIndex = { date: 0, text: 1, recordedAt: 2, category: 3 };
+            inEntries = true;
+            isDataLine = false;
+          }
 
       const normalizedLine = line.replace(/^\uFEFF/, "");
       if (!inEntries) {
