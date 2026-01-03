@@ -1636,8 +1636,15 @@
     nextMemos = (dataCache.memos || []).map(normalizeMemo).filter(m => !m.done && !m.deleted);
   }
 
-  function saveNextMemosToStorage() {
-    dataCache.memos = nextMemos.map(normalizeMemo);
+  function saveNextMemosToStorage(updatedMemo = null) {
+    const memoMap = new Map();
+    (dataCache.memos || []).map(normalizeMemo).forEach(m => memoMap.set(m.id, m));
+    nextMemos.map(normalizeMemo).forEach(m => memoMap.set(m.id, m));
+    if (updatedMemo) {
+      const normalized = normalizeMemo(updatedMemo);
+      memoMap.set(normalized.id, normalized);
+    }
+    dataCache.memos = Array.from(memoMap.values());
     storageSaveData(dataCache);
   }
 
@@ -1694,7 +1701,7 @@
         memo.done = true;
         memo.updatedAt = Date.now();
         nextMemos = nextMemos.filter(x => x.id !== memo.id);
-        saveNextMemosToStorage();
+        saveNextMemosToStorage(memo);
         renderNextMemos();
       });
 
@@ -1704,7 +1711,7 @@
         memo.deleted = true;
         memo.updatedAt = Date.now();
         nextMemos = nextMemos.filter(x => x.id !== memo.id);
-        saveNextMemosToStorage();
+        saveNextMemosToStorage(memo);
         renderNextMemos();
       });
 
