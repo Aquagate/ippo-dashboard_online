@@ -3069,6 +3069,7 @@ ${asset.type === "template" ? "Markdownテンプレート" :
         energy: entry.energy ?? null,
         mental: entry.mental ?? null,
         starred: !!entry.starred,
+        tod: Array.isArray(entry.tod) ? entry.tod : [],
         ts: entry.ts || entry.updatedAt || Date.now(),
         updatedAt: entry.updatedAt || entry.ts || Date.now(),
         deleted: !!entry.deleted,
