@@ -3141,6 +3141,24 @@ ${asset.type === "template" ? "Markdownテンプレート" :
       const allSims = Array.from(simMap.values()).sort((a, b) => b.createdAt - a.createdAt);
       merged.simulations = allSims.slice(0, MAX_SIMULATION_HISTORY);
 
+      // DailyStates merge (A-2 fix)
+      merged.dailyStates = {};
+      const baseStates = base?.dailyStates || {};
+      const incStates = incoming?.dailyStates || {};
+      const allDates = new Set([...Object.keys(baseStates), ...Object.keys(incStates)]);
+      allDates.forEach(date => {
+        const b = baseStates[date];
+        const i = incStates[date];
+        if (!b) {
+          merged.dailyStates[date] = i;
+        } else if (!i) {
+          merged.dailyStates[date] = b;
+        } else {
+          // Both exist, take the newer one
+          merged.dailyStates[date] = (b.updatedAt || 0) >= (i.updatedAt || 0) ? b : i;
+        }
+      });
+
       return merged;
     }
 
