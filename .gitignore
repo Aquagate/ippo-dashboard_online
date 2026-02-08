@@ -1,0 +1,22 @@
+# User Data (Exclude Personal Logs)
+ippo_data.json
+data/
+*.jsonl
+*.log
+
+# Environment Variables (Keep Secrets Safe)
+.env
+.env.*
+!.env.example
+ops/.env
+
+# Dependencies
+node_modules/
+# package-lock.json is usually OK to commit, but adding just in case user wants to ignore
+# package-lock.json
+
+# System
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
