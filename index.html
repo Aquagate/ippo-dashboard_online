@@ -1390,6 +1390,20 @@
         renderKeywordChart();
         renderGreatStepsGallery();
         initBridgeEvents(); // AI Bridge
+        initStoryMode(); // Story Mode状態復元
+
+        // 保存済みシミュレーションの復元（リロード対策）
+        const sims = dataCache.simulations || [];
+        if (sims.length > 0) {
+          // 最新の世界線カードを自動復元
+          const latestSim = sims[0];
+          if (latestSim.result) {
+            renderFutureCards(latestSim.result, latestSim.id);
+            document.getElementById("futureCardsContainer").style.display = "grid";
+          }
+        }
+        // SIMULATION HISTORY を常に表示
+        renderSimulationHistory();
       }, 100);
     }
 
@@ -1569,16 +1583,33 @@ ${todContext}
 ${userLogs}
 --- ここまで ---
 
-## 内部チェック（出力しない）
-出力前に以下を内部で点検し、整合が悪い場合は作り直してください。
-※この点検結果や思考は絶対に出力しないこと。
+## Self-Rubric Scoring（必須プロセス・厳守）
 
-- 一貫性 (Consistency): ログと提案が噛み合っているか
-- 因果性 (Causality): micro_stepsがロードマップに繋がるか
-- 実行可能性 (Actionability): micro_stepsは15分以内か
-- 資産性 (Asset Leverage): asset_stepsは再利用できる形か
-- 現実性 (Guardrail Sanity): Guardrailは回復の足場になっているか
-- 根拠 (Evidence Grounding): evidenceはログ引用で説明できるか
+各世界線を以下6観点で採点し、合計90点以上になるまで内部で修正を繰り返してください。
+**90点未満の世界線は出力禁止。** 内部で修正してから出力すること。
+
+| # | 観点                 | 配点 | 基準                                                   |
+|---|----------------------|------|--------------------------------------------------------|
+| 1 | Consistency          | 20点 | ログの傾向・キーワードと提案の方向が一致している         |
+| 2 | Causality            | 20点 | micro_steps → roadmapの因果が論理的に通る               |
+| 3 | Actionability        | 15点 | 全micro_stepsが15分以内で着手可能（「検討する」は不可） |
+| 4 | Asset Leverage       | 15点 | asset_stepsが再利用可能な具体的形式になっている         |
+| 5 | Guardrail Sanity     | 15点 | Guardrailが回復・逃走の足場として実際に機能する         |
+| 6 | Evidence Grounding   | 15点 | 全evidenceがログから直接引用できる                       |
+
+rubric_score = 6観点の合計（/100）
+rubric_reason = 最も低い観点名 + 改善した内容（1行）
+rubric_detail = { consistency: 点, causality: 点, actionability: 点, asset_leverage: 点, guardrail_sanity: 点, evidence_grounding: 点 }
+
+## 世界線独立性チェック（必須）
+
+3つの世界線（Baseline / Leap / Guardrail）のmicro_stepsに重複が30%以上あれば作り直すこと。
+各世界線は異なるアプローチ・戦略を示すこと。
+
+## 出力言語
+
+title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence, rubric_reason は全て日本語で出力してください。
+キー名のみ英語。
 
 ## JSON Output Schema
 最終出力は以下のJSON形式のみを Markdown の \`\`\`json コードブロックで囲んで出力してください。
@@ -1621,7 +1652,15 @@ ${userLogs}
       { "log_excerpt": "YYYY-MM-DD [カテゴリ]: ...", "why": "" }
     ],
     "rubric_score": 0,
-    "rubric_reason": ""
+    "rubric_reason": "",
+    "rubric_detail": {
+      "consistency": 0,
+      "causality": 0,
+      "actionability": 0,
+      "asset_leverage": 0,
+      "guardrail_sanity": 0,
+      "evidence_grounding": 0
+    }
   },
   "worldline_leap": { /* baselineと同構造 */ },
   "worldline_guardrail": { /* baselineと同構造 */ }
@@ -1721,9 +1760,9 @@ JSONのみを出力してください。
         const worldlines = isV5
           ? [data.worldline_baseline, data.worldline_leap, data.worldline_guardrail]
           : [data.persona_solid, data.persona_leap];
-        const lowScores = worldlines.filter(w => w && w.rubric_score < 80);
+        const lowScores = worldlines.filter(w => w && w.rubric_score < 90);
         if (lowScores.length > 0) {
-          showToast(`⚠️ ${lowScores.length}件の世界線でrubric_score<80（品質警告）`, "warn");
+          showToast(`⚠️ ${lowScores.length}件の世界線でrubric_score<90（品質警告）`, "warn");
         }
 
         renderFutureCards(data, simulation.id);
@@ -1798,13 +1837,16 @@ JSONのみを出力してください。
         assetIndex: assetIndex,
         committedAt: now,
         asset: asset.asset,
-        type: asset.type || "doc"
+        type: asset.type || "doc",
+        why: asset.why || ""
       });
       sim.updatedAt = now;
       storageSaveData(dataCache);
 
       // 現在表示中のシミュレーションを再描画
       renderFutureCards(sim.result, sim.id);
+      // MY ASSETS（資産棚）を即時更新
+      renderAssetShelf();
       showToast(`📌 「${asset.asset.slice(0, 20)}...」を資産として確定しました`, "ok");
     }
 
@@ -1960,9 +2002,9 @@ JSONのみを出力してください。
                 <div style="color:#fff; font-weight:bold;">${a.asset} <span style="color:#fbbf24; font-size:9px;">[${a.type}]</span></div>
                 <div style="color:#aaa; font-size:10px;">${a.why}</div>
                 <div style="display:flex; gap:6px; margin-top:4px;">
-                  <button onclick="copyAssetPrompt('${encodeURIComponent(JSON.stringify(a))}')" 
+                  <button onclick="showAssetPrompt('${encodeURIComponent(JSON.stringify(a))}')" 
                     style="background:#fbbf24; color:#000; border:none; padding:2px 6px; border-radius:3px; font-size:9px; cursor:pointer;">
-                    資産生成プロンプトをコピー
+                    📝 資産生成プロンプトを表示
                   </button>
                   ${isCommitted
               ? `<span style="color:#22c55e; font-size:9px;">✓ 確定済み</span>`
@@ -2002,16 +2044,29 @@ JSONのみを出力してください。
           </div>
         ` : "";
 
-        // Rubric score with warning
-        const scoreColor = item.rubric_score >= 80 ? wl.color : "#ef4444";
+        // Rubric score with warning + detail breakdown
+        const scoreColor = item.rubric_score >= 90 ? wl.color : "#ef4444";
+        const rd = item.rubric_detail || {};
+        const hasDetail = rd.consistency !== undefined;
+        const detailHtml = hasDetail ? `
+          <div style="margin-top:6px; font-size:9px; color:#9ca3af; display:flex; flex-wrap:wrap; gap:3px;">
+            <span style="color:${rd.consistency >= 16 ? '#22c55e' : '#ef4444'}">一貫${rd.consistency}</span>
+            <span style="color:${rd.causality >= 16 ? '#22c55e' : '#ef4444'}">因果${rd.causality}</span>
+            <span style="color:${rd.actionability >= 12 ? '#22c55e' : '#ef4444'}">実行${rd.actionability}</span>
+            <span style="color:${rd.asset_leverage >= 12 ? '#22c55e' : '#ef4444'}">資産${rd.asset_leverage}</span>
+            <span style="color:${rd.guardrail_sanity >= 12 ? '#22c55e' : '#ef4444'}">安全${rd.guardrail_sanity}</span>
+            <span style="color:${rd.evidence_grounding >= 12 ? '#22c55e' : '#ef4444'}">根拠${rd.evidence_grounding}</span>
+          </div>
+        ` : "";
 
         card.innerHTML = `
           <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
             <span style="color:${wl.color}; font-weight:bold; font-size:12px;">${wl.icon} ${wl.label}</span>
             <div style="text-align:right;">
               <span style="background:${scoreColor}; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px;">
-                Score: ${item.rubric_score}${item.rubric_score < 80 ? ' ⚠️' : ''}
+                Score: ${item.rubric_score}${item.rubric_score < 90 ? ' ⚠️' : ''}
               </span>
+              ${detailHtml}
             </div>
           </div>
           <h4 style="margin:0 0 8px; font-size:16px; color:#fff;">${item.title}</h4>
@@ -2142,8 +2197,8 @@ JSONのみを出力してください。
       });
     }
 
-    // 資産生成プロンプトをコピー
-    async function copyAssetPrompt(encodedAsset) {
+    // 資産生成プロンプトをポップアップ表示
+    function showAssetPrompt(encodedAsset) {
       try {
         const asset = JSON.parse(decodeURIComponent(encodedAsset));
 
@@ -2156,35 +2211,148 @@ JSONのみを出力してください。
         });
         const topCategory = Object.entries(categoryCount).sort((a, b) => b[1] - a[1])[0];
 
-        const prompt = `
-# 資産生成リクエスト
+        const prompt = `# 資産生成リクエスト\n\n## 目的\n${asset.asset}\n\n## 出力形式\n${asset.type === "template" ? "Markdownテンプレート" : asset.type === "script" ? "実行可能なスクリプト" : asset.type === "checklist" ? "チェックリスト形式" : "ドキュメント（構造化）"}\n\n## 制約\n- 短く、再利用できる、現場で使える\n- 過度に複雑にしない\n- すぐに使い始められる形で\n\n## ユーザーの傾向\n最近のログでは「${topCategory ? topCategory[0] : "その他"}」カテゴリが多い。\n理由: ${asset.why}\n\n必要な成果物のみを出力してください。`;
 
-## 目的
-${asset.asset}
+        // 既存モーダルがあれば削除
+        const existing = document.getElementById("assetPromptModal");
+        if (existing) existing.remove();
 
-## 出力形式
-${asset.type === "template" ? "Markdownテンプレート" :
-            asset.type === "script" ? "実行可能なスクリプト" :
-              asset.type === "checklist" ? "チェックリスト形式" :
-                "ドキュメント（構造化）"}
+        const modal = document.createElement("div");
+        modal.id = "assetPromptModal";
+        modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
+        modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
 
-## 制約
-- 短く、再利用できる、現場で使える
-- 過度に複雑にしない
-- すぐに使い始められる形で
-
-## ユーザーの傾向
-最近のログでは「${topCategory ? topCategory[0] : "その他"}」カテゴリが多い。
-理由: ${asset.why}
-
-必要な成果物のみを出力してください。
-`.trim();
-
-        await navigator.clipboard.writeText(prompt);
-        showToast("📋 資産生成プロンプトをコピーしました", "ok");
+        modal.innerHTML = `
+          <div style="background:#1e1e2e; border:1px solid rgba(255,215,0,0.3); border-radius:12px; padding:20px; max-width:560px; width:100%; max-height:80vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <div style="font-size:14px; color:#fbbf24; font-weight:bold;">📝 資産生成プロンプト</div>
+              <button onclick="document.getElementById('assetPromptModal').remove()" style="background:none; border:none; color:#9ca3af; font-size:18px; cursor:pointer; padding:4px;">✕</button>
+            </div>
+            <div style="font-size:11px; color:#fbbf24; margin-bottom:8px;">🏆 ${asset.asset} <span style="color:#9ca3af;">[${asset.type}]</span></div>
+            <pre id="assetPromptText" style="background:rgba(0,0,0,0.4); color:#e2e8f0; padding:16px; border-radius:8px; font-size:12px; line-height:1.6; white-space:pre-wrap; word-wrap:break-word; border:1px solid rgba(255,255,255,0.1); margin:0;">${prompt}</pre>
+            <div style="display:flex; gap:8px; margin-top:16px; justify-content:flex-end;">
+              <button onclick="navigator.clipboard.writeText(document.getElementById('assetPromptText').textContent).then(()=>showToast('📋 コピーしました','ok'))" 
+                style="background:#fbbf24; color:#000; border:none; padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:bold;">📋 コピー</button>
+              <button onclick="document.getElementById('assetPromptModal').remove()" 
+                style="background:rgba(255,255,255,0.1); color:#ccc; border:1px solid rgba(255,255,255,0.2); padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer;">閉じる</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
       } catch (e) {
         console.error(e);
-        showToast("コピー失敗", "err");
+        showToast("プロンプト表示に失敗しました", "err");
+      }
+    }
+
+    // MY ASSETSからの資産プロンプト表示（編集・保存可能）
+    function showMyAssetPrompt(encodedKey) {
+      const key = decodeURIComponent(encodedKey);
+
+      // 全シミュレーションからこのassetの情報を取得
+      const sims = dataCache.simulations || [];
+      let assetInfo = null;
+
+      for (const sim of sims) {
+        const commits = sim.assetCommits || [];
+        for (const ac of commits) {
+          if ((ac.asset || "").toLowerCase().trim() === key) {
+            assetInfo = ac;
+            break;
+          }
+        }
+        if (assetInfo) break;
+      }
+
+      if (!assetInfo) {
+        showToast("資産が見つかりません", "err");
+        return;
+      }
+
+      // カテゴリ傾向を取得
+      const activeEntries = getActiveEntries();
+      const categoryCount = {};
+      activeEntries.slice(0, 30).forEach(e => {
+        const cat = e.category || "その他";
+        categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+      });
+      const topCategory = Object.entries(categoryCount).sort((a, b) => b[1] - a[1])[0];
+
+      // カスタムプロンプトがあればそれを使い、なければデフォルト生成
+      const defaultPrompt = `# 資産生成リクエスト\n\n## 目的\n${assetInfo.asset}\n\n## 出力形式\n${assetInfo.type === "template" ? "Markdownテンプレート" : assetInfo.type === "script" ? "実行可能なスクリプト" : assetInfo.type === "checklist" ? "チェックリスト形式" : "ドキュメント（構造化）"}\n\n## 制約\n- 短く、再利用できる、現場で使える\n- 過度に複雑にしない\n- すぐに使い始められる形で\n\n## ユーザーの傾向\n最近のログでは「${topCategory ? topCategory[0] : "その他"}」カテゴリが多い。\n理由: ${assetInfo.why || "（未設定）"}\n\n必要な成果物のみを出力してください。`;
+
+      const promptText = assetInfo.customPrompt || defaultPrompt;
+
+      // 既存モーダルがあれば削除
+      const existing = document.getElementById("assetPromptModal");
+      if (existing) existing.remove();
+
+      const modal = document.createElement("div");
+      modal.id = "assetPromptModal";
+      modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
+      modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+
+      const dateStr = new Date(assetInfo.committedAt).toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" });
+
+      modal.innerHTML = `
+        <div style="background:#1e1e2e; border:1px solid rgba(34,197,94,0.4); border-radius:12px; padding:20px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div style="font-size:14px; color:#22c55e; font-weight:bold;">📌 ${assetInfo.asset}</div>
+            <button onclick="document.getElementById('assetPromptModal').remove()" style="background:none; border:none; color:#9ca3af; font-size:18px; cursor:pointer; padding:4px;">✕</button>
+          </div>
+          <div style="font-size:10px; color:#9ca3af; margin-bottom:16px; display:flex; gap:12px;">
+            <span>📂 ${assetInfo.type}</span>
+            <span>📅 ${dateStr}</span>
+            ${assetInfo.customPrompt ? '<span style="color:#fbbf24;">✏️ カスタム済み</span>' : '<span>📝 デフォルト</span>'}
+          </div>
+          <div style="font-size:11px; color:#ccc; margin-bottom:6px;">プロンプト（編集可能）:</div>
+          <textarea id="myAssetPromptText" style="width:100%; min-height:250px; background:rgba(0,0,0,0.4); color:#e2e8f0; padding:14px; border-radius:8px; font-size:12px; line-height:1.6; border:1px solid rgba(255,255,255,0.15); resize:vertical; font-family:inherit; box-sizing:border-box;">${promptText}</textarea>
+          <div style="display:flex; gap:8px; margin-top:16px; justify-content:space-between; flex-wrap:wrap;">
+            <div style="display:flex; gap:8px;">
+              <button onclick="saveMyAssetPrompt('${encodeURIComponent(key)}')" 
+                style="background:#22c55e; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:bold;">💾 保存</button>
+              <button onclick="navigator.clipboard.writeText(document.getElementById('myAssetPromptText').value).then(()=>showToast('📋 コピーしました','ok'))" 
+                style="background:#fbbf24; color:#000; border:none; padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:bold;">📋 コピー</button>
+            </div>
+            <button onclick="document.getElementById('assetPromptModal').remove()" 
+              style="background:rgba(255,255,255,0.1); color:#ccc; border:1px solid rgba(255,255,255,0.2); padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer;">閉じる</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    // MY ASSETSのプロンプトを保存
+    function saveMyAssetPrompt(encodedKey) {
+      const key = decodeURIComponent(encodedKey);
+      const textarea = document.getElementById("myAssetPromptText");
+      if (!textarea) return;
+
+      const newPrompt = textarea.value.trim();
+      if (!newPrompt) {
+        showToast("プロンプトが空です", "warn");
+        return;
+      }
+
+      // 全シミュレーションの該当assetCommitにcustomPromptを保存
+      const sims = dataCache.simulations || [];
+      let updated = false;
+      sims.forEach(sim => {
+        const commits = sim.assetCommits || [];
+        commits.forEach(ac => {
+          if ((ac.asset || "").toLowerCase().trim() === key) {
+            ac.customPrompt = newPrompt;
+            ac.updatedAt = Date.now();
+            updated = true;
+          }
+        });
+      });
+
+      if (updated) {
+        storageSaveData(dataCache);
+        showToast("💾 プロンプトを保存しました", "ok");
+      } else {
+        showToast("保存先が見つかりません", "err");
       }
     }
 
@@ -2336,7 +2504,7 @@ ${asset.type === "template" ? "Markdownテンプレート" :
       `;
     }
 
-    // Asset Shelf: 全シミュレーションから資産ステップを収集
+    // Asset Shelf: 全シミュレーションから資産ステップを収集（提案ベース）
     function getAllAssets() {
       const sims = dataCache.simulations || [];
       const assetMap = new Map(); // asset名をキーにして重複を管理
@@ -2356,7 +2524,6 @@ ${asset.type === "template" ? "Markdownテンプレート" :
             if (!key) return;
 
             if (assetMap.has(key)) {
-              // 既存の場合はカウントを増やす
               assetMap.get(key).count++;
             } else {
               assetMap.set(key, {
@@ -2374,7 +2541,44 @@ ${asset.type === "template" ? "Markdownテンプレート" :
       return Array.from(assetMap.values()).sort((a, b) => b.count - a.count);
     }
 
-    // Asset Shelf UI
+    // 確定済み資産を全シミュレーションから横断収集
+    function getCommittedAssets() {
+      const sims = dataCache.simulations || [];
+      const commitMap = new Map();
+
+      sims.forEach(sim => {
+        const commits = sim.assetCommits || [];
+        commits.forEach(ac => {
+          const key = (ac.asset || "").toLowerCase().trim();
+          if (!key) return;
+
+          if (commitMap.has(key)) {
+            const existing = commitMap.get(key);
+            if (ac.committedAt > existing.committedAt) {
+              existing.committedAt = ac.committedAt;
+              if (ac.why) existing.why = ac.why;
+            }
+            existing.commitCount++;
+          } else {
+            commitMap.set(key, {
+              mapKey: key,
+              asset: ac.asset,
+              type: ac.type || "doc",
+              why: ac.why || "",
+              customPrompt: ac.customPrompt || null,
+              committedAt: ac.committedAt,
+              worldline: ac.worldline,
+              simulationId: sim.id,
+              commitCount: 1
+            });
+          }
+        });
+      });
+
+      return Array.from(commitMap.values()).sort((a, b) => b.committedAt - a.committedAt);
+    }
+
+    // Asset Shelf UI（2層構造: MY ASSETS + ASSET IDEAS）
     function renderAssetShelf() {
       const containerId = "assetShelf";
       let container = document.getElementById(containerId);
@@ -2390,23 +2594,8 @@ ${asset.type === "template" ? "Markdownテンプレート" :
         historyContainer.parentNode.insertBefore(container, historyContainer.nextSibling);
       }
 
-      const assets = getAllAssets();
-
-      if (assets.length === 0) {
-        container.innerHTML = `
-          <div style="font-size:12px; color:#fbbf24; margin-bottom:8px; font-weight:bold;">🏆 ASSET SHELF（資産棚）</div>
-          <div style="font-size:11px; color:#9ca3af;">資産ステップはまだありません</div>
-        `;
-        return;
-      }
-
-      // type別にグループ化
-      const byType = {};
-      assets.forEach(a => {
-        const t = a.type || "doc";
-        if (!byType[t]) byType[t] = [];
-        byType[t].push(a);
-      });
+      const committedAssets = getCommittedAssets();
+      const allAssets = getAllAssets();
 
       const typeIcons = {
         template: "📄",
@@ -2415,24 +2604,89 @@ ${asset.type === "template" ? "Markdownテンプレート" :
         doc: "📋"
       };
 
-      container.innerHTML = `
-        <div style="font-size:12px; color:#fbbf24; margin-bottom:12px; font-weight:bold;">🏆 ASSET SHELF（資産棚）</div>
-        <div style="font-size:10px; color:#9ca3af; margin-bottom:12px;">
-          合計 ${assets.length} 資産 ｜ 複数回出現した資産は重要度が高い
-        </div>
-        ${Object.entries(byType).map(([type, items]) => `
-          <div style="margin-bottom:12px;">
-            <div style="font-size:11px; color:#fbbf24; margin-bottom:6px;">${typeIcons[type] || "📋"} ${type.toUpperCase()} (${items.length})</div>
-            <div style="display:flex; flex-wrap:wrap; gap:6px;">
-              ${items.map(a => `
-                <div style="background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); padding:6px 10px; border-radius:4px; font-size:10px;">
-                  <div style="color:#fff; font-weight:bold;">${a.asset.slice(0, 30)}${a.asset.length > 30 ? '...' : ''}</div>
-                  ${a.count > 1 ? `<div style="color:#fbbf24; font-size:9px;">×${a.count}回出現</div>` : ''}
+      // ── 1. MY ASSETS（確定済み資産）──
+      let myAssetsHtml;
+      if (committedAssets.length === 0) {
+        myAssetsHtml = `
+          <div style="font-size:11px; color:#9ca3af; padding:12px; background:rgba(0,0,0,0.2); border-radius:6px;">
+            まだ確定した資産はありません。<br>
+            世界線カードの「📌 資産として確定」で資産を登録できます。
+          </div>
+        `;
+      } else {
+        // type別にグループ化
+        const byType = {};
+        committedAssets.forEach(a => {
+          const t = a.type || "doc";
+          if (!byType[t]) byType[t] = [];
+          byType[t].push(a);
+        });
+
+        myAssetsHtml = `
+          <div style="font-size:10px; color:#9ca3af; margin-bottom:10px;">
+            確定済み ${committedAssets.length} 件 ｜ 使えるときに使う資産ストック
+          </div>
+          ${Object.entries(byType).map(([type, items]) => `
+            <div style="margin-bottom:10px;">
+              <div style="font-size:11px; color:#22c55e; margin-bottom:6px;">${typeIcons[type] || "📋"} ${type.toUpperCase()} (${items.length})</div>
+              <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                ${items.map(a => {
+          const dateStr = new Date(a.committedAt).toLocaleDateString("ja-JP", { month: "short", day: "numeric" });
+          const escapedKey = encodeURIComponent(a.mapKey);
+          return `
+                    <div onclick="showMyAssetPrompt('${escapedKey}')" style="background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.4); padding:6px 10px; border-radius:4px; font-size:10px; cursor:pointer; transition:all 0.15s;" onmouseover="this.style.background='rgba(34,197,94,0.3)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(34,197,94,0.15)';this.style.transform='none'">
+                      <div style="color:#fff; font-weight:bold;">${a.asset.slice(0, 40)}${a.asset.length > 40 ? '...' : ''}</div>
+                      <div style="color:#22c55e; font-size:9px; margin-top:2px;">✓ ${dateStr}${a.commitCount > 1 ? ` ×${a.commitCount}回` : ''} · 📝 クリックでプロンプト</div>
+                    </div>
+                  `;
+        }).join("")}
+              </div>
+            </div>
+          `).join("")}
+        `;
+      }
+
+      // ── 2. ASSET IDEAS（資産案 / 折りたたみ）──
+      let ideasHtml = "";
+      if (allAssets.length > 0) {
+        const byType = {};
+        allAssets.forEach(a => {
+          const t = a.type || "doc";
+          if (!byType[t]) byType[t] = [];
+          byType[t].push(a);
+        });
+
+        ideasHtml = `
+          <details style="margin-top:16px; border-top:1px solid rgba(255,215,0,0.15); padding-top:12px;">
+            <summary style="font-size:11px; color:#fbbf24; cursor:pointer; list-style:none; display:flex; align-items:center; gap:4px;">
+              <span style="font-size:10px;">▶</span> 💡 ASSET IDEAS（AIの資産案 ${allAssets.length}件）
+            </summary>
+            <div style="padding-top:10px;">
+              <div style="font-size:10px; color:#9ca3af; margin-bottom:8px;">
+                全シミュレーションの提案を集約 ｜ 複数回出現 = 重要度高
+              </div>
+              ${Object.entries(byType).map(([type, items]) => `
+                <div style="margin-bottom:10px;">
+                  <div style="font-size:11px; color:#fbbf24; margin-bottom:6px;">${typeIcons[type] || "📋"} ${type.toUpperCase()} (${items.length})</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                    ${items.map(a => `
+                      <div style="background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); padding:6px 10px; border-radius:4px; font-size:10px;">
+                        <div style="color:#fff; font-weight:bold;">${a.asset.slice(0, 30)}${a.asset.length > 30 ? '...' : ''}</div>
+                        ${a.count > 1 ? `<div style="color:#fbbf24; font-size:9px;">×${a.count}回出現</div>` : ''}
+                      </div>
+                    `).join("")}
+                  </div>
                 </div>
               `).join("")}
             </div>
-          </div>
-        `).join("")}
+          </details>
+        `;
+      }
+
+      container.innerHTML = `
+        <div style="font-size:12px; color:#22c55e; margin-bottom:12px; font-weight:bold;">📌 MY ASSETS（確定済み資産）</div>
+        ${myAssetsHtml}
+        ${ideasHtml}
         <div style="margin-top:16px; padding:12px; background:rgba(100,100,100,0.1); border-radius:6px; border:1px dashed #555;">
           <div style="font-size:10px; color:#9ca3af; margin-bottom:6px;">📦 月1棚卸し推奨</div>
           <div style="font-size:9px; color:#6b7280; line-height:1.4;">
