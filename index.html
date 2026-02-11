@@ -1726,7 +1726,31 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
           const map = { "Baseline": "worldline_baseline", "Leap": "worldline_leap", "Guardrail": "worldline_guardrail" };
           data.worldlines.forEach(w => {
             const key = map[w.id] || map[w.label];
-            if (key) data[key] = w;
+            if (key) {
+              // Internal Field Normalization for different schemas
+              if (!w.title && w.label) w.title = w.label;
+              if (!w.narrative && w.core_assumption) w.narrative = w.core_assumption;
+
+              if (!w.micro_steps && w.next_14_days_experiments) {
+                w.micro_steps = w.next_14_days_experiments.map(e => ({
+                  action: e.title || e.experiment_id,
+                  reason: (e.protocol || "") + (e.success_condition ? ` (Goal: ${e.success_condition})` : "")
+                }));
+              }
+
+              if (!w.risks && w.anti_patterns_to_watch) {
+                w.risks = w.anti_patterns_to_watch.map(ap => `${ap.name}: ${ap.mechanism}`);
+              }
+
+              if (!w.evidence && w.evidence_anchor) {
+                w.evidence = w.evidence_anchor.map(ev => ({
+                  log_excerpt: `${ev.date} [${ev.category}] ${ev.text}`,
+                  why: "Anchor"
+                }));
+              }
+
+              data[key] = w;
+            }
           });
         }
 
