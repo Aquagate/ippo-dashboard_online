@@ -1330,6 +1330,12 @@
             <p style="font-size:13px; margin:0 0 8px;">LLMからのJSON出力を貼り付けてください。</p>
             <textarea id="bridgeInput" placeholder='Paste JSON here... (e.g. {"persona_solid": ...})'
               style="width:100%; height:80px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:4px; font-size:12px; font-family:monospace;"></textarea>
+            
+            <div style="margin-top:6px; margin-bottom: 2px;">
+              <label style="font-size:11px; color:var(--muted); display:inline-flex; align-items:center; cursor:pointer;">
+                <input type="checkbox" id="chkDisableLimit" style="margin-right:4px;"> 1日1回制限を無効化 (同日リトライ用)
+              </label>
+            </div>
             <button id="btnBridgeImport" class="btn-primary" type="button"
               style="background:#d946ef; color:white; width:100%; margin-top:8px;">
               🔮 Visualize Future
@@ -1448,6 +1454,17 @@
     function initBridgeEvents() {
       document.getElementById("btnBridgeExport")?.addEventListener("click", copySimulationContext);
       document.getElementById("btnBridgeImport")?.addEventListener("click", importSimulationResult);
+
+      // Disable Limit Checkbox Logic
+      const chk = document.getElementById("chkDisableLimit");
+      if (chk) {
+        // Restore state
+        chk.checked = localStorage.getItem("ippo_disable_limit") === "true";
+        // Save state
+        chk.addEventListener("change", (e) => {
+          localStorage.setItem("ippo_disable_limit", e.target.checked);
+        });
+      }
     }
 
     async function copySimulationContext() {
@@ -1768,13 +1785,17 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         const seedKey = generateSeedKey(recent);
 
         // 同一seedKeyのsimulationがあれば再利用（リセマラ禁止）
-        const existingSim = findSimulationBySeedKey(seedKey);
-        if (existingSim) {
-          showToast("📌 今日は既にシミュレーション済み（未来固定）", "warn");
-          renderFutureCards(existingSim.result, existingSim.id);
-          document.getElementById("futureCardsContainer").style.display = "grid";
-          renderSimulationHistory();
-          return;
+        // ただし、制限無効化チェックが入っている場合はスキップ
+        const disableLimit = document.getElementById("chkDisableLimit")?.checked;
+        if (!disableLimit) {
+          const existingSim = findSimulationBySeedKey(seedKey);
+          if (existingSim) {
+            showToast("📌 今日は既にシミュレーション済み（未来固定）", "warn");
+            renderFutureCards(existingSim.result, existingSim.id);
+            document.getElementById("futureCardsContainer").style.display = "grid";
+            renderSimulationHistory();
+            return;
+          }
         }
 
         const simulation = {
