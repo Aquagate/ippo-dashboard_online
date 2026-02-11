@@ -1662,24 +1662,37 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       "evidence_grounding": 0
     }
   },
-  "worldline_leap": { /* baselineと同構造 */ },
-  "worldline_guardrail": { /* baselineと同構造 */ }
+  "worldline_leap": {
+    "title": "Leapタイトル",
+    "narrative": "Leap説明",
+    "roadmap": [],
+    "micro_steps": [],
+    "asset_steps": [],
+    "risks": [],
+    "guardrails": [],
+    "evidence": [],
+    "rubric_score": 0,
+    "rubric_detail": {}
+  },
+  "worldline_guardrail": {
+    "title": "Guardrailタイトル",
+    "narrative": "Guardrail説明",
+    "roadmap": [],
+    "micro_steps": [],
+    "asset_steps": [],
+    "risks": [],
+    "guardrails": [],
+    "evidence": [],
+    "rubric_score": 0,
+    "rubric_detail": {}
+  }
+  }
 }
 \`\`\`
 
-## 必須件数ルール（厳守）
-
-roadmap: 4件（1w, 1m, 3m, 6m）
-
-micro_steps: 5件（各15分以内）
-
-asset_steps: 3件
-
-evidence: 3件
-
-risks/guardrails: 各2〜5件
-
-JSONのみを出力してください。
+## 重要：JSONの構造について
+必ず \`worldline_baseline\`, \`worldline_leap\`, \`worldline_guardrail\` の3つのキーをトップレベルに持つオブジェクトとして出力してください。
+配列（\`worldlines: [...]\`）形式は避けてください。
 `.trim();
 
       try {
@@ -1705,7 +1718,17 @@ JSONのみを出力してください。
         if (start === -1 || end === -1) throw new Error("JSON not found");
 
         const cleanJson = jsonStr.substring(start, end + 1);
-        const data = JSON.parse(cleanJson);
+        let data = JSON.parse(cleanJson);
+
+        // 配列形式(worldlines)で来た場合の正規化
+        if (Array.isArray(data.worldlines)) {
+          console.log("Normalizing worldlines array to keys...");
+          const map = { "Baseline": "worldline_baseline", "Leap": "worldline_leap", "Guardrail": "worldline_guardrail" };
+          data.worldlines.forEach(w => {
+            const key = map[w.id] || map[w.label];
+            if (key) data[key] = w;
+          });
+        }
 
         // v5 (3世界線) or v4 (2世界線) を判定
         const isV5 = data.worldline_baseline && data.worldline_leap && data.worldline_guardrail;
