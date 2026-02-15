@@ -3522,8 +3522,8 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         mental: entry.mental ?? null,
         starred: !!entry.starred,
         tod: Array.isArray(entry.tod) ? entry.tod : [],
-        ts: entry.ts || entry.updatedAt || Date.now(),
-        updatedAt: entry.updatedAt || entry.ts || Date.now(),
+        ts: entry.ts || entry.updatedAt || 0,
+        updatedAt: entry.updatedAt || entry.ts || 0,
         deleted: !!entry.deleted,
       };
       return normalized;
@@ -3534,7 +3534,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         id: memo.id || uuid(),
         text: memo.text || "",
         createdAt: memo.createdAt || Date.now(),
-        updatedAt: memo.updatedAt || memo.createdAt || Date.now(),
+        updatedAt: memo.updatedAt || memo.createdAt || 0,
         done: !!memo.done,
         deleted: !!memo.deleted,
       };
