@@ -3564,9 +3564,9 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
     }
 
     let debugNormSimLogged = false;
-    function normalizeSimulation(sim) {
+    function normalizeSimulationV2(sim) {
       if (!debugNormSimLogged) {
-        console.log("Debug: normalizeSimulation v2 (with deleted) called");
+        console.log("Debug: normalizeSimulationV2 called (Cache Busted)");
         debugNormSimLogged = true;
       }
       return {
