@@ -3807,7 +3807,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       "環境・暮らし",
       "学び・勉強",
       "技術・開発",
-      "お金・投資",
+      "仕込む・売る",
       "趣味・遊び",
       "心・メンタル",
       "その他"
@@ -3851,7 +3851,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         "作った", "導入した", "改修", "改造", "ツール", "スマホで動く",
         "onedrive", "ダウンロード", "サーバ", "自動起動"
       ],
-      "お金・投資": [
+      "仕込む・売る": [
         "投資", "株", "株式", "nisa", "つみたて", "積立", "積み立て", "資産", "資産形成",
         "貯金", "家計簿", "支出", "収入", "ボーナス", "給料", "年収", "保険",
         "利回り", "口座", "インデックス", "配当", "投信", "投資信託", "金利", "債券",
@@ -3950,6 +3950,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
 
     function normalizeCategory(cat) {
       if (!cat) return "その他";
+      if (cat === "お金・投資") return "仕込む・売る"; // Migration for legacy data
       if (CATEGORY_LIST.includes(cat)) return cat;
       if (cat === "その他" || cat === "その他 ") return "その他";
       return "その他";
