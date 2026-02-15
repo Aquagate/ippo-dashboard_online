@@ -3563,8 +3563,12 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       };
     }
 
+    let debugNormSimLogged = false;
     function normalizeSimulation(sim) {
-      if (sim.deleted === undefined && sim.id === "test") console.log("Debug: normalizeSimulation called");
+      if (!debugNormSimLogged) {
+        console.log("Debug: normalizeSimulation v2 (with deleted) called");
+        debugNormSimLogged = true;
+      }
       return {
         id: sim.id || uuid(),
         createdAt: sim.createdAt || Date.now(),
