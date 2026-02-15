@@ -1394,6 +1394,8 @@
     function initFutureLab() {
       if (isLabInitialized) return;
       console.log("Initializing Future Lab...");
+      console.log("🚀 Ippo Dashboard v5.2.1-fix-assets initialized"); // VERIFICATION LOG
+      showToast("🚀 System Updated (v5.2.1)", "ok"); // VISUAL CONFIRMATION
 
       isLabInitialized = true;
 
@@ -2397,10 +2399,13 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       const sims = dataCache.simulations || [];
       let assetInfo = null;
 
+      console.log(`Debug: showMyAssetPrompt key="${key}"`);
       for (const sim of sims) {
         const commits = sim.assetCommits || [];
         for (const ac of commits) {
-          if ((ac.asset || "").toLowerCase().trim() === key) {
+          const acKey = (ac.asset || "").toLowerCase().trim();
+          // console.log(`  Compare vs "${acKey}"`);
+          if (acKey === key) {
             assetInfo = ac;
             break;
           }
@@ -2453,7 +2458,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
           <textarea id="myAssetPromptText" style="width:100%; min-height:250px; background:rgba(0,0,0,0.4); color:#e2e8f0; padding:14px; border-radius:8px; font-size:12px; line-height:1.6; border:1px solid rgba(255,255,255,0.15); resize:vertical; font-family:inherit; box-sizing:border-box;">${promptText}</textarea>
           <div style="display:flex; gap:8px; margin-top:16px; justify-content:space-between; flex-wrap:wrap;">
             <div style="display:flex; gap:8px;">
-              <button onclick="saveMyAssetPrompt('${encodeURIComponent(key)}')" 
+              <button onclick="saveMyAssetPrompt('${encodeURIComponent(key).replace(/'/g, "%27")}')" 
                 style="background:#22c55e; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:bold;">💾 保存</button>
               <button onclick="navigator.clipboard.writeText(document.getElementById('myAssetPromptText').value).then(()=>showToast('📋 コピーしました','ok'))" 
                 style="background:#fbbf24; color:#000; border:none; padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:bold;">📋 コピー</button>
@@ -2855,7 +2860,8 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
               <div style="display:flex; flex-wrap:wrap; gap:6px;">
                 ${items.map(a => {
           const dateStr = new Date(a.committedAt).toLocaleDateString("ja-JP", { month: "short", day: "numeric" });
-          const escapedKey = encodeURIComponent(a.mapKey);
+          // Fix: Escape single quotes for onclick attribute to prevent syntax errors
+          const escapedKey = encodeURIComponent(a.mapKey).replace(/'/g, "%27");
           return `
                     <div onclick="showMyAssetPrompt('${escapedKey}')" style="background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.4); padding:6px 10px; border-radius:4px; font-size:10px; cursor:pointer; transition:all 0.15s;" onmouseover="this.style.background='rgba(34,197,94,0.3)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(34,197,94,0.15)';this.style.transform='none'">
                       <div style="color:#fff; font-weight:bold;">${a.asset.slice(0, 40)}${a.asset.length > 40 ? '...' : ''}</div>
@@ -3581,6 +3587,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         inputDigest: sim.inputDigest || {},
         result: sim.result || {},
         commit: sim.commit || null,
+        assetCommits: sim.assetCommits || [], // Fix: Ensure assetCommits are preserved
         deleted: !!sim.deleted,
       };
     }
