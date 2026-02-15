@@ -2272,38 +2272,31 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         return;
       }
 
-      // Memoに追加
+      // 常に新規作成として追加（個別のチェックボックスにするため）
       const worldlineLabel = worldlineKey.replace("worldline_", "").replace("persona_", "");
-      const memoText = `・${step.action} 【Future:${worldlineLabel}】`;
+      const memoText = `${step.action} 【Future:${worldlineLabel}】`;
 
-      // 既存のNext Memoを取得して追記
-      const currentMemo = (dataCache.memos || []).find(m => !m.done && !m.deleted);
-      if (currentMemo) {
-        currentMemo.text = (currentMemo.text || "") + "\n" + memoText;
-        currentMemo.updatedAt = Date.now();
-        saveNextMemosToStorage(currentMemo);
-      } else {
-        // 新規作成
-        const newMemo = {
-          id: uuid(),
-          text: memoText,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          done: false,
-          deleted: false
-        };
-        dataCache.memos = dataCache.memos || [];
-        dataCache.memos.push(newMemo);
-        saveNextMemosToStorage();
-      }
+      const newMemo = {
+        id: uuid(),
+        text: memoText,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        done: false,
+        deleted: false
+      };
+
+      dataCache.memos = dataCache.memos || [];
+      dataCache.memos.push(newMemo);
+      nextMemos.push(newMemo); // メモリ上のリストにも追加
+      saveNextMemosToStorage();
 
       // Simulationのmemo情報を更新 (UI状態維持用)
       sim.memoedStepIndices.push(memoKey);
       sim.updatedAt = Date.now();
       storageSaveData(dataCache);
 
-      showToast("Memoに追加しました", "ok");
-      renderFutureCards(); // UI更新
+      showToast("メモに追加しました", "ok");
+      renderFutureCards(sim.result, sim.id); // UI更新
       renderNextMemos();   // メモ欄更新
     }
 
