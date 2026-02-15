@@ -1872,7 +1872,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
           }
         }
 
-        const simulation = {
+        const rawSim = {
           id: uuid(),
           createdAt: Date.now(),
           updatedAt: Date.now(),
@@ -1886,8 +1886,10 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
             topKeywords: []
           },
           result: data,
-          commit: null
+          commit: null,
+          deleted: false
         };
+        const simulation = normalizeSimulationV2(rawSim);
 
         // dataCacheに追加
         dataCache.simulations = dataCache.simulations || [];
@@ -3613,7 +3615,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       const simMap = new Map();
       console.groupCollapsed("🧩 Simulation Merge Debug");
       [...(base?.simulations || []), ...(incoming?.simulations || [])].forEach(raw => {
-        const s = normalizeSimulation(raw);
+        const s = normalizeSimulationV2(raw);
         const existing = simMap.get(s.id);
 
         if (existing) {
