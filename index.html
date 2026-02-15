@@ -3619,7 +3619,11 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         const existing = simMap.get(s.id);
 
         if (existing) {
-          const win = s.updatedAt >= existing.updatedAt;
+          // FIX: If timestamps are identical, we MUST NOT overwrite Existing with Incoming
+          // especially if Existing is 'deleted' and Incoming is not.
+          // We only overwrite if Incoming is STRICTLY newer.
+          const win = s.updatedAt > existing.updatedAt;
+
           const log = `Compare [${s.id.slice(0, 4)}...]:\n` +
             `  Existing : del=${existing.deleted}, up=${new Date(existing.updatedAt).toISOString()} (${existing.updatedAt})\n` +
             `  Incoming : del=${s.deleted}, up=${new Date(s.updatedAt).toISOString()} (${s.updatedAt})\n` +
@@ -3628,7 +3632,8 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
           appendDebugLog(log);
         }
 
-        if (!existing || s.updatedAt >= existing.updatedAt) {
+        // Only set if not existing, or if we determined it's a winner (strictly newer)
+        if (!existing || s.updatedAt > existing.updatedAt) {
           simMap.set(s.id, s);
         }
       });
