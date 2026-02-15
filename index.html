@@ -3564,6 +3564,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
     }
 
     function normalizeSimulation(sim) {
+      if (sim.deleted === undefined && sim.id === "test") console.log("Debug: normalizeSimulation called");
       return {
         id: sim.id || uuid(),
         createdAt: sim.createdAt || Date.now(),
