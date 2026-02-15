@@ -2095,19 +2095,18 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         // micro_steps (v5) or next_steps (v4)
         const steps = item.micro_steps || item.next_steps || [];
         const stepsHtml = steps.map((step, i) => {
-          const isThisStepCommitted = isThisSimCommitted && committedWorldline === wl.key && committedStepIndex === i;
-          const isAnyCommitToday = todayCommittedSim != null;
+          // memoedStepIndicesのチェック
+          const sim = (dataCache.simulations || []).find(s => s.id === simulationId);
+          const memoedSteps = sim?.memoedStepIndices || [];
+          const isThisStepMemoed = memoedSteps.includes(`${wl.key}-${i}`);
 
           let buttonHtml;
-          if (isThisStepCommitted) {
-            // このステップが確定済み
-            buttonHtml = `<span style="flex-shrink:0; background:#22c55e; color:#fff; padding:4px 8px; border-radius:4px; font-size:10px;">✓ 確定済み</span>`;
-          } else if (isAnyCommitToday) {
-            // 今日は既に別のステップを確定済み
-            buttonHtml = `<button disabled style="flex-shrink:0; background:#333; border:1px solid #555; color:#666; padding:4px 8px; border-radius:4px; font-size:10px; cursor:not-allowed;" title="今日の一歩は確定済みです">---</button>`;
+          if (isThisStepMemoed) {
+            // このステップがメモ済み
+            buttonHtml = `<span style="flex-shrink:0; background:#22c55e; color:#fff; padding:4px 8px; border-radius:4px; font-size:10px;">✓ Added</span>`;
           } else {
-            // 確定可能
-            buttonHtml = `<button onclick="commitStep('${simulationId}', '${wl.key}', ${i})" style="flex-shrink:0; background:${wl.color}22; border:1px solid ${wl.color}; color:${wl.color}; padding:4px 8px; border-radius:4px; font-size:10px; cursor:pointer;">確定</button>`;
+            // メモ可能（他がメモされていてもポンポン押せる）
+            buttonHtml = `<button onclick="memoMicroStep('${simulationId}', '${wl.key}', ${i})" style="flex-shrink:0; background:${wl.color}22; border:1px solid ${wl.color}; color:${wl.color}; padding:4px 8px; border-radius:4px; font-size:10px; cursor:pointer;">メモ</button>`;
           }
 
           return `
@@ -2244,14 +2243,8 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       });
     }
 
-    // Commit Step: 一歩を確定してIppoログに追加（1日1回のみ）
-    function commitStep(simulationId, worldlineKey, stepIndex) {
-      // 1日1Commit制限チェック
-      if (hasTodayCommit()) {
-        showToast("⚠️ 今日の一歩は確定済みです（1日1回のみ）", "warn");
-        return;
-      }
-
+    // Micro Step Memo: 一歩をNext Step Memoに追加（複数可）
+    function memoMicroStep(simulationId, worldlineKey, stepIndex) {
       const sim = (dataCache.simulations || []).find(s => s.id === simulationId);
       if (!sim) {
         showToast("Simulation not found", "err");
@@ -2271,54 +2264,47 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         return;
       }
 
-      // 今日の日付
-      const today = formatDate(new Date());
-      const now = Date.now();
+      // 既にMemo済みかチェック
+      sim.memoedStepIndices = sim.memoedStepIndices || [];
+      const memoKey = `${worldlineKey}-${stepIndex}`;
+      if (sim.memoedStepIndices.includes(memoKey)) {
+        showToast("Already memoed", "ok");
+        return;
+      }
 
-      // 世界線名から推奨カテゴリを推定
-      const categoryMap = {
-        "worldline_baseline": "仕事・企画",
-        "worldline_leap": "技術・開発",
-        "worldline_guardrail": "心・メンタル",
-        "persona_solid": "仕事・企画",
-        "persona_leap": "技術・開発"
-      };
-      const category = categoryMap[worldlineKey] || inferCategory(step.action);
-
-      // タグ付き: 【Future:worldline#step】
+      // Memoに追加
       const worldlineLabel = worldlineKey.replace("worldline_", "").replace("persona_", "");
-      const taggedText = `${step.action}【Future:${worldlineLabel}#${stepIndex + 1}】`;
+      const memoText = `・${step.action} 【Future:${worldlineLabel}】`;
 
-      // Ippoログに追加
-      const newEntry = {
-        id: uuid(),
-        date: today,
-        text: taggedText,
-        category: category,
-        ts: now,
-        updatedAt: now,
-        deleted: false,
-        starred: false
-      };
+      // 既存のNext Memoを取得して追記
+      const currentMemo = (dataCache.memos || []).find(m => !m.done && !m.deleted);
+      if (currentMemo) {
+        currentMemo.text = (currentMemo.text || "") + "\n" + memoText;
+        currentMemo.updatedAt = Date.now();
+        saveNextMemosToStorage(currentMemo);
+      } else {
+        // 新規作成
+        const newMemo = {
+          id: uuid(),
+          text: memoText,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          done: false,
+          deleted: false
+        };
+        dataCache.memos = dataCache.memos || [];
+        dataCache.memos.push(newMemo);
+        saveNextMemosToStorage();
+      }
 
-      entries.push(newEntry);
-      saveEntriesToStorage();
-
-      // Simulationのcommit情報を更新
-      sim.commit = {
-        worldline: worldlineKey,
-        stepIndex: stepIndex,
-        committedAt: now,
-        entryId: newEntry.id
-      };
-      sim.updatedAt = now;
+      // Simulationのmemo情報を更新 (UI状態維持用)
+      sim.memoedStepIndices.push(memoKey);
+      sim.updatedAt = Date.now();
       storageSaveData(dataCache);
 
-      // Ippoタブに戻す
-      switchTab("ippo");
-      renderAll();
-
-      showToast(`✓ 「${step.action.slice(0, 20)}...」を今日の一歩に確定しました`, "ok");
+      showToast("Memoに追加しました", "ok");
+      renderFutureCards(); // UI更新
+      renderNextMemos();   // メモ欄更新
     }
 
     // 今日のCommitが既にあるかチェック
@@ -3588,6 +3574,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         result: sim.result || {},
         commit: sim.commit || null,
         assetCommits: sim.assetCommits || [], // Fix: Ensure assetCommits are preserved
+        memoedStepIndices: sim.memoedStepIndices || [], // Fix: Ensure memo state is preserved
         deleted: !!sim.deleted,
       };
     }
