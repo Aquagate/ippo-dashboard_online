@@ -2526,9 +2526,16 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
                   <span style="font-size:11px; color:#fff; margin-left:8px;">${titles[0]?.slice(0, 30) || "Untitled"}...</span>
                   ${hasCommit ? '<span style="color:#22c55e; font-size:10px; margin-left:6px;">✓ committed</span>' : ''}
                 </div>
-                <span style="font-size:10px; color:#38bdf8;">${sim.promptVersion}</span>
-              </div>
-            `;
+                <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:10px; color:#38bdf8;">${sim.promptVersion}</span>
+              <button onclick="event.stopPropagation(); deleteSimulation('${sim.id}')" 
+                style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; opacity:0.7;" 
+                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" title="この履歴を削除">
+                🗑️
+              </button>
+            </div>
+          </div>
+        `;
       }).join("")}
         </div>
         ${sims.length >= 2 ? `
@@ -2555,6 +2562,24 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       renderFutureCards(sim.result, sim.id);
       document.getElementById("futureCardsContainer").style.display = "grid";
       showToast("📂 履歴からロードしました", "ok");
+    }
+
+    function deleteSimulation(simId) {
+      if (!confirm("このシミュレーション履歴を削除しますか？\n（元に戻せません）")) return;
+
+      const idx = (dataCache.simulations || []).findIndex(s => s.id === simId);
+      if (idx === -1) return;
+
+      // 削除実行
+      dataCache.simulations.splice(idx, 1);
+      storageSaveData(dataCache);
+
+      // UI更新
+      renderSimulationHistory();
+      showToast("🗑️ 履歴を削除しました", "ok");
+
+      // もし表示中のカードが削除されたものなら、カードも消す（UXとして自然）
+      // ただし今回は必須ではないので、Historyの再描画のみとする
     }
 
     // Butterfly Diff: 最新と前回の差分
