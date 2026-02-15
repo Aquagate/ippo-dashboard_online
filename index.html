@@ -1330,9 +1330,10 @@
             <p style="font-size:13px; margin:0 0 8px;">LLMからのJSON出力を貼り付けてください。</p>
             <textarea id="bridgeInput" placeholder='Paste JSON here... (e.g. {"persona_solid": ...})'
               style="width:100%; height:80px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:4px; font-size:12px; font-family:monospace;"></textarea>
-            
+
             <div style="margin-top:6px; margin-bottom: 2px;">
-              <label style="font-size:11px; color:var(--muted); display:inline-flex; align-items:center; cursor:pointer;">
+              <label
+                style="font-size:11px; color:var(--muted); display:inline-flex; align-items:center; cursor:pointer;">
                 <input type="checkbox" id="chkDisableLimit" style="margin-right:4px;"> 1日1回制限を無効化 (同日リトライ用)
               </label>
             </div>
@@ -1694,7 +1695,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
     "generated_at": "YYYY-MM-DD",
     "time_horizon_days": 180,
     "notes": "仮説。未来は選択肢を増やすための地図。",
-    "trajectory_shift": "前回比での軌道変化を1-2文で"
+    "trajectory_shift": "前回比での軌道変化を1-2文で（※変化がない場合は「特になし」と明記）"
   },
   "worldline_baseline": {
     "title": "タイトル",
@@ -2560,6 +2561,8 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
     function renderButterflyDiff(latest, previous) {
       const container = document.getElementById("butterflyDiff");
       if (!container) return;
+
+      console.log("🦋 Butterfly Diff Debug:", { latest, previous });
 
       // 1. 基本情報（日付差分）
       const daysDiff = Math.round((latest.createdAt - previous.createdAt) / (1000 * 60 * 60 * 24));
