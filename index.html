@@ -3544,7 +3544,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       return {
         id: sim.id || uuid(),
         createdAt: sim.createdAt || Date.now(),
-        updatedAt: sim.updatedAt || sim.createdAt || Date.now(),
+        updatedAt: sim.updatedAt || sim.createdAt || 0,
         promptVersion: sim.promptVersion || "SEED_v5",
         logWindowDays: sim.logWindowDays || 90,
         recentCount: sim.recentCount || 30,
