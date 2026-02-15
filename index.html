@@ -3583,13 +3583,23 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
 
       // Simulations merge
       const simMap = new Map();
+      console.groupCollapsed("🧩 Simulation Merge Debug");
       [...(base?.simulations || []), ...(incoming?.simulations || [])].forEach(raw => {
         const s = normalizeSimulation(raw);
         const existing = simMap.get(s.id);
+
+        if (existing) {
+          const win = s.updatedAt >= existing.updatedAt;
+          console.log(`Compare [${s.id.slice(0, 4)}]:`,
+            { new: { t: s.updatedAt, del: s.deleted }, old: { t: existing.updatedAt, del: existing.deleted }, winner: win ? "NEW" : "OLD" }
+          );
+        }
+
         if (!existing || s.updatedAt >= existing.updatedAt) {
           simMap.set(s.id, s);
         }
       });
+      console.groupEnd();
       // Sort by createdAt desc and limit to MAX_SIMULATION_HISTORY
       const allSims = Array.from(simMap.values()).sort((a, b) => b.createdAt - a.createdAt);
       merged.simulations = allSims.slice(0, MAX_SIMULATION_HISTORY);
