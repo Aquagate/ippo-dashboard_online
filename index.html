@@ -1169,6 +1169,14 @@
           </div>
         </details>
 
+        <!-- Debug Log Area -->
+        <details class="onedrive-box">
+          <summary>Debug Logs</summary>
+          <textarea id="debugLogArea"
+            style="width:100%; height:120px; background:#111; color:#0f0; font-family:monospace; font-size:10px; border:none; padding:8px;"
+            readonly></textarea>
+        </details>
+
         <!-- メトリクス -->
         <div class="panel-header">
           <div class="panel-title">
@@ -1412,6 +1420,15 @@
         // SIMULATION HISTORY を常に表示
         renderSimulationHistory();
       }, 100);
+    }
+
+    // DEBUG: ログ表示用
+    function appendDebugLog(msg) {
+      const el = document.getElementById("debugLogArea");
+      if (!el) return;
+      const time = new Date().toLocaleTimeString();
+      el.value += `[${time}] ${msg}\n`;
+      el.scrollTop = el.scrollHeight;
     }
 
     // --- Chart Implementations ---
@@ -2516,13 +2533,19 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
           : [sim.result?.persona_solid?.title, sim.result?.persona_leap?.title].filter(Boolean);
         const hasCommit = !!sim.commit;
 
+        // DEBUG INFO
+        const debugInfo = `ID:${sim.id.slice(0, 4)}.. Created:${sim.createdAt} Updated:${sim.updatedAt}`;
+
         return `
               <div onclick="loadSimulation('${sim.id}')" 
                 style="cursor:pointer; padding:8px 12px; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.2); border-radius:6px; display:flex; justify-content:space-between; align-items:center;"
                 onmouseover="this.style.background='rgba(56,189,248,0.2)'" 
                 onmouseout="this.style.background='rgba(56,189,248,0.1)'">
                 <div>
-                  <span style="font-size:10px; color:#9ca3af;">${date}</span>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:10px; color:#9ca3af;">${date}</span>
+                    <span style="font-size:9px; color:#555; font-family:monospace;">${debugInfo}</span>
+                  </div>
                   <span style="font-size:11px; color:#fff; margin-left:8px;">${titles[0]?.slice(0, 30) || "Untitled"}...</span>
                   ${hasCommit ? '<span style="color:#22c55e; font-size:10px; margin-left:6px;">✓ committed</span>' : ''}
                 </div>
@@ -3590,9 +3613,12 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
 
         if (existing) {
           const win = s.updatedAt >= existing.updatedAt;
-          console.log(`Compare [${s.id.slice(0, 4)}]:`,
-            { new: { t: s.updatedAt, del: s.deleted }, old: { t: existing.updatedAt, del: existing.deleted }, winner: win ? "NEW" : "OLD" }
-          );
+          const log = `Compare [${s.id.slice(0, 4)}...]:\n` +
+            `  Existing : del=${existing.deleted}, up=${new Date(existing.updatedAt).toISOString()} (${existing.updatedAt})\n` +
+            `  Incoming : del=${s.deleted}, up=${new Date(s.updatedAt).toISOString()} (${s.updatedAt})\n` +
+            `  Result   : ${win ? "Incoming Wins" : "Existing Keeps"}`;
+          console.log(log);
+          appendDebugLog(log);
         }
 
         if (!existing || s.updatedAt >= existing.updatedAt) {
@@ -3600,6 +3626,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
         }
       });
       console.groupEnd();
+      appendDebugLog(`Merge finished. Total: ${simMap.size} simulations (Filtered to ${MAX_SIMULATION_HISTORY})`);
       // Sort by createdAt desc and limit to MAX_SIMULATION_HISTORY
       const allSims = Array.from(simMap.values()).sort((a, b) => b.createdAt - a.createdAt);
       merged.simulations = allSims.slice(0, MAX_SIMULATION_HISTORY);
