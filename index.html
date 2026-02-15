@@ -2562,14 +2562,6 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       renderFutureCards(sim.result, sim.id);
       document.getElementById("futureCardsContainer").style.display = "grid";
       showToast("📂 履歴からロードしました", "ok");
-    }
-
-    function deleteSimulation(simId) {
-      if (!confirm("このシミュレーション履歴を削除しますか？\n（元に戻せません）")) return;
-
-      const idx = (dataCache.simulations || []).findIndex(s => s.id === simId);
-      if (idx === -1) return;
-
       function deleteSimulation(simId) {
         if (!confirm("このシミュレーション履歴を削除しますか？\n（元に戻せません）")) return;
 
