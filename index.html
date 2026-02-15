@@ -1467,6 +1467,34 @@
       }
     }
 
+    function buildPreviousSimSummary(sim) {
+      if (!sim || !sim.result) return null;
+      const r = sim.result;
+
+      // v5 check
+      const isV5 = r.worldline_baseline && r.worldline_leap && r.worldline_guardrail;
+      // 旧バージョン(v4)の場合は簡易表示
+      if (!isV5) return "前回シミュレーションは旧バージョン(v4)です。";
+
+      const dateStr = new Date(sim.createdAt).toLocaleDateString("ja-JP");
+
+      // Helper to extract 1w/6m outcomes
+      const getOutcomes = (wl) => {
+        if (!wl || !wl.roadmap) return "";
+        const w1 = wl.roadmap.find(x => x.horizon === "1w")?.outcome || "";
+        const m6 = wl.roadmap.find(x => x.horizon === "6m")?.outcome || "";
+        return `1w:${w1.slice(0, 30)}... / 6m:${m6.slice(0, 30)}...`;
+      };
+
+      return `
+前回シミュレーション (${dateStr}):
+- Baseline: 「${r.worldline_baseline.title}」→ ${getOutcomes(r.worldline_baseline)}
+- Leap: 「${r.worldline_leap.title}」→ ${getOutcomes(r.worldline_leap)}
+- Guardrail: 「${r.worldline_guardrail.title}」→ ${getOutcomes(r.worldline_guardrail)}
+- rubric_score: B:${r.worldline_baseline.rubric_score} / L:${r.worldline_leap.rubric_score} / G:${r.worldline_guardrail.rubric_score}
+`.trim();
+    }
+
     async function copySimulationContext() {
       const entries = getActiveEntries();
       const sorted = entries.slice().sort((a, b) => b.ts - a.ts);
@@ -1562,6 +1590,24 @@
         return `${e.date}${todStr} [${e.category}]: ${e.text}`;
       }).join("\n");
 
+      // 前回シミュレーション情報の取得
+      const sims = dataCache.simulations || [];
+      const previousSim = sims.length > 0 ? sims[0] : null;
+      const previousSummary = previousSim ? buildPreviousSimSummary(previousSim) : null;
+
+      // 差分ログ（前回作成日以降）
+      let newLogsContext = "（初回のため比較なし）";
+      if (previousSim) {
+        const prevTime = previousSim.createdAt;
+        // 新しい順に並んでいるので、prevTimeより新しいものを抽出
+        const newLogs = recent.filter(e => e.ts > prevTime);
+        if (newLogs.length > 0) {
+          newLogsContext = newLogs.map(e => `- ${e.date} [${e.category}]: ${e.text.slice(0, 50)}...`).join("\n");
+        } else {
+          newLogsContext = "（前回以降の新規ログなし）";
+        }
+      }
+
       const prompt = `
 # SEED v5 Simulation Request (v2.5.1 tuned)
 
@@ -1599,6 +1645,15 @@ ${todContext}
 --- 過去ログ（観測） ---
 ${userLogs}
 --- ここまで ---
+
+## Previous Simulation（前回との比較用）
+${previousSummary || "（過去データなし）"}
+
+### 前回から今回までに追加されたログ
+${newLogsContext}
+
+指示: 前回の予測と今回のログ差分を踏まえ、軌道がどう変わったかを \`meta.trajectory_shift\` に1-2文で記述してください。
+（例：「前回のBaselineでは〇〇を懸念していたが、〇〇の実践によりLeap寄りの軌道へ修正された」など）
 
 ## Self-Rubric Scoring（必須プロセス・厳守）
 
@@ -1638,7 +1693,8 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
     "version": "SEED_v5",
     "generated_at": "YYYY-MM-DD",
     "time_horizon_days": 180,
-    "notes": "仮説。未来は選択肢を増やすための地図。"
+    "notes": "仮説。未来は選択肢を増やすための地図。",
+    "trajectory_shift": "前回比での軌道変化を1-2文で"
   },
   "worldline_baseline": {
     "title": "タイトル",
@@ -2505,6 +2561,37 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       const container = document.getElementById("butterflyDiff");
       if (!container) return;
 
+      // 1. 基本情報（日付差分）
+      const daysDiff = Math.round((latest.createdAt - previous.createdAt) / (1000 * 60 * 60 * 24));
+      const dateLabel = daysDiff === 0 ? "Same Day" : `${daysDiff} days later`;
+
+      // 2. Trajectory Shift (v5.2 feature)
+      const shiftText = latest.result?.meta?.trajectory_shift || "";
+
+      // 3. Rubric Score Comparison
+      const getScore = (sim, type) => sim?.result?.[`worldline_${type}`]?.rubric_score || 0;
+      const compareScore = (type, label) => {
+        const curr = getScore(latest, type);
+        const prev = getScore(previous, type);
+        const diff = curr - prev;
+        const color = diff > 0 ? "#22c55e" : diff < 0 ? "#ef4444" : "#9ca3af";
+        const sign = diff > 0 ? "+" : diff < 0 ? "" : "±";
+        return `
+          <div style="display:flex; flex-direction:column; align-items:center;">
+            <span style="font-size:9px; color:#aaa;">${label}</span>
+            <span style="font-size:12px; font-weight:bold; color:${color};">${curr} <span style="font-size:9px;">(${sign}${diff})</span></span>
+          </div>
+        `;
+      };
+
+      const scoreDiffHtml = (latest.result?.meta?.version === "SEED_v5") ? `
+        <div style="display:flex; justify-content:space-around; margin-bottom:12px; background:rgba(0,0,0,0.2); padding:8px; border-radius:6px;">
+          ${compareScore("baseline", "Baseline")}
+          ${compareScore("leap", "Leap")}
+          ${compareScore("guardrail", "Guardrail")}
+        </div>
+      ` : "";
+
       // Step正規化（指摘3: v4/v5両対応）
       function normalizeStep(raw) {
         if (typeof raw === 'string') return raw.toLowerCase().trim();
@@ -2544,9 +2631,22 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
       const changeScore = Math.round((added.length + removed.length) / totalSteps * 100);
 
       container.innerHTML = `
-        <div style="font-size:12px; color:#d946ef; margin-bottom:8px; font-weight:bold;">🦋 BUTTERFLY DIFF</div>
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="font-size:12px; color:#d946ef; font-weight:bold;">🦋 BUTTERFLY DIFF</div>
+          <div style="font-size:10px; color:#666;">vs Previous (${dateLabel})</div>
+        </div>
+        
+        ${shiftText ? `
+          <div style="font-size:11px; color:#e2e8f0; background:rgba(217, 70, 239, 0.1); border-left:3px solid #d946ef; padding:8px; margin-bottom:12px; line-height:1.4;">
+            <div style="font-size:9px; color:#d946ef; margin-bottom:2px; font-weight:bold;">TRAJECTORY SHIFT</div>
+            ${shiftText}
+          </div>
+        ` : ""}
+
+        ${scoreDiffHtml}
+
         <div style="font-size:11px; color:#9ca3af; margin-bottom:8px;">
-          前回との変化量: <span style="color:${changeScore > 30 ? '#f59e0b' : '#22c55e'}; font-weight:bold;">${changeScore}%</span>
+          Step Change: <span style="color:${changeScore > 30 ? '#f59e0b' : '#22c55e'}; font-weight:bold;">${changeScore}%</span>
         </div>
         ${added.length > 0 ? `
           <div style="font-size:10px; margin-bottom:6px;">
