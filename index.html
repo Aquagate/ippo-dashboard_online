@@ -3518,10 +3518,12 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
 
     function normalizeEntry(entry) {
       // カテゴリが「その他」の場合、強化されたキーワードで再推論を試みる
-      let category = normalizeCategory(entry.category || "");
-      if (!category || category === "その他") {
+      let category = entry.category;
+      if (!category) {
+        // カテゴリが未設定の場合のみ推論する
         category = inferCategory(entry.text);
       }
+      category = normalizeCategory(category);
 
       const normalized = {
         id: entry.id || uuid(),
