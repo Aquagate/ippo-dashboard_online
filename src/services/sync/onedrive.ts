@@ -1,8 +1,4 @@
-// ===== OneDrive API Layer =====
-// Handles MSAL Auth and Graph API calls
-// No UI dependencies
-
-import { PublicClientApplication } from '@azure/msal-browser';
+import { PublicClientApplication, Configuration, RedirectRequest, IPublicClientApplication, AccountInfo, AuthenticationResult } from "@azure/msal-browser";
 
 const DEFAULT_FILE_PATH = "/Apps/IppoDashboard/ippo_data.json";
 const OD_SCOPES = ["Files.ReadWrite.AppFolder", "offline_access"];
@@ -36,16 +32,18 @@ function odBuildMsalConfig(config: OdAuthConfig): any {
     };
 }
 
-export async function odEnsureMsal(config: OdAuthConfig): Promise<void> {
+export async function odEnsureMsal(config: OdAuthConfig): Promise<AuthenticationResult | null> {
     const msalConfig = odBuildMsalConfig(config);
     odMsalApp = new PublicClientApplication(msalConfig);
     await odMsalApp.initialize();
 
     // Handle redirect callback (important for popup flow and redirect flow)
-    await odMsalApp.handleRedirectPromise();
+    const authResult = await odMsalApp.handleRedirectPromise();
 
     const accounts = odMsalApp.getAllAccounts();
     odAccount = accounts && accounts.length ? accounts[0] : null;
+
+    return authResult;
 }
 
 export function odGetAccountName(): string | null {

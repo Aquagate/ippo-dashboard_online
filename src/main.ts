@@ -342,8 +342,11 @@ document.addEventListener("DOMContentLoaded", async () => {
                 <h1>🛑 Auth Guard Triggered!</h1>
                 <p>Processing Authentication Callback...</p>
                 <div style="background:black; padding:10px; font-family:monospace;">
-                    Hash: ${hash || "(none)"}<br>
+                    Hash: ${hash.substring(0, 20) + "..." || "(none)"}<br>
                     Search: ${search || "(none)"}
+                </div>
+                <div id="debug-status" style="margin-top:20px; border:1px solid white; padding:10px;">
+                    Initializing...
                 </div>
             </div>
         `;
@@ -351,20 +354,42 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("Processing Auth Callback...");
         const odSettings = odLoadSettings();
 
+        const statusDiv = document.getElementById("debug-status")!;
+
         if (odSettings?.clientId) {
-            await odEnsureMsal({
-                clientId: odSettings.clientId,
-                tenant: odSettings.tenant,
-                redirectUri: odSettings.redirectUri
-            });
+            statusDiv.innerHTML = `
+                <strong>Settings Loaded:</strong><br>
+                ClientId: ${odSettings.clientId.substring(0, 5)}...<br>
+                RedirectUri: ${odSettings.redirectUri}<br>
+                <br>
+                Calling MSAL...
+            `;
+
+            try {
+                // Initialize MSAL to handle the hash (it will close the window if consistent)
+                const result = await odEnsureMsal({
+                    clientId: odSettings.clientId,
+                    tenant: odSettings.tenant,
+                    redirectUri: odSettings.redirectUri
+                });
+
+                statusDiv.innerHTML += `<br><strong>MSAL Result:</strong> ${result ? "SUCCESS" : "NULL (Ignored)"}`;
+
+                if (result) {
+                    statusDiv.innerHTML += `<br>Closing window in 2 seconds...`;
+                    setTimeout(() => window.close(), 2000);
+                } else {
+                    statusDiv.innerHTML += `<br>⚠️ MSAL ignored the hash. Redirect URI mismatch?`;
+                }
+
+            } catch (e: any) {
+                statusDiv.innerHTML += `<br>❌ Error: ${e.message || e}`;
+            }
+
         } else {
             // Append error to the screen
-            const errDiv = document.createElement("div");
-            errDiv.style.color = "red";
-            errDiv.style.backgroundColor = "white";
-            errDiv.style.padding = "10px";
-            errDiv.innerHTML = "<h3>⚠️ Warning: Settings not found in localStorage.</h3><p>Could not initialize MSAL.</p>";
-            document.body.appendChild(errDiv);
+            statusDiv.innerHTML = "<h3>⚠️ Warning: Settings not found in localStorage.</h3><p>Could not initialize MSAL.</p>";
+            statusDiv.style.backgroundColor = "darkred";
         }
         return; // Stop app initialization
     }
