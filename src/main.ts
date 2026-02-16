@@ -12,10 +12,11 @@ import {
 } from './app/actions';
 import { getDeviceId } from './utils/device';
 import {
-    storageLoadData, storageSaveData, odSaveCache, odEnqueueChange, saveLastGood,
+    storageLoadData, storageSaveData, odSaveCache, odEnqueueChange, saveLastGood, odLoadSettings,
 } from './services/storage/localStorage';
 import { initSyncUI } from './ui/views/syncSettings';
 import { syncAutoConnect, syncFlush } from './services/sync/syncManager';
+import { odEnsureMsal } from './services/sync/onedrive';
 import {
     renderAll, renderNextMemos, renderDailyTable, renderDiaryForDate,
     renderMetrics, renderCategoryBars, renderFlowChart,
@@ -326,6 +327,23 @@ window.addEventListener("online", () => {
 // ===== Bootstrap =====
 
 document.addEventListener("DOMContentLoaded", async () => {
+    // 0. Auth Callback Guard (Handle Popup Redirect)
+    // If this is the callback window (popup), we should process the hash and close.
+    // We don't want to load the full app (Data, UI) in the popup.
+    const hash = window.location.hash;
+    const odSettings = odLoadSettings();
+    if (odSettings?.clientId && (hash.includes("code=") || hash.includes("error="))) {
+        console.log("Processing Auth Callback...");
+        // Initialize MSAL to handle the hash (it will close the window if consistent)
+        // We need the same config as the main window
+        await odEnsureMsal({
+            clientId: odSettings.clientId,
+            tenant: odSettings.tenant,
+            redirectUri: odSettings.redirectUri
+        });
+        return; // Stop app initialization
+    }
+
     await storageLoadData();
     migrateLegacyData();
     loadEntriesFromCache();
