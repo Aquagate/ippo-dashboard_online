@@ -1,0 +1,17 @@
+{
+  "project_kpi": {
+    "questions_asked_initial": 0,
+    "questions_asked_mid_project": 0,
+    "rework_count": 0,
+    "exception_count": 0,
+    "tests_added": 0,
+    "time_to_first_run_min": 0
+  },
+  "definitions": {
+    "questions_asked_initial": "要件定義フェーズでAI/人間が確認した不明点数（多いほど良い傾向）",
+    "questions_asked_mid_project": "実装開始後に発覚した仕様不備による質問数（少ないほど良い）",
+    "rework_count": "仕様の勘違いや設計ミスによる手戻り回数",
+    "exception_count": "実行時に発生した予期せぬエラー（Unhandled Rejection等）の回数",
+    "tests_added": "バグ再現や仕様保証のために追加されたテストケース数"
+  }
+}

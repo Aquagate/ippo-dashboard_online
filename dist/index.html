@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="今日の一歩ダッシュボード - 毎日の記録を可視化して次の一歩を決めるための個人用モニタ">
+  <title>今日の一歩ダッシュボード</title>
+  <script type="module" crossorigin src="/assets/index-DM_oz07Q.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C1_Zm7Ut.css">
+</head>
+
+<body>
+  <header>
+    <h1>今日の一歩ダッシュボード</h1>
+    <p>うぜんの「一歩」を可視化して、偏りを見て次の一歩を決めるための、個人用モニタ。</p>
+  </header>
+
+  <!-- タブナビゲーション -->
+  <nav class="tab-nav">
+    <button type="button" class="tab-btn active" data-tab="ippo">一歩ログ</button>
+    <button type="button" class="tab-btn" data-tab="future">未来ラボ</button>
+    <button type="button" class="tab-btn" data-tab="settings">設定</button>
+  </nav>
+
+  <!-- 表面：一歩ログ -->
+  <div id="tabIppo" class="tab-content active">
+    <main>
+      <!-- 左：今日フォーカス -->
+      <section class="panel" id="leftPanel">
+
+        <!-- 一歩を追加 -->
+        <div class="panel-header">
+          <div class="panel-title">
+            一歩を追加
+            <span class="badge">その場で追記</span>
+          </div>
+          <small>追加した一歩はローカルキャッシュに保存され、同期される。</small>
+        </div>
+        <form id="addForm">
+          <label>
+            <span class="form-note">一歩の内容</span>
+            <textarea id="addText" placeholder="例：『〇〇の企画案を部長に投げた』『子供と的当てゲームした』『DX検定の勉強を30分やった』など"></textarea>
+          </label>
+          <div class="form-row">
+            <label>
+              日付：
+              <input type="date" id="addDate">
+            </label>
+            <button type="submit" class="primary">この一歩を追加</button>
+          </div>
+          <div class="form-note">
+            ※カテゴリは文面から自動推定（ 仕事・企画／家族・子ども／健康・身体／環境・暮らし／学び・技術／お金・投資／趣味・遊び／心・メンタル／その他 ）
+          </div>
+          <div id="addMessage" class="message"></div>
+        </form>
+
+        <!-- 日別ログ -->
+        <div class="panel-header" style="margin-top:12px;">
+          <div class="panel-title">
+            日別ログ
+            <span class="badge">今日の一歩一覧</span>
+          </div>
+          <small>日付を選ぶと、その日の一歩・前進率・カテゴリ分布が見える</small>
+        </div>
+
+        <div class="daily-header">
+          <div>
+            <div class="daily-title">
+              <span id="selectedDateLabel">-</span> の一歩
+            </div>
+            <div class="daily-sub">
+              <span id="dailyCountLabel">0件</span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <div class="rating-group"
+              style="margin:0; background:rgba(0,0,0,0.2); padding:2px 8px; border-radius:999px;">
+              <span class="rating-label" style="font-size:10px;">今日のメンタル:</span>
+              <div class="rating-btns" id="dailyMentalBtns">
+                <button type="button" class="rating-btn small" data-value="1">1</button>
+                <button type="button" class="rating-btn small" data-value="2">2</button>
+                <button type="button" class="rating-btn small" data-value="3">3</button>
+                <button type="button" class="rating-btn small" data-value="4">4</button>
+                <button type="button" class="rating-btn small" data-value="5">5</button>
+              </div>
+              <button type="button" class="rating-clear" id="dailyMentalClear" style="font-size:10px;">×</button>
+            </div>
+            <select id="dateSelect"></select>
+            <div class="score-pill">
+              <span>前進率</span>
+              <strong id="dailyScore">0.0</strong><span>%</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="dailyTableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 38px;">入力時間</th>
+                <th>一歩の内容</th>
+                <th style="width: 110px;">カテゴリ</th>
+                <th style="width: 84px;">一歩時間帯</th>
+                <th style="width: 52px;">重要</th>
+              </tr>
+            </thead>
+            <tbody id="dailyTbody"></tbody>
+          </table>
+        </div>
+        <div id="noDataDaily" class="empty-state" style="display:none;">
+          まだ一歩ログがありません。上の「一歩を追加」から一歩を追加するか、右側の「一歩ログCSVを読み込む」から取り込んでください。
+        </div>
+
+        <!-- 日記エリア -->
+        <div class="panel-header" style="margin-top:12px;">
+          <div class="panel-title">
+            日記
+            <span class="badge">選択した日の一歩から自動生成</span>
+          </div>
+          <small>テキストは自由に編集して、日記アプリなどにコピペできる。</small>
+        </div>
+        <div>
+          <div class="form-row" style="justify-content:flex-end; margin-bottom:4px;">
+            <button type="button" id="regenerateDiaryBtn" class="btn-ghost">日記を再生成</button>
+            <button type="button" id="copyDiaryBtn" class="btn-ghost">日記をコピー</button>
+          </div>
+          <textarea id="diaryOutput" placeholder="ここに、選択中の日付の一歩から自動生成された日記が表示されます。"></textarea>
+          <div id="diaryMessage" class="form-note"></div>
+        </div>
+      </section>
+
+      <!-- 右：過去＆未来ゾーン -->
+      <section class="panel">
+
+        <!-- CSV読み込み＆リセット -->
+        <div class="top-row">
+          <div class="file-input-wrap">
+            <label for="csvInput">一歩ログCSVを読み込む</label>
+            <input type="file" id="csvInput" accept=".csv,text/csv">
+            <span id="fileStatus">まだCSVは読み込んでいません</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+            <span class="pill">OneDrive同期 + ローカルキャッシュ</span>
+            <button type="button" id="resetButton" class="btn-ghost">全リセット</button>
+          </div>
+        </div>
+
+        <!-- OneDrive -->
+        <details class="onedrive-box" id="onedriveDetails">
+          <summary>OneDrive設定 <span class="onedrive-summary-sub" id="odStatus">未接続</span></summary>
+          <div class="onedrive-body">
+            <div class="onedrive-grid">
+              <label>Client ID（アプリID）
+                <input id="odClientId" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  autocomplete="off" />
+              </label>
+              <label>Tenant（任意）
+                <input id="odTenant" type="text" placeholder="common / organizations / consumers / テナントID"
+                  autocomplete="off" />
+              </label>
+              <label>Redirect URI（変更可）
+                <input id="odRedirectInput" type="text" placeholder="http://localhost:5500/" autocomplete="off" />
+              </label>
+              <label>保存先パス（AppFolder内）
+                <input id="odFilePath" type="text" placeholder="/Apps/IppoDashboard/ippo_data.json"
+                  autocomplete="off" />
+              </label>
+            </div>
+
+            <div class="onedrive-actions">
+              <button class="btn-ghost" id="odSave" type="button">保存</button>
+              <button class="btn-ghost" id="odClear" type="button">クリア</button>
+              <button class="btn-ghost" id="odSignIn" type="button">サインイン</button>
+              <button class="btn-ghost" id="odSignOut" type="button" disabled>サインアウト</button>
+              <button class="btn-ghost" id="odSyncNow" type="button" disabled>今すぐ同期</button>
+            </div>
+
+            <div class="onedrive-actions">
+              <button class="btn-ghost" id="odExport" type="button">JSONエクスポート</button>
+              <label class="btn-ghost" for="odImportInput" style="cursor:pointer;">JSONインポート
+                <input id="odImportInput" type="file" accept="application/json" style="display:none;" />
+              </label>
+            </div>
+
+            <div class="onedrive-status" id="odSyncStatus">
+              <div>同期状態: <strong id="odSyncState">未同期</strong></div>
+              <div>最終同期: <span id="odLastSync">-</span></div>
+              <div>未送信件数: <span id="odPendingCount">0</span></div>
+              <div>エラー: <span id="odLastError">-</span></div>
+            </div>
+
+            <div class="onedrive-hint">
+              <div class="onedrive-hint-row">
+                <span>推奨Redirect</span>
+                <code id="odRedirectUri"></code>
+                <button class="btn-ghost" id="odCopyRedirect" type="button">コピー</button>
+              </div>
+              <div class="onedrive-hint-sub">
+                保存先は <b>アプリ専用フォルダ（AppFolder）</b>。既定は <code>/Apps/IppoDashboard/ippo_data.json</code>。
+                （権限: <code>Files.ReadWrite.AppFolder</code>）
+              </div>
+            </div>
+
+            <div class="onedrive-hint small">
+              重要: <code>file://</code> 直開きだと認証が動かない。Live Server 等で <code>http://localhost</code> で開くこと。
+            </div>
+          </div>
+        </details>
+
+        <!-- Debug Log Area -->
+        <details class="onedrive-box">
+          <summary>Debug Logs</summary>
+          <textarea id="debugLogArea"
+            style="width:100%; height:120px; background:#111; color:#0f0; font-family:monospace; font-size:10px; border:none; padding:8px;"
+            readonly></textarea>
+        </details>
+
+        <!-- メトリクス -->
+        <div class="panel-header">
+          <div class="panel-title">
+            メトリクス
+            <span class="badge">全体サマリ</span>
+          </div>
+          <small id="metricsSubtitle"></small>
+        </div>
+        <div class="metrics-row">
+          <div class="metric-card">
+            <div class="metric-label">累計アクション数</div>
+            <div class="metric-value" id="metricTotal">0</div>
+            <div class="metric-sub">これまでの「一歩」の総数</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">今週の累計</div>
+            <div class="metric-value" id="metricWeekly">0</div>
+            <div class="metric-sub" id="metricWeeklyRange">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">今月の累計</div>
+            <div class="metric-value" id="metricMonthly">0</div>
+            <div class="metric-sub">最新の日付の月ベース</div>
+          </div>
+        </div>
+        <div class="form-row" style="justify-content:flex-end; margin-bottom:8px;">
+          <button type="button" id="exportMonthlyBtn" class="btn-ghost">月次サマリCSV</button>
+          <button type="button" id="exportAllBtn" class="btn-ghost">全件CSV</button>
+        </div>
+
+        <!-- カテゴリ分布 -->
+        <div class="panel-header" style="margin-top:4px;">
+          <div class="panel-title">
+            カテゴリ分布
+            <span class="badge">ここ数日の偏り</span>
+          </div>
+          <small>最近7日間を対象にカテゴリ別の本数を集計</small>
+        </div>
+        <div id="categoryBars"></div>
+        <div id="noCategory" class="empty-state" style="display:none;">
+          データがないので、カテゴリ分布はまだ出せません。
+        </div>
+
+        <!-- 次の一歩メモ -->
+        <div class="panel-header" style="margin-top:12px;">
+          <div class="panel-title">
+            次の一歩メモ
+            <span class="badge">あとでやりたいこと置き場</span>
+          </div>
+          <small>「今日は体力ないけど、そのうちやりたい」アイデアをストック。終わったらチェックして消す。</small>
+        </div>
+
+        <form id="nextMemoForm">
+          <label>
+            <span class="form-note">やりたいけど今日はやらない一歩メモ</span>
+            <textarea id="nextMemoInput" class="next-memo-input"
+              placeholder="例：『一歩ダッシュボードの◯◯機能を試す』『○○さんにこの前の企画の反応を聞く』など"></textarea>
+          </label>
+          <div class="form-row" style="justify-content:flex-end;">
+            <button type="submit" class="btn-ghost">メモを追加</button>
+          </div>
+        </form>
+
+        <div id="nextMemoEmpty" class="empty-state">
+          まだメモはありません。「いつかやる一歩」をここに置いておける。
+        </div>
+        <ul id="nextMemoList" class="next-memo-list"></ul>
+
+      </section>
+    </main>
+  </div><!-- /tabIppo -->
+
+  <!-- 裏面：未来ラボ -->
+  <div id="tabFuture" class="tab-content">
+    <main style="padding: 12px 20px 20px;">
+      <div class="lab-grid">
+
+        <!-- 1. Mental Rhythm -->
+        <div class="lab-card span-full" style="min-height: 320px;">
+          <h3 class="lab-title">
+            <span>Mental Rhythm</span>
+            <span class="pill">30-Day Trend</span>
+          </h3>
+          <div class="lab-chart-wrap">
+            <canvas id="chartFlow"></canvas>
+          </div>
+        </div>
+
+        <!-- 2. Activity Balance -->
+        <div class="lab-card span-1">
+          <h3 class="lab-title">
+            <span>Activity Balance</span>
+            <span class="pill">Time x Category</span>
+          </h3>
+          <div class="lab-chart-wrap">
+            <canvas id="chartCrossTod"></canvas>
+          </div>
+        </div>
+
+        <!-- 3. Category Radar -->
+        <div class="lab-card span-1">
+          <h3 class="lab-title">
+            <span>Interest Balance</span>
+            <span class="pill">Category Dist.</span>
+          </h3>
+          <div class="lab-chart-wrap">
+            <canvas id="chartRadar"></canvas>
+          </div>
+        </div>
+
+        <!-- 4. Keyword Galaxy -->
+        <div class="lab-card span-1">
+          <h3 class="lab-title">
+            <span>Keyword Galaxy</span>
+            <span class="pill">Trends</span>
+          </h3>
+          <div class="lab-chart-wrap">
+            <canvas id="chartKeywords"></canvas>
+          </div>
+        </div>
+
+        <!-- 5. Great Steps Gallery -->
+        <div class="lab-card span-full"
+          style="border-color: rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.05);">
+          <h3 class="lab-title" style="color: #fbbf24;">
+            <span>Great Steps Gallery</span>
+            <span class="pill" style="border-color: #fbbf24; color: #fbbf24;">Hall of Fame 🏆</span>
+          </h3>
+          <div id="greatStepsList"
+            style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 6. AI Bridge (Future Simulation) -->
+      <div class="lab-card span-full"
+        style="border-color: rgba(217, 70, 239, 0.4); background: rgba(217, 70, 239, 0.05);">
+        <h3 class="lab-title" style="color: #d946ef;">
+          <span>AI Bridge Implementation</span>
+          <span class="pill" style="border-color: #d946ef; color: #d946ef;">SEED Phase 4</span>
+        </h3>
+
+        <div class="bridge-container" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Step 1: Export -->
+          <div class="bridge-step">
+            <div style="font-size:12px; opacity:0.7; margin-bottom:4px;">STEP 1: Generate Context</div>
+            <p style="font-size:13px; margin:0 0 8px;">過去ログと未来予測プロンプトを生成し、クリップボードにコピーします。</p>
+            <button id="btnBridgeExport" class="btn-primary" type="button"
+              style="background:var(--bg-soft); border:1px solid #d946ef; color:#d946ef; width:100%;">
+              📋 Copy Simulation Context
+            </button>
+          </div>
+
+          <!-- Step 2: Import -->
+          <div class="bridge-step">
+            <div style="font-size:12px; opacity:0.7; margin-bottom:4px;">STEP 2: Visualize Future</div>
+            <p style="font-size:13px; margin:0 0 8px;">LLMからのJSON出力を貼り付けてください。</p>
+            <textarea id="bridgeInput" placeholder='Paste JSON here... (e.g. {"persona_solid": ...})'
+              style="width:100%; height:80px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:4px; font-size:12px; font-family:monospace;"></textarea>
+
+            <div style="margin-top:6px; margin-bottom: 2px;">
+              <label
+                style="font-size:11px; color:var(--muted); display:inline-flex; align-items:center; cursor:pointer;">
+                <input type="checkbox" id="chkDisableLimit" style="margin-right:4px;"> 1日1回制限を無効化 (同日リトライ用)
+              </label>
+            </div>
+            <button id="btnBridgeImport" class="btn-primary" type="button"
+              style="background:#d946ef; color:white; width:100%; margin-top:8px;">
+              🔮 Visualize Future
+            </button>
+          </div>
+
+          <!-- Result Area -->
+          <div id="futureCardsContainer"
+            style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:8px; display:none;">
+          </div>
+        </div>
+      </div>
+    </main>
+  </div><!-- /tabFuture -->
+
+  <!-- 設定タブ -->
+  <div id="tabSettings" class="tab-content">
+    <main style="padding: 20px; max-width: 800px; margin: 0 auto;">
+      <section class="panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            データ管理・救済
+            <span class="badge">Rescue</span>
+          </div>
+          <small>アプリの調子が悪い時や、データをバックアップ・復元したい時に使います。</small>
+        </div>
+
+        <div style="margin-top: 16px;">
+          <h4 style="margin-bottom:8px; border-bottom:1px solid var(--border); padding-bottom:4px;">バックアップと復元</h4>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
+            アプリは正常起動時に自動的に「Last Good」としてバックアップを作成しています。<br>
+            画面が真っ白になるなどのトラブル時は、「前回正常起動時に復元」を試してください。
+          </p>
+
+          <div style="display:flex; gap:12px; flex-wrap:wrap;">
+            <button type="button" id="btnRestoreLastGood" class="btn-primary"
+              style="background:var(--accent); color:white;">
+              ⏮ 前回正常起動時に復元
+            </button>
+            <button type="button" id="btnSaveLastGood" class="btn-ghost" style="border:1px solid var(--border);">
+              💾 現在の状態をLast Goodとして保存
+            </button>
+          </div>
+        </div>
+
+        <div style="margin-top: 32px;">
+          <h4 style="margin-bottom:8px; border-bottom:1px solid var(--border); padding-bottom:4px;">全データ削除</h4>
+          <p style="font-size:13px; color:var(--muted); margin-bottom:12px;">
+            端末内の全てのデータを削除します。OneDrive上のデータは消えません。
+          </p>
+          <button type="button" id="btnResetAll" class="btn-ghost" style="color:#ef4444; border-color:#ef4444;">
+            🗑 全データを削除 (リセット)
+          </button>
+        </div>
+
+      </section>
+    </main>
+  </div><!-- /tabSettings -->
+
+</body>
+
+</html>

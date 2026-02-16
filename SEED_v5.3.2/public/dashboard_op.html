@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Operator Console | Ops OS</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        .layout {
+            display: grid;
+            grid-template-columns: 280px 1fr;
+            gap: 20px;
+            padding: 20px;
+            height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            background: var(--card-bg);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            border: 1px solid var(--glass-border);
+        }
+
+        .task-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .main-content {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 24px;
+            border: 1px solid var(--glass-border);
+            overflow-y: auto;
+        }
+
+        .nav-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-left: 3px solid transparent;
+            color: var(--text-secondary);
+        }
+
+        .nav-item.active {
+            background: rgba(255, 255, 255, 0.05);
+            border-left-color: var(--accent-color);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+
+        .task-card {
+            padding: 12px;
+            border-bottom: 1px solid var(--glass-border);
+            cursor: pointer;
+        }
+
+        .task-card:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Ops OS <span class="badge" style="background: #3b82f6;">Operator</span></div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <span id="user-display" style="font-size: 0.9rem; color: var(--text-secondary);"></span>
+                <a href="/login.html" class="btn-secondary">Logout</a>
+            </div>
+        </header>
+
+        <div class="layout">
+            <aside class="sidebar">
+                <div class="nav-item active" onclick="filterTasks('inbox')">📥 Inbox (未着手)</div>
+                <div class="nav-item" onclick="filterTasks('processing')">🏃 My Tasks (作業中)</div>
+                <div class="nav-item" onclick="filterTasks('backed')">🔙 Returned (差戻し)</div>
+                <div class="nav-item" onclick="filterTasks('history')">📜 History (履歴)</div>
+                <hr style="border-color: var(--glass-border); margin: 0;">
+                <div id="task-list" class="task-list">
+                    <!-- Tasks -->
+                </div>
+            </aside>
+            <main class="main-content" id="detail-view">
+                <div style="text-align: center; color: var(--text-secondary); margin-top: 100px;">
+                    Select a task to work on
+                </div>
+            </main>
+        </div>
+    </div>
+    <script src="js/dashboard_op.js"></script>
+</body>
+
+</html>

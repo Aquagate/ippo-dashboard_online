@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ops Console | Ops OS</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        .admin-layout {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 20px;
+            padding: 20px;
+            height: calc(100vh - 80px);
+        }
+
+        .sidebar {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-tabs {
+            display: flex;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            background: rgba(0, 0, 0, 0.2);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.8rem;
+            border: none;
+            border-right: 1px solid var(--glass-border);
+            transition: all 0.2s;
+        }
+
+        .tab-btn:last-child {
+            border-right: none;
+        }
+
+        .tab-btn:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background: var(--card-bg);
+            color: var(--accent-color);
+            border-bottom: 2px solid var(--accent-color);
+            font-weight: 600;
+        }
+
+        .sidebar-header {
+            padding: 16px;
+            border-bottom: 1px solid var(--glass-border);
+            font-weight: 600;
+        }
+
+        .task-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .task-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--glass-border);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .task-item:hover,
+        .task-item.active {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .task-item.active {
+            border-left: 3px solid var(--accent-color);
+            background: rgba(59, 130, 246, 0.1);
+        }
+
+        .task-item .meta {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 4px;
+        }
+
+        .task-item .title {
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .status-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--glass-border);
+        }
+
+        .status-received {
+            background: rgba(59, 130, 246, 0.2);
+            color: #60a5fa;
+        }
+
+        .status-done {
+            background: rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .status-exception {
+            background: rgba(239, 68, 68, 0.2);
+            color: #f87171;
+        }
+
+        .main-content {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 24px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .exception-controls {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px dashed var(--glass-border);
+        }
+
+        /* Timeline Styles */
+        .timeline-section {
+            margin-top: 30px;
+            border-top: 1px dashed var(--glass-border);
+            padding-top: 20px;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 20px;
+            border-left: 2px solid var(--glass-border);
+            margin-top: 10px;
+        }
+
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 5px;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+            border: 2px solid var(--bg-color);
+        }
+
+        .timeline-item.type-intake::before {
+            background: #3b82f6;
+        }
+
+        .timeline-item.type-execution::before {
+            background: #10b981;
+        }
+
+        .timeline-item.type-exception::before {
+            background: #ef4444;
+        }
+
+        .timeline-item.type-draft::before {
+            background: #f59e0b;
+        }
+
+        .timeline-time {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+        }
+
+        .timeline-content {
+            background: rgba(255, 255, 255, 0.03);
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        textarea.rationale-input {
+            width: 100%;
+            height: 100px;
+            margin: 10px 0;
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            padding: 8px;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">Ops OS <span class="badge">Ops Console</span></div>
+            <div style="display: flex; gap: 10px; align-items: center;">
+                <a href="/" class="btn-secondary" style="text-decoration: none;">&larr; 受付画面へ戻る</a>
+                <button onclick="handleLogout()" class="btn-secondary">Logout</button>
+            </div>
+        </header>
+    </div>
+
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-tabs">
+                <button class="tab-btn active" onclick="switchTab('inbox')" title="未着手">Inbox</button>
+                <button class="tab-btn" onclick="switchTab('waiting')" title="承認待ち">Wait</button>
+                <button class="tab-btn" onclick="switchTab('resolved')" title="判断済み">Res</button>
+                <button class="tab-btn" onclick="switchTab('done')" title="完了">Done</button>
+                <button class="tab-btn" onclick="switchTab('process')" title="ルール管理">Process</button>
+            </div>
+            <div id="task-list" class="task-list">
+                <!-- Items -->
+            </div>
+        </aside>
+
+        <main class="main-content" id="detail-view">
+            <div style="text-align: center; color: var(--text-secondary); margin-top: 100px;">
+                リストから案件を選択してください
+            </div>
+        </main>
+
+        <!-- Process Editor View (Initially Hidden, toggled by JS) -->
+        <main class="main-content hidden" id="process-view">
+            <h2>Process & Rules Editor</h2>
+            <p style="color: var(--text-secondary); margin-bottom: 20px;">
+                PM専用: 業務ルールの変更・適用を行います。マニュアルは <a href="/docs/manuals/account_issuance.md" target="_blank"
+                    style="color: var(--accent-color);">docs/manuals/</a> を参照してください。
+            </p>
+
+            <div style="display: flex; gap: 20px; height: 100%;">
+                <div style="width: 250px; border-right: 1px solid var(--glass-border); padding-right: 15px;">
+                    <h3>Checklists</h3>
+                    <div id="checklist-selector" class="task-item">Loading...</div>
+                </div>
+
+                <div style="flex: 1; display: flex; flex-direction: column;">
+                    <div style="margin-bottom: 10px;">
+                        <label>Target ID: <strong id="editor-target-id">-</strong></label>
+                    </div>
+                    <textarea id="rules-editor"
+                        style="flex: 1; width: 100%; background: rgba(0,0,0,0.3); border: 1px solid var(--glass-border); color: #fff; font-family: monospace; padding: 10px; border-radius: 6px; resize: none;"></textarea>
+
+                    <div style="margin-top: 15px; display: flex; gap: 10px; align-items: center;">
+                        <input type="text" id="change-reason" placeholder="変更理由 (Change Reason)"
+                            style="flex: 1; padding: 10px; border-radius: 6px; border: 1px solid var(--glass-border); background: rgba(0,0,0,0.2); color: white;">
+                        <button class="btn-primary" onclick="deployRules()">Deploy & Update</button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/utils.js"></script>
+    <script src="js/admin.js"></script>
+</body>
+
+</html>

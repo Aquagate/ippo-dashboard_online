@@ -1,0 +1,5157 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <title>今日の一歩ダッシュボード</title>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-soft: #111827;
+      --bg-softer: #020617;
+      --accent: #38bdf8;
+      --accent-soft: #0f766e;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: #1f2933;
+      --danger: #f97373;
+      --good: #4ade80;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #0f172a 0, #020617 55%, #000 100%);
+      color: var(--text);
+    }
+
+    header {
+      padding: 16px 20px 8px;
+      border-bottom: 1px solid var(--border);
+      background: linear-gradient(90deg, rgba(56, 189, 248, 0.16), rgba(15, 118, 110, 0.08));
+    }
+
+    header h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: 0.04em;
+    }
+
+    header p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    main {
+      padding: 12px 20px 20px;
+      display: grid;
+      grid-template-columns: minmax(0, 2.1fr) minmax(0, 1.4fr);
+      gap: 16px;
+    }
+
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .panel {
+      background: rgba(15, 23, 42, 0.92);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 12px 14px 14px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+    }
+
+    /* TOD Buttons */
+    .tod-wrap {
+      display: flex;
+      gap: 4px;
+    }
+
+    .btn-tod {
+      background: transparent;
+      border: 1px solid #334155;
+      color: #64748b;
+      border-radius: 4px;
+      padding: 2px 4px;
+      cursor: pointer;
+      font-size: 10px;
+      transition: all 0.2s;
+    }
+
+    .btn-tod:hover {
+      border-color: #94a3b8;
+      color: #94a3b8;
+    }
+
+    .btn-tod.active {
+      background: rgba(56, 189, 248, 0.2);
+      border-color: #38bdf8;
+      color: #e0f2fe;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+
+    .panel-title {
+      font-size: 14px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .panel-title span.badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      color: var(--muted);
+    }
+
+    .panel-header small {
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--muted);
+      text-align: right;
+    }
+
+    .metrics-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .metric-card {
+      flex: 1 1 90px;
+      min-width: 90px;
+      background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(15, 118, 110, 0.25));
+      border-radius: 10px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 6px 8px;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .metric-value {
+      margin-top: 2px;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .metric-sub {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    .top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .file-input-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--muted);
+      flex-wrap: wrap;
+    }
+
+    .file-input-wrap label {
+      padding: 4px 8px;
+      background: rgba(15, 23, 42, 0.9);
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.8);
+      cursor: pointer;
+      font-size: 11px;
+    }
+
+    .file-input-wrap input[type="file"] {
+      display: none;
+    }
+
+    select,
+    input,
+    textarea,
+    button {
+      font-family: inherit;
+      font-size: 13px;
+    }
+
+    select,
+    input[type="date"],
+    input[type="text"] {
+      background: #020617;
+      color: var(--text);
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      padding: 4px 8px;
+    }
+
+    .daily-header {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+
+    .daily-title {
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .daily-sub {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .score-pill {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 4px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(15, 118, 110, 0.35);
+      border: 1px solid rgba(45, 212, 191, 0.6);
+      font-size: 11px;
+    }
+
+    .score-pill strong {
+      font-size: 15px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    thead {
+      background: rgba(15, 23, 42, 0.9);
+    }
+
+    th,
+    td {
+      padding: 4px 6px;
+      text-align: left;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.9);
+      vertical-align: top;
+    }
+
+    th {
+      font-size: 11px;
+      color: var(--muted);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    tbody tr:nth-child(2n) td {
+      background: rgba(15, 23, 42, 0.55);
+    }
+
+    .entry-text {
+      white-space: normal;
+      word-break: break-all;
+      min-width: 120px;
+      /* 極端に狭くなるのを防ぐ */
+    }
+
+    #dailyTableWrap table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .category-bar {
+      margin-bottom: 6px;
+    }
+
+    .category-bar-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .category-bar-fill {
+      position: relative;
+      height: 8px;
+      border-radius: 999px;
+      background: #020617;
+      overflow: hidden;
+      border: 1px solid rgba(30, 64, 175, 0.7);
+    }
+
+    .category-bar-fill span {
+      position: absolute;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      width: 0;
+      background: linear-gradient(90deg, #38bdf8, #22c55e);
+      transition: width 0.4s ease-out;
+    }
+
+    .next-step-box {
+      margin-top: 8px;
+      padding: 8px 9px;
+      border-radius: 10px;
+      background: radial-gradient(circle at left, rgba(56, 189, 248, 0.25), rgba(15, 23, 42, 0.9));
+      border: 1px solid rgba(56, 189, 248, 0.5);
+    }
+
+    .next-step-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 2px;
+    }
+
+    .next-step-main {
+      font-size: 13px;
+      line-height: 1.4;
+    }
+
+    .next-step-main strong {
+      color: var(--good);
+    }
+
+    form {
+      margin-top: 4px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 70px;
+      resize: vertical;
+      background: #020617;
+      color: var(--text);
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      padding: 6px 8px;
+    }
+
+    .form-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .form-row label {
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .form-row input[type="date"] {
+      font-size: 12px;
+      padding: 3px 8px;
+    }
+
+    button.primary {
+      padding: 5px 10px;
+      border-radius: 999px;
+      border: none;
+      background: linear-gradient(90deg, #38bdf8, #22c55e);
+      color: #020617;
+      font-weight: 600;
+      cursor: pointer;
+      font-size: 12px;
+    }
+
+    button.primary:hover {
+      filter: brightness(1.05);
+    }
+
+    .btn-ghost {
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.9);
+      background: transparent;
+      color: var(--muted);
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .btn-ghost:hover {
+      background: rgba(15, 23, 42, 0.8);
+      color: #e5e7eb;
+    }
+
+    /* 削除ボタン（落ち着いたグレー） */
+    .btn-danger {
+      padding: 3px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.9);
+      background: transparent;
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .btn-danger:hover {
+      background: rgba(15, 23, 42, 0.8);
+      color: #e5e7eb;
+    }
+
+    /* スターボタン（偉大な一歩マーク） */
+    .btn-star {
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: transparent;
+      color: var(--muted);
+      font-size: 14px;
+      cursor: pointer;
+      margin-right: 6px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-star:hover {
+      border-color: #fbbf24;
+      color: #fbbf24;
+      background: rgba(251, 191, 36, 0.1);
+    }
+
+    .btn-star.starred {
+      color: #fbbf24;
+      border-color: #fbbf24;
+      background: rgba(251, 191, 36, 0.15);
+    }
+
+    /* TODボタン */
+    .btn-tod {
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: transparent;
+      color: var(--muted);
+      font-size: 12px;
+      cursor: pointer;
+      margin-right: 2px;
+      padding: 2px 4px;
+      border-radius: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .btn-tod:hover {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    .btn-tod.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .form-note {
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    .message {
+      font-size: 11px;
+      margin-top: 2px;
+    }
+
+    .message.ok {
+      color: var(--good);
+    }
+
+    .message.err {
+      color: var(--danger);
+    }
+
+    .empty-state {
+      font-size: 12px;
+      color: var(--muted);
+      padding: 8px 4px;
+    }
+
+    /* --- Bento Grid Layout --- */
+    .lab-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding-bottom: 40px;
+    }
+
+    .lab-card {
+      /* Glassmorphism Base */
+      background: rgba(15, 23, 42, 0.6) !important;
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 16px !important;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+      transition: all 0.3s ease;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .lab-card:hover {
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+      border-color: rgba(255, 255, 255, 0.2) !important;
+      transform: translateY(-2px);
+    }
+
+    .span-full {
+      grid-column: 1 / -1;
+    }
+
+    .span-1 {
+      grid-column: span 1;
+    }
+
+    .span-2 {
+      grid-column: span 2;
+    }
+
+    @media (max-width: 900px) {
+      .lab-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .span-1 {
+        grid-column: span 1;
+      }
+    }
+
+    @media (max-width: 600px) {
+      .lab-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .span-1,
+      .span-2 {
+        grid-column: 1 / -1;
+      }
+    }
+
+    /* ------------------------- */
+
+    .pill {
+
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 2px 8px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      font-size: 10px;
+      color: var(--muted);
+    }
+
+    /* タブナビゲーション */
+    .tab-nav {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 12px;
+    }
+
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      padding: 6px 12px;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    /* タブコンテンツ制御 */
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(4px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Future Lab レイアウト */
+    .lab-container {
+      display: grid;
+      grid-template-columns: 1fr;
+      /* モバイルファースト */
+      gap: 20px;
+      padding-bottom: 40px;
+    }
+
+    @media (min-width: 768px) {
+      .lab-container {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .lab-full-width {
+        grid-column: span 2;
+      }
+    }
+
+    .lab-card {
+      background: rgba(15, 23, 42, 0.6);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      backdrop-filter: blur(8px);
+    }
+
+    .lab-title {
+      font-size: 14px;
+      color: var(--muted);
+      margin: 0 0 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .lab-chart-wrap {
+      position: relative;
+      height: 250px;
+      width: 100%;
+    }
+
+    .category-select {
+      width: 100%;
+      background: #020617;
+      color: var(--text);
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      font-size: 10px;
+      padding: 2px 4px;
+    }
+
+    /* 次の一歩メモ用 */
+    .next-memo-list {
+      list-style: none;
+      padding-left: 0;
+      margin: 4px 0 0;
+    }
+
+    .next-memo-item {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(15, 23, 42, 0.6);
+    }
+
+    .next-memo-label {
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+      font-size: 12px;
+    }
+
+    .next-memo-text {
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    .next-memo-meta {
+      font-size: 10px;
+      color: var(--muted);
+      margin-left: 20px;
+    }
+
+    .next-memo-input {
+      width: 100%;
+      min-height: 48px;
+      resize: vertical;
+      background: #020617;
+      color: var(--text);
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      padding: 6px 8px;
+    }
+
+    .btn-ghost-small {
+      padding: 2px 6px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: transparent;
+      color: var(--muted);
+      font-size: 10px;
+      cursor: pointer;
+    }
+
+    .btn-ghost-small:hover {
+      background: rgba(15, 23, 42, 0.8);
+      color: #e5e7eb;
+    }
+
+    /* OneDrive box */
+    .onedrive-box {
+      margin: 10px 0 12px;
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, .10);
+      border-radius: 14px;
+      background: rgba(0, 0, 0, .18);
+    }
+
+    .onedrive-box>summary {
+      list-style: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      font-weight: 700;
+      user-select: none;
+    }
+
+    .onedrive-box>summary::-webkit-details-marker {
+      display: none;
+    }
+
+    .onedrive-summary-sub {
+      font-weight: 600;
+      opacity: .85;
+      font-size: 12px;
+      padding: 4px 10px;
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, .06);
+    }
+
+    .onedrive-body {
+      margin-top: 10px;
+    }
+
+    .onedrive-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .onedrive-grid label {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      font-size: 12px;
+      opacity: .95;
+    }
+
+    .onedrive-actions {
+      margin-top: 10px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+
+    .onedrive-hint {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, .10);
+      background: rgba(255, 255, 255, .05);
+      font-size: 12px;
+      opacity: .92;
+    }
+
+    .onedrive-hint-row {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .onedrive-hint-row code {
+      padding: 2px 8px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, .12);
+      background: rgba(0, 0, 0, .22);
+    }
+
+    .onedrive-hint-sub {
+      margin-top: 8px;
+      opacity: .9;
+      line-height: 1.45;
+    }
+
+    .onedrive-status {
+      margin-top: 10px;
+      padding: 8px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      background: rgba(2, 6, 23, 0.6);
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .onedrive-status strong {
+      color: var(--accent);
+    }
+
+    /* タブナビゲーション */
+    .tab-nav {
+      display: flex;
+      gap: 0;
+      margin: 0 20px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tab-btn {
+      padding: 10px 20px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn:hover {
+      color: var(--text);
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* 体力・メンタル入力ボタン */
+    .rating-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .rating-label {
+      font-size: 11px;
+      color: var(--muted);
+      min-width: 60px;
+    }
+
+    .rating-btns {
+      display: flex;
+      gap: 4px;
+    }
+
+    .rating-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 1px solid rgba(148, 163, 184, 0.6);
+      background: rgba(15, 23, 42, 0.8);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .rating-btn:hover {
+      border-color: var(--accent);
+      color: var(--text);
+    }
+
+    .rating-btn.small {
+      width: 20px;
+      height: 20px;
+      font-size: 10px;
+      line-height: 18px;
+      padding: 0;
+    }
+
+    .rating-btn.selected {
+      background: linear-gradient(135deg, rgba(56, 189, 248, 0.4), rgba(34, 197, 94, 0.4));
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .rating-clear {
+      font-size: 10px;
+      color: var(--muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      padding: 4px 6px;
+    }
+
+    .rating-clear:hover {
+      color: var(--text);
+    }
+
+    /* 裏面プレースホルダー */
+    .future-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 300px;
+      color: var(--muted);
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    .future-placeholder-icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .future-placeholder-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 8px;
+      color: var(--text);
+    }
+
+    .future-placeholder-text {
+      font-size: 13px;
+      line-height: 1.6;
+      max-width: 400px;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <h1>今日の一歩ダッシュボード</h1>
+    <p>うぜんの「一歩」を可視化して、偏りを見て次の一歩を決めるための、個人用モニタ。</p>
+  </header>
+
+  <!-- タブナビゲーション -->
+  <nav class="tab-nav">
+    <button type="button" class="tab-btn active" data-tab="ippo">一歩ログ</button>
+    <button type="button" class="tab-btn" data-tab="future">未来ラボ</button>
+  </nav>
+
+  <!-- 表面：一歩ログ -->
+  <div id="tabIppo" class="tab-content active">
+    <main>
+      <!-- 左：今日フォーカス（追加 → 日別ログ → 日記） -->
+      <section class="panel" id="leftPanel">
+
+        <!-- 一歩を追加 -->
+        <div class="panel-header">
+          <div class="panel-title">
+            一歩を追加
+            <span class="badge">その場で追記</span>
+          </div>
+          <small>追加した一歩はローカルキャッシュに保存され、同期される。</small>
+        </div>
+        <form id="addForm">
+          <label>
+            <span class="form-note">一歩の内容</span>
+            <textarea id="addText" placeholder="例：『〇〇の企画案を部長に投げた』『子供と的当てゲームした』『DX検定の勉強を30分やった』など"></textarea>
+          </label>
+
+
+
+          <div class="form-row">
+            <label>
+              日付：
+              <input type="date" id="addDate">
+            </label>
+            <button type="submit" class="primary">この一歩を追加</button>
+          </div>
+          <div class="form-note">
+            ※カテゴリは文面から自動推定（ 仕事・企画／家族・子ども／健康・身体／環境・暮らし／学び・技術／お金・投資／趣味・遊び／心・メンタル／その他 ）
+          </div>
+          <div id="addMessage" class="message"></div>
+        </form>
+
+        <!-- 日別ログ -->
+        <div class="panel-header" style="margin-top:12px;">
+          <div class="panel-title">
+            日別ログ
+            <span class="badge">今日の一歩一覧</span>
+          </div>
+          <small>日付を選ぶと、その日の一歩・前進率・カテゴリ分布が見える</small>
+        </div>
+
+        <div class="daily-header">
+          <div>
+            <div class="daily-title">
+              <span id="selectedDateLabel">-</span> の一歩
+            </div>
+            <div class="daily-sub">
+              <span id="dailyCountLabel">0件</span>
+            </div>
+          </div>
+          <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+            <!-- B-3: 日次メンタル入力 -->
+            <div class="rating-group"
+              style="margin:0; background:rgba(0,0,0,0.2); padding:2px 8px; border-radius:999px;">
+              <span class="rating-label" style="font-size:10px;">今日のメンタル:</span>
+              <div class="rating-btns" id="dailyMentalBtns">
+                <button type="button" class="rating-btn small" data-value="1">1</button>
+                <button type="button" class="rating-btn small" data-value="2">2</button>
+                <button type="button" class="rating-btn small" data-value="3">3</button>
+                <button type="button" class="rating-btn small" data-value="4">4</button>
+                <button type="button" class="rating-btn small" data-value="5">5</button>
+              </div>
+              <button type="button" class="rating-clear" id="dailyMentalClear" style="font-size:10px;">×</button>
+            </div>
+            <select id="dateSelect"></select>
+            <div class="score-pill">
+              <span>前進率</span>
+              <strong id="dailyScore">0.0</strong><span>%</span>
+            </div>
+          </div>
+        </div>
+
+        <div id="dailyTableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 38px;">入力時間</th>
+                <th>一歩の内容</th>
+                <th style="width: 110px;">カテゴリ</th>
+                <th style="width: 84px;">一歩時間帯</th>
+                <th style="width: 52px;">重要</th>
+              </tr>
+            </thead>
+            <tbody id="dailyTbody"></tbody>
+          </table>
+        </div>
+        <div id="noDataDaily" class="empty-state" style="display:none;">
+          まだ一歩ログがありません。上の「一歩を追加」から一歩を追加するか、右側の「一歩ログCSVを読み込む」から取り込んでください。
+        </div>
+
+        <!-- 日記エリア -->
+        <div class="panel-header" style="margin-top:12px;">
+          <div class="panel-title">
+            日記
+            <span class="badge">選択した日の一歩から自動生成</span>
+          </div>
+          <small>テキストは自由に編集して、日記アプリなどにコピペできる。</small>
+        </div>
+        <div>
+          <div class="form-row" style="justify-content:flex-end; margin-bottom:4px;">
+            <button type="button" id="regenerateDiaryBtn" class="btn-ghost">日記を再生成</button>
+            <button type="button" id="copyDiaryBtn" class="btn-ghost">日記をコピー</button>
+          </div>
+          <textarea id="diaryOutput" placeholder="ここに、選択中の日付の一歩から自動生成された日記が表示されます。"></textarea>
+          <div id="diaryMessage" class="form-note"></div>
+        </div>
+      </section>
+
+      <!-- 右：過去＆未来ゾーン（CSV・メトリクス・カテゴリ・次の一歩） -->
+      <section class="panel">
+
+        <!-- CSV読み込み＆リセット -->
+        <div class="top-row">
+          <div class="file-input-wrap">
+            <label for="csvInput">一歩ログCSVを読み込む</label>
+            <input type="file" id="csvInput" accept=".csv,text/csv">
+            <span id="fileStatus">まだCSVは読み込んでいません</span>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; justify-content:flex-end;">
+            <span class="pill">OneDrive同期 + ローカルキャッシュ</span>
+            <button type="button" id="resetButton" class="btn-ghost">全リセット</button>
+          </div>
+        </div>
+
+        <!-- OneDrive -->
+        <details class="onedrive-box" id="onedriveDetails">
+          <summary>OneDrive設定 <span class="onedrive-summary-sub" id="odStatus">未接続</span></summary>
+          <div class="onedrive-body">
+            <div class="onedrive-grid">
+              <label>Client ID（アプリID）
+                <input id="odClientId" type="text" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                  autocomplete="off" />
+              </label>
+              <label>Tenant（任意）
+                <input id="odTenant" type="text" placeholder="common / organizations / consumers / テナントID"
+                  autocomplete="off" />
+              </label>
+              <label>Redirect URI（変更可）
+                <input id="odRedirectInput" type="text" placeholder="http://localhost:5500/" autocomplete="off" />
+              </label>
+              <label>保存先パス（AppFolder内）
+                <input id="odFilePath" type="text" placeholder="/Apps/IppoDashboard/ippo_data.json"
+                  autocomplete="off" />
+              </label>
+            </div>
+
+            <div class="onedrive-actions">
+              <button class="btn-ghost" id="odSave" type="button">保存</button>
+              <button class="btn-ghost" id="odClear" type="button">クリア</button>
+              <button class="btn-ghost" id="odSignIn" type="button">サインイン</button>
+              <button class="btn-ghost" id="odSignOut" type="button" disabled>サインアウト</button>
+              <button class="btn-ghost" id="odSyncNow" type="button" disabled>今すぐ同期</button>
+            </div>
+
+            <div class="onedrive-actions">
+              <button class="btn-ghost" id="odExport" type="button">JSONエクスポート</button>
+              <label class="btn-ghost" for="odImportInput" style="cursor:pointer;">JSONインポート
+                <input id="odImportInput" type="file" accept="application/json" style="display:none;" />
+              </label>
+            </div>
+
+            <div class="onedrive-status" id="odSyncStatus">
+              <div>同期状態: <strong id="odSyncState">未同期</strong></div>
+              <div>最終同期: <span id="odLastSync">-</span></div>
+              <div>未送信件数: <span id="odPendingCount">0</span></div>
+              <div>エラー: <span id="odLastError">-</span></div>
+            </div>
+
+            <div class="onedrive-hint">
+              <div class="onedrive-hint-row">
+                <span>推奨Redirect</span>
+                <code id="odRedirectUri"></code>
+                <button class="btn-ghost" id="odCopyRedirect" type="button">コピー</button>
+              </div>
+              <div class="onedrive-hint-sub">
+                保存先は <b>アプリ専用フォルダ（AppFolder）</b>。既定は <code>/Apps/IppoDashboard/ippo_data.json</code>。
+                （権限: <code>Files.ReadWrite.AppFolder</code>）
+              </div>
+            </div>
+
+            <div class="onedrive-hint small">
+              重要: <code>file://</code> 直開きだと認証が動かない。Live Server 等で <code>http://localhost</code> で開くこと。
+            </div>
+          </div>
+        </details>
+
+        <!-- Debug Log Area -->
+        <details class="onedrive-box">
+          <summary>Debug Logs</summary>
+          <textarea id="debugLogArea"
+            style="width:100%; height:120px; background:#111; color:#0f0; font-family:monospace; font-size:10px; border:none; padding:8px;"
+            readonly></textarea>
+        </details>
+
+        <!-- メトリクス -->
+        <div class="panel-header">
+          <div class="panel-title">
+            メトリクス
+            <span class="badge">全体サマリ</span>
+          </div>
+          <small id="metricsSubtitle"></small>
+        </div>
+        <div class="metrics-row">
+          <div class="metric-card">
+            <div class="metric-label">累計アクション数</div>
+            <div class="metric-value" id="metricTotal">0</div>
+            <div class="metric-sub">これまでの「一歩」の総数</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">今週の累計</div>
+            <div class="metric-value" id="metricWeekly">0</div>
+            <div class="metric-sub" id="metricWeeklyRange">-</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-label">今月の累計</div>
+            <div class="metric-value" id="metricMonthly">0</div>
+            <div class="metric-sub">最新の日付の月ベース</div>
+          </div>
+        </div>
+        <div class="form-row" style="justify-content:flex-end; margin-bottom:8px;">
+          <button type="button" id="exportMonthlyBtn" class="btn-ghost">月次サマリCSV</button>
+          <button type="button" id="exportAllBtn" class="btn-ghost">全件CSV</button>
+        </div>
+
+        <!-- カテゴリ分布 -->
+        <div class="panel-header" style="margin-top:4px;">
+          <div class="panel-title">
+            カテゴリ分布
+            <span class="badge">ここ数日の偏り</span>
+          </div>
+          <small>最近7日間を対象にカテゴリ別の本数を集計</small>
+        </div>
+        <div id="categoryBars"></div>
+        <div id="noCategory" class="empty-state" style="display:none;">
+          データがないので、カテゴリ分布はまだ出せません。
+        </div>
+
+        <!-- 次の一歩メモ（手動） -->
+        <div class="panel-header" style="margin-top:12px;">
+          <div class="panel-title">
+            次の一歩メモ
+            <span class="badge">あとでやりたいこと置き場</span>
+          </div>
+          <small>「今日は体力ないけど、そのうちやりたい」アイデアをストック。終わったらチェックして消す。</small>
+        </div>
+
+        <form id="nextMemoForm">
+          <label>
+            <span class="form-note">やりたいけど今日はやらない一歩メモ</span>
+            <textarea id="nextMemoInput" class="next-memo-input"
+              placeholder="例：『一歩ダッシュボードの◯◯機能を試す』『○○さんにこの前の企画の反応を聞く』など"></textarea>
+          </label>
+          <div class="form-row" style="justify-content:flex-end;">
+            <button type="submit" class="btn-ghost">メモを追加</button>
+          </div>
+        </form>
+
+        <div id="nextMemoEmpty" class="empty-state">
+          まだメモはありません。「いつかやる一歩」をここに置いておける。
+        </div>
+        <ul id="nextMemoList" class="next-memo-list"></ul>
+
+      </section>
+    </main>
+  </div><!-- /tabIppo -->
+
+  <!-- 裏面：未来ラボ -->
+  <div id="tabFuture" class="tab-content">
+    <main style="padding: 12px 20px 20px;">
+      <div class="lab-grid">
+
+        <!-- 1. Mental Rhythm (旧 Energy Flow) - Full Width -->
+        <div class="lab-card span-full" style="min-height: 320px;">
+          <h3 class="lab-title">
+            <span>Mental Rhythm</span>
+            <span class="pill">30-Day Trend</span>
+          </h3>
+          <div class="lab-chart-wrap">
+            <canvas id="chartFlow"></canvas>
+          </div>
+        </div>
+
+        <!-- 2. Activity Balance (旧 Cross TOD) - 1/3 -->
+        <div class="lab-card span-1">
+          <h3 class="lab-title">
+            <span>Activity Balance</span>
+            <span class="pill">Time x Category</span>
+          </h3>
+          <div class="lab-chart-wrap">
+            <canvas id="chartCrossTod"></canvas>
+          </div>
+        </div>
+
+        <!-- 3. Category Radar - 1/3 -->
+        <div class="lab-card span-1">
+          <h3 class="lab-title">
+            <span>Interest Balance</span>
+            <span class="pill">Category Dist.</span>
+          </h3>
+          <div class="lab-chart-wrap">
+            <canvas id="chartRadar"></canvas>
+          </div>
+        </div>
+
+        <!-- 4. Keyword Galaxy - 1/3 -->
+        <div class="lab-card span-1">
+          <h3 class="lab-title">
+            <span>Keyword Galaxy</span>
+            <span class="pill">Trends</span>
+          </h3>
+          <div class="lab-chart-wrap">
+            <canvas id="chartKeywords"></canvas>
+          </div>
+        </div>
+
+        <!-- 5. Great Steps Gallery - Full Width -->
+        <div class="lab-card span-full"
+          style="border-color: rgba(251, 191, 36, 0.3); background: rgba(251, 191, 36, 0.05);">
+          <h3 class="lab-title" style="color: #fbbf24;">
+            <span>Great Steps Gallery</span>
+            <span class="pill" style="border-color: #fbbf24; color: #fbbf24;">Hall of Fame 🏆</span>
+          </h3>
+          <div id="greatStepsList"
+            style="max-height: 300px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px;">
+            <!-- JSで注入 -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- 6. AI Bridge (Future Simulation) -->
+      <div class="lab-card span-full"
+        style="border-color: rgba(217, 70, 239, 0.4); background: rgba(217, 70, 239, 0.05);">
+        <h3 class="lab-title" style="color: #d946ef;">
+          <span>AI Bridge Implementation</span>
+          <span class="pill" style="border-color: #d946ef; color: #d946ef;">SEED Phase 4</span>
+        </h3>
+
+        <div class="bridge-container" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Step 1: Export -->
+          <div class="bridge-step">
+            <div style="font-size:12px; opacity:0.7; margin-bottom:4px;">STEP 1: Generate Context</div>
+            <p style="font-size:13px; margin:0 0 8px;">過去ログと未来予測プロンプトを生成し、クリップボードにコピーします。</p>
+            <button id="btnBridgeExport" class="btn-primary" type="button"
+              style="background:var(--bg-soft); border:1px solid #d946ef; color:#d946ef; width:100%;">
+              📋 Copy Simulation Context
+            </button>
+          </div>
+
+          <!-- Step 2: Import -->
+          <div class="bridge-step">
+            <div style="font-size:12px; opacity:0.7; margin-bottom:4px;">STEP 2: Visualize Future</div>
+            <p style="font-size:13px; margin:0 0 8px;">LLMからのJSON出力を貼り付けてください。</p>
+            <textarea id="bridgeInput" placeholder='Paste JSON here... (e.g. {"persona_solid": ...})'
+              style="width:100%; height:80px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:4px; font-size:12px; font-family:monospace;"></textarea>
+
+            <div style="margin-top:6px; margin-bottom: 2px;">
+              <label
+                style="font-size:11px; color:var(--muted); display:inline-flex; align-items:center; cursor:pointer;">
+                <input type="checkbox" id="chkDisableLimit" style="margin-right:4px;"> 1日1回制限を無効化 (同日リトライ用)
+              </label>
+            </div>
+            <button id="btnBridgeImport" class="btn-primary" type="button"
+              style="background:#d946ef; color:white; width:100%; margin-top:8px;">
+              🔮 Visualize Future
+            </button>
+          </div>
+
+          <!-- Result Area -->
+          <div id="futureCardsContainer"
+            style="display:grid; grid-template-columns:repeat(3, 1fr); gap:12px; margin-top:8px; display:none;">
+            <!-- JS Injected -->
+          </div>
+        </div>
+      </div>
+  </div>
+  </div><!-- /tabFuture -->
+
+  <script src="https://alcdn.msauth.net/browser/2.38.0/js/msal-browser.min.js"></script>
+  <script>
+    // --- Tab Switching Logic ---
+    function initTabs() {
+      const tabs = document.querySelectorAll(".tab-btn");
+      tabs.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const target = btn.dataset.tab; // 'ippo' or 'future'
+          switchTab(target);
+        });
+      });
+    }
+
+    function switchTab(tabName) {
+      // 1. Update buttons
+      document.querySelectorAll(".tab-btn").forEach(btn => {
+        btn.classList.toggle("active", btn.dataset.tab === tabName);
+      });
+
+      // 2. Update content
+      document.getElementById("tabIppo").classList.toggle("active", tabName === "ippo");
+      document.getElementById("tabFuture").classList.toggle("active", tabName === "future");
+
+      // 3. Init Lab if needed
+      if (tabName === "future") {
+        initFutureLab();
+      }
+    }
+
+    let isLabInitialized = false;
+    function initFutureLab() {
+      if (isLabInitialized) return;
+      console.log("Initializing Future Lab...");
+      console.log("🚀 Ippo Dashboard v5.2.1-fix-assets initialized"); // VERIFICATION LOG
+      showToast("🚀 System Updated (v5.2.1)", "ok"); // VISUAL CONFIRMATION
+
+      isLabInitialized = true;
+
+      // 非同期で描画（UIブロック防止）
+      setTimeout(() => {
+        renderRadarChart();
+        renderFlowChart();
+        renderCrossTodChart();
+        renderKeywordChart();
+        renderGreatStepsGallery();
+        initBridgeEvents(); // AI Bridge
+        initStoryMode(); // Story Mode状態復元
+
+        // 保存済みシミュレーションの復元（リロード対策）
+        const sims = (dataCache.simulations || []).filter(s => !s.deleted);
+        if (sims.length > 0) {
+          // 最新の世界線カードを自動復元
+          const latestSim = sims[0];
+          if (latestSim.result) {
+            renderFutureCards(latestSim.result, latestSim.id);
+            document.getElementById("futureCardsContainer").style.display = "grid";
+          }
+        }
+        // SIMULATION HISTORY を常に表示
+        renderSimulationHistory();
+      }, 100);
+    }
+
+    // DEBUG: ログ表示用
+    function appendDebugLog(msg) {
+      const el = document.getElementById("debugLogArea");
+      if (!el) return;
+      const time = new Date().toLocaleTimeString();
+      el.value += `[${time}] ${msg}\n`;
+      el.scrollTop = el.scrollHeight;
+    }
+
+    // --- Chart Implementations ---
+
+    function renderGreatStepsGallery() {
+      const el = document.getElementById("greatStepsList");
+      if (!el) return;
+      el.innerHTML = "";
+
+      const entries = getActiveEntries().filter(e => e.starred);
+      if (entries.length === 0) {
+        el.innerHTML = `<div style="padding:20px; text-align:center; color:#fbbf24; opacity:0.7;">まだ「偉大な一歩」はありません。<br>日報テーブルの☆を押して登録しよう！</div>`;
+        return;
+      }
+
+      // 新しい順
+      entries.sort((a, b) => b.ts - a.ts);
+
+      entries.forEach(e => {
+        const row = document.createElement("div");
+        row.style.padding = "8px 12px";
+        row.style.background = "rgba(0,0,0,0.2)";
+        row.style.borderRadius = "8px";
+        row.style.borderLeft = "3px solid #fbbf24";
+
+        const dateStr = getRecordTime(e).split(" ")[0]; // YYYY-MM-DD
+
+        row.innerHTML = `
+          <div style="font-size:10px; opacity:0.7; margin-bottom:2px; display:flex; justify-content:space-between;">
+            <span>${dateStr}</span>
+            <span style="color:#fbbf24;">${e.category}</span>
+          </div>
+          <div style="font-size:13px;">${e.text}</div>
+        `;
+        el.appendChild(row);
+      });
+    }
+
+    // --- AI Bridge Logic (SEED v5) ---
+
+    function initBridgeEvents() {
+      document.getElementById("btnBridgeExport")?.addEventListener("click", copySimulationContext);
+      document.getElementById("btnBridgeImport")?.addEventListener("click", importSimulationResult);
+
+      // Disable Limit Checkbox Logic
+      const chk = document.getElementById("chkDisableLimit");
+      if (chk) {
+        // Restore state
+        chk.checked = localStorage.getItem("ippo_disable_limit") === "true";
+        // Save state
+        chk.addEventListener("change", (e) => {
+          localStorage.setItem("ippo_disable_limit", e.target.checked);
+        });
+      }
+    }
+
+    function buildPreviousSimSummary(sim) {
+      if (!sim || !sim.result) return null;
+      const r = sim.result;
+
+      // v5 check
+      const isV5 = r.worldline_baseline && r.worldline_leap && r.worldline_guardrail;
+      // 旧バージョン(v4)の場合は簡易表示
+      if (!isV5) return "前回シミュレーションは旧バージョン(v4)です。";
+
+      const dateStr = new Date(sim.createdAt).toLocaleDateString("ja-JP");
+
+      // Helper to extract 1w/6m outcomes
+      const getOutcomes = (wl) => {
+        if (!wl || !wl.roadmap) return "";
+        const w1 = wl.roadmap.find(x => x.horizon === "1w")?.outcome || "";
+        const m6 = wl.roadmap.find(x => x.horizon === "6m")?.outcome || "";
+        return `1w:${w1.slice(0, 30)}... / 6m:${m6.slice(0, 30)}...`;
+      };
+
+      return `
+前回シミュレーション (${dateStr}):
+- Baseline: 「${r.worldline_baseline.title}」→ ${getOutcomes(r.worldline_baseline)}
+- Leap: 「${r.worldline_leap.title}」→ ${getOutcomes(r.worldline_leap)}
+- Guardrail: 「${r.worldline_guardrail.title}」→ ${getOutcomes(r.worldline_guardrail)}
+- rubric_score: B:${r.worldline_baseline.rubric_score} / L:${r.worldline_leap.rubric_score} / G:${r.worldline_guardrail.rubric_score}
+`.trim();
+    }
+
+    async function copySimulationContext() {
+      const entries = getActiveEntries();
+      const sorted = entries.slice().sort((a, b) => b.ts - a.ts);
+
+      // 直近90日 (3ヶ月)
+      const windowMs = 90 * 24 * 60 * 60 * 1000;
+      const border = Date.now() - windowMs;
+
+      let recent = sorted.filter(e => e.ts >= border);
+
+      // データが少なすぎる場合の最低保証 (Min 30)
+      if (recent.length < 30) {
+        recent = sorted.slice(0, Math.min(30, sorted.length));
+      }
+
+      // InputDigest生成
+      const categoryCount = {};
+      const keywordCount = {};
+
+      const todMap = { "morning": "🌅", "afternoon": "☀️", "day": "☀️", "night": "🌙" };
+      const todStats = { "morning": 0, "afternoon": 0, "day": 0, "night": 0 };
+      let todTotal = 0;
+
+      recent.forEach(e => {
+        const cat = e.category || "その他";
+        categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+        // 簡易キーワード抽出
+        const words = (e.text || "").split(/[\s、。,]+/).filter(w => w.length >= 2 && w.length <= 10);
+        words.forEach(w => {
+          keywordCount[w] = (keywordCount[w] || 0) + 1;
+        });
+
+        // TOD集計
+        if (e.tod && Array.isArray(e.tod)) {
+          e.tod.forEach(t => {
+            if (todStats[t] !== undefined) {
+              todStats[t]++;
+              todTotal++;
+            }
+          });
+        }
+      });
+
+      const topCategories = Object.entries(categoryCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([category, count]) => ({ category, count }));
+
+      const topKeywords = Object.entries(keywordCount)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 10)
+        .map(([keyword, count]) => ({ keyword, count }));
+
+      // TOD Context生成
+      let todContext = "No time-of-day tags found.";
+      if (todTotal > 0) {
+        todContext = Object.entries(todStats)
+          .filter(([k, v]) => v > 0)
+          .map(([k, v]) => `- ${k}: ${Math.round((v / todTotal) * 100)}% (${v}回)`)
+          .join("\n");
+      }
+
+      const dateRange = recent.length > 0 ? {
+        from: recent[recent.length - 1].date,
+        to: recent[0].date
+      } : { from: "", to: "" };
+
+      // 日次メンタルデータの抽出
+      const dailyMentalList = [];
+      const visitedDates = new Set();
+      recent.forEach(e => {
+        if (!e.date || visitedDates.has(e.date)) return;
+        visitedDates.add(e.date);
+        const state = (dataCache.dailyStates || {})[e.date];
+        if (state && state.mental) {
+          dailyMentalList.push({ date: e.date, mental: state.mental });
+        }
+      });
+      // 日付降順 -> 昇順に直して時系列で見やすくする
+      dailyMentalList.sort((a, b) => a.date.localeCompare(b.date));
+
+      const dailyMentalContext = dailyMentalList.length > 0
+        ? dailyMentalList.map(d => `- ${d.date}: Mental Lv.${d.mental}`).join("\n")
+        : "No daily mental records available.";
+
+      const userLogs = recent.map(e => {
+        // TOD情報をアイコン+テキストで付与して結びつきを強化
+        const tods = (e.tod || []).map(k => {
+          const icon = todMap[k] || "";
+          return icon ? `${icon}(${k})` : "";
+        }).join(" ");
+        const todStr = tods ? ` ${tods}` : "";
+        return `${e.date}${todStr} [${e.category}]: ${e.text}`;
+      }).join("\n");
+
+      // 前回シミュレーション情報の取得
+      const sims = (dataCache.simulations || []).filter(s => !s.deleted);
+      const previousSim = sims.length > 0 ? sims[0] : null;
+      const previousSummary = previousSim ? buildPreviousSimSummary(previousSim) : null;
+
+      // 差分ログ（前回作成日以降）
+      let newLogsContext = "（初回のため比較なし）";
+      if (previousSim) {
+        const prevTime = previousSim.createdAt;
+        // 新しい順に並んでいるので、prevTimeより新しいものを抽出
+        const newLogs = recent.filter(e => e.ts > prevTime);
+        if (newLogs.length > 0) {
+          newLogsContext = newLogs.map(e => `- ${e.date} [${e.category}]: ${e.text.slice(0, 50)}...`).join("\n");
+        } else {
+          newLogsContext = "（前回以降の新規ログなし）";
+        }
+      }
+
+      const prompt = `
+# SEED v5 Simulation Request (v2.5.1 tuned)
+
+あなたは「未来シミュレーションエンジン」です。
+ユーザーの過去ログ（観測）にもとづき、3つの世界線（Baseline / Leap / Guardrail）を提示してください。
+**「活動時間帯（Time of Day）」と「行動内容」の相関**にも注目し、生活リズムの観点からも分析を行ってください。
+
+## 大前提（守るルール）
+- 占い化禁止：未来は「当てる」のではなく「選択肢を増やす」ための未来地図
+- 世界線は固定3本（迷宮化防止）
+  - Baseline（現状延長）
+  - Leap（10X飛躍）
+  - Guardrail（崩れ回避 / 逃走歓迎 / 回復の足場）
+- 医療・診断の断定は禁止
+- ログに無い文脈を捏造しない（evidenceはログ引用ベース）
+- 恐怖訴求は禁止（破滅/手遅れ/最悪 などの煽り語を使わない）
+- 出力はJSONのみ（余計な文章は禁止）
+
+## Context (User Logs & Optional States)
+期間: ${dateRange.from} 〜 ${dateRange.to}
+件数: ${recent.length}件
+
+Top Categories:
+${topCategories.map(c => `- ${c.category}: ${c.count}件`).join("\n")}
+
+Top Keywords:
+${topKeywords.map(k => `- ${k.keyword}: ${k.count}回`).join("\n")}
+
+Daily Mental (optional, 1=Low, 5=High, 未入力は不明として扱う):
+${dailyMentalContext}
+
+Time-of-day tags (optional, morning/afternoon/night の割合。無いなら不明):
+${todContext}
+
+--- 過去ログ（観測） ---
+${userLogs}
+--- ここまで ---
+
+## Previous Simulation（前回との比較用）
+${previousSummary || "（過去データなし）"}
+
+### 前回から今回までに追加されたログ
+${newLogsContext}
+
+指示: 前回の予測と今回のログ差分を踏まえ、軌道がどう変わったかを \`meta.trajectory_shift\` に1-2文で記述してください。
+（例：「前回のBaselineでは〇〇を懸念していたが、〇〇の実践によりLeap寄りの軌道へ修正された」など）
+
+## Self-Rubric Scoring（必須プロセス・厳守）
+
+各世界線を以下6観点で採点し、合計90点以上になるまで内部で修正を繰り返してください。
+**90点未満の世界線は出力禁止。** 内部で修正してから出力すること。
+
+| # | 観点                 | 配点 | 基準                                                   |
+|---|----------------------|------|--------------------------------------------------------|
+| 1 | Consistency          | 20点 | ログの傾向・キーワードと提案の方向が一致している         |
+| 2 | Causality            | 20点 | micro_steps → roadmapの因果が論理的に通る               |
+| 3 | Actionability        | 15点 | 全micro_stepsが15分以内で着手可能（「検討する」は不可） |
+| 4 | Asset Leverage       | 15点 | asset_stepsが再利用可能な具体的形式になっている         |
+| 5 | Guardrail Sanity     | 15点 | Guardrailが回復・逃走の足場として実際に機能する         |
+| 6 | Evidence Grounding   | 15点 | 全evidenceがログから直接引用できる                       |
+
+rubric_score = 6観点の合計（/100）
+rubric_reason = 最も低い観点名 + 改善した内容（1行）
+rubric_detail = { consistency: 点, causality: 点, actionability: 点, asset_leverage: 点, guardrail_sanity: 点, evidence_grounding: 点 }
+
+## 世界線独立性チェック（必須）
+
+3つの世界線（Baseline / Leap / Guardrail）のmicro_stepsに重複が30%以上あれば作り直すこと。
+各世界線は異なるアプローチ・戦略を示すこと。
+
+## 出力言語
+
+title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence, rubric_reason は全て日本語で出力してください。
+キー名のみ英語。
+
+## JSON Output Schema
+最終出力は以下のJSON形式のみを Markdown の \`\`\`json コードブロックで囲んで出力してください。
+件数ルールは厳守。文字列の埋め草（"..."）は禁止。
+
+\`\`\`json
+{
+  "meta": {
+    "version": "SEED_v5",
+    "generated_at": "YYYY-MM-DD",
+    "time_horizon_days": 180,
+    "notes": "仮説。未来は選択肢を増やすための地図。",
+    "trajectory_shift": "前回比での軌道変化を1-2文で（※変化がない場合は「特になし」と明記）"
+  },
+  "worldline_baseline": {
+    "title": "タイトル",
+    "narrative": "説明（簡潔）",
+    "roadmap": [
+      { "horizon": "1w", "outcome": "", "measurement": "", "focus": "" },
+      { "horizon": "1m", "outcome": "", "measurement": "", "focus": "" },
+      { "horizon": "3m", "outcome": "", "measurement": "", "focus": "" },
+      { "horizon": "6m", "outcome": "", "measurement": "", "focus": "" }
+    ],
+    "micro_steps": [
+      { "action": "", "reason": "" },
+      { "action": "", "reason": "" },
+      { "action": "", "reason": "" },
+      { "action": "", "reason": "" },
+      { "action": "", "reason": "" }
+    ],
+    "asset_steps": [
+      { "asset": "", "type": "template|script|checklist|doc", "why": "" },
+      { "asset": "", "type": "template|script|checklist|doc", "why": "" },
+      { "asset": "", "type": "template|script|checklist|doc", "why": "" }
+    ],
+    "risks": ["詰まりポイント", "詰まりポイント"],
+    "guardrails": ["復帰手順", "復帰手順"],
+    "evidence": [
+      { "log_excerpt": "YYYY-MM-DD [カテゴリ]: ...", "why": "" },
+      { "log_excerpt": "YYYY-MM-DD [カテゴリ]: ...", "why": "" },
+      { "log_excerpt": "YYYY-MM-DD [カテゴリ]: ...", "why": "" }
+    ],
+    "rubric_score": 0,
+    "rubric_reason": "",
+    "rubric_detail": {
+      "consistency": 0,
+      "causality": 0,
+      "actionability": 0,
+      "asset_leverage": 0,
+      "guardrail_sanity": 0,
+      "evidence_grounding": 0
+    }
+  },
+  "worldline_leap": {
+    "title": "Leapタイトル",
+    "narrative": "Leap説明",
+    "roadmap": [],
+    "micro_steps": [],
+    "asset_steps": [],
+    "risks": [],
+    "guardrails": [],
+    "evidence": [],
+    "rubric_score": 0,
+    "rubric_detail": {}
+  },
+  "worldline_guardrail": {
+    "title": "Guardrailタイトル",
+    "narrative": "Guardrail説明",
+    "roadmap": [],
+    "micro_steps": [],
+    "asset_steps": [],
+    "risks": [],
+    "guardrails": [],
+    "evidence": [],
+    "rubric_score": 0,
+    "rubric_detail": {}
+  }
+  }
+}
+\`\`\`
+
+## 重要：JSONの構造について
+必ず \`worldline_baseline\`, \`worldline_leap\`, \`worldline_guardrail\` の3つのキーをトップレベルに持つオブジェクトとして出力してください。
+配列（\`worldlines: [...]\`）形式は避けてください。
+`.trim();
+
+      try {
+        await navigator.clipboard.writeText(prompt);
+        showToast("📋 SEED v5 Context copied! LLMに貼り付けて未来をシミュレート", "ok");
+      } catch (e) {
+        console.error(e);
+        showToast("コピー失敗（SSLが必要な場合があります）", "err");
+      }
+    }
+
+    function importSimulationResult() {
+      const raw = document.getElementById("bridgeInput").value;
+      if (!raw) return;
+
+      try {
+        // Markdownコードブロック除去
+        const jsonStr = raw.replace(/```json\n?|\n?```/g, "").trim();
+
+        // JSONの開始位置を探す（ゴミ除去）
+        const start = jsonStr.indexOf("{");
+        const end = jsonStr.lastIndexOf("}");
+        if (start === -1 || end === -1) throw new Error("JSON not found");
+
+        const cleanJson = jsonStr.substring(start, end + 1);
+        let data = JSON.parse(cleanJson);
+
+        // 配列形式(worldlines)で来た場合の正規化
+        if (Array.isArray(data.worldlines)) {
+          console.log("Normalizing worldlines array to keys...");
+          const map = { "Baseline": "worldline_baseline", "Leap": "worldline_leap", "Guardrail": "worldline_guardrail" };
+          data.worldlines.forEach(w => {
+            const key = map[w.id] || map[w.label];
+            if (key) {
+              // Internal Field Normalization for different schemas
+              if (!w.title && w.label) w.title = w.label;
+              if (!w.narrative && w.core_assumption) w.narrative = w.core_assumption;
+
+              if (!w.micro_steps && w.next_14_days_experiments) {
+                w.micro_steps = w.next_14_days_experiments.map(e => ({
+                  action: e.title || e.experiment_id,
+                  reason: (e.protocol || "") + (e.success_condition ? ` (Goal: ${e.success_condition})` : "")
+                }));
+              }
+
+              if (!w.risks && w.anti_patterns_to_watch) {
+                w.risks = w.anti_patterns_to_watch.map(ap => `${ap.name}: ${ap.mechanism}`);
+              }
+
+              if (!w.evidence && w.evidence_anchor) {
+                w.evidence = w.evidence_anchor.map(ev => ({
+                  log_excerpt: `${ev.date} [${ev.category}] ${ev.text}`,
+                  why: "Anchor"
+                }));
+              }
+
+              data[key] = w;
+            }
+          });
+        }
+
+        // v5 (3世界線) or v4 (2世界線) を判定
+        const isV5 = data.worldline_baseline && data.worldline_leap && data.worldline_guardrail;
+        const isV4 = data.persona_solid && data.persona_leap;
+
+        if (!isV5 && !isV4) {
+          throw new Error("Invalid structure: worldline_baseline/leap/guardrail or persona_solid/leap missing");
+        }
+
+        // seedKeyを生成（未来固定用）
+        const entries = getActiveEntries();
+        const recent = entries.slice().sort((a, b) => b.ts - a.ts).slice(0, 30);
+        const seedKey = generateSeedKey(recent);
+
+        // 同一seedKeyのsimulationがあれば再利用（リセマラ禁止）
+        // ただし、制限無効化チェックが入っている場合はスキップ
+        const disableLimit = document.getElementById("chkDisableLimit")?.checked;
+        if (!disableLimit) {
+          const existingSim = findSimulationBySeedKey(seedKey);
+          if (existingSim) {
+            showToast("📌 今日は既にシミュレーション済み（未来固定）", "warn");
+            renderFutureCards(existingSim.result, existingSim.id);
+            document.getElementById("futureCardsContainer").style.display = "grid";
+            renderSimulationHistory();
+            return;
+          }
+        }
+
+        const rawSim = {
+          id: uuid(),
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          promptVersion: isV5 ? "SEED_v5" : "SEED_v4",
+          logWindowDays: 90,
+          recentCount: recent.length,
+          seedKey: seedKey,  // 未来固定用キー
+          inputDigest: {
+            range: recent.length > 0 ? { from: recent[recent.length - 1].date, to: recent[0].date } : {},
+            topCategories: [],
+            topKeywords: []
+          },
+          result: data,
+          commit: null,
+          deleted: false
+        };
+        const simulation = normalizeSimulationV2(rawSim);
+
+        // dataCacheに追加
+        dataCache.simulations = dataCache.simulations || [];
+        dataCache.simulations.unshift(simulation);
+        // 履歴制限
+        if (dataCache.simulations.length > MAX_SIMULATION_HISTORY) {
+          dataCache.simulations = dataCache.simulations.slice(0, MAX_SIMULATION_HISTORY);
+        }
+        storageSaveData(dataCache);
+
+        // Rubric score 警告チェック
+        const worldlines = isV5
+          ? [data.worldline_baseline, data.worldline_leap, data.worldline_guardrail]
+          : [data.persona_solid, data.persona_leap];
+        const lowScores = worldlines.filter(w => w && w.rubric_score < 90);
+        if (lowScores.length > 0) {
+          showToast(`⚠️ ${lowScores.length}件の世界線でrubric_score<90（品質警告）`, "warn");
+        }
+
+        renderFutureCards(data, simulation.id);
+        document.getElementById("futureCardsContainer").style.display = "grid";
+        renderSimulationHistory();
+        showToast("🔮 未来をシミュレート完了！", "ok");
+      } catch (e) {
+        showToast("JSON Parse Error: " + e.message, "err");
+      }
+    }
+
+    // seedKey生成: YYYY-MM-DD + エントリ数 + IDハッシュ（編集耐性あり）
+    function generateSeedKey(recentEntries) {
+      const today = formatDate(new Date());
+      // IDベースハッシュ: テキスト編集に対して安定
+      const ids = recentEntries.map(e => e.id).join('|');
+      const hash = simpleHash(ids);
+      return `${today}_${recentEntries.length}_${hash}`;
+    }
+
+    // 簡易ハッシュ関数（djb2アルゴリズム）
+    function simpleHash(str) {
+      let hash = 5381;
+      for (let i = 0; i < str.length; i++) {
+        hash = ((hash << 5) + hash) + str.charCodeAt(i);
+        hash = hash & hash; // 32bit
+      }
+      return Math.abs(hash).toString(36).slice(0, 8);
+    }
+
+    // seedKeyでsimulationを検索
+    function findSimulationBySeedKey(seedKey) {
+      const sims = dataCache.simulations || [];
+      return sims.find(s => s.seedKey === seedKey);
+    }
+
+    // Story Mode 状態（グローバル）
+    let storyModeEnabled = false;
+
+    // Story Mode ON条件: 直近7日で資産コミット1件以上（指摘4: 厳密化）
+    function hasRecentAssetCommit() {
+      const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      const sims = dataCache.simulations || [];
+      return sims.some(sim => {
+        // assetCommitsのみをチェック（micro_stepsのcommitは対象外）
+        const assetCommits = sim.assetCommits || [];
+        return assetCommits.some(ac => ac.committedAt >= sevenDaysAgo);
+      });
+    }
+
+    // 資産コミット（指摘4: micro_stepsとは別系統）
+    function commitAsset(simulationId, worldlineKey, assetIndex) {
+      const sim = (dataCache.simulations || []).find(s => s.id === simulationId);
+      if (!sim) {
+        showToast("Simulation not found", "err");
+        return;
+      }
+
+      const worldline = sim.result[worldlineKey];
+      if (!worldline || !worldline.asset_steps || !worldline.asset_steps[assetIndex]) {
+        showToast("Asset not found", "err");
+        return;
+      }
+
+      const asset = worldline.asset_steps[assetIndex];
+      const now = Date.now();
+
+      // assetCommitsに追加
+      if (!sim.assetCommits) sim.assetCommits = [];
+      sim.assetCommits.push({
+        worldline: worldlineKey,
+        assetIndex: assetIndex,
+        committedAt: now,
+        asset: asset.asset,
+        type: asset.type || "doc",
+        why: asset.why || ""
+      });
+      sim.updatedAt = now;
+      storageSaveData(dataCache);
+
+      // 現在表示中のシミュレーションを再描画
+      renderFutureCards(sim.result, sim.id);
+      // MY ASSETS（資産棚）を即時更新
+      renderAssetShelf();
+      showToast(`📌 「${asset.asset.slice(0, 20)}...」を資産として確定しました`, "ok");
+    }
+
+    // Story Mode トグル
+    function toggleStoryMode() {
+      if (!hasRecentAssetCommit()) {
+        showToast("⚠️ Story Mode解禁には直近7日で資産の確定が必要です", "warn");
+        return;
+      }
+      storyModeEnabled = !storyModeEnabled;
+      localStorage.setItem("storyModeEnabled", storyModeEnabled ? "1" : "0");
+
+      // 現在表示中のシミュレーションを再描画
+      const latestSim = (dataCache.simulations || [])[0];
+      if (latestSim) {
+        renderFutureCards(latestSim.result, latestSim.id);
+      }
+      showToast(storyModeEnabled ? "📖 Story Mode ON（物語表示）" : "📐 設計図モード（デフォルト）", "ok");
+    }
+
+    // Story Mode 初期化
+    function initStoryMode() {
+      storyModeEnabled = localStorage.getItem("storyModeEnabled") === "1";
+    }
+
+    // Toast通知システム
+    function showToast(message, type = "ok") {
+      const containerId = "toastContainer";
+      let container = document.getElementById(containerId);
+      if (!container) {
+        container = document.createElement("div");
+        container.id = containerId;
+        container.style.cssText = "position:fixed; top:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px;";
+        document.body.appendChild(container);
+      }
+
+      const toast = document.createElement("div");
+      const bgColor = type === "ok" ? "#10b981" : type === "warn" ? "#f59e0b" : "#ef4444";
+      toast.style.cssText = `
+        background: ${bgColor}; color: white; padding: 12px 16px; border-radius: 8px;
+        font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.3); animation: slideIn 0.3s ease;
+        max-width: 300px; word-wrap: break-word;
+      `;
+      toast.textContent = message;
+      container.appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.animation = "fadeOut 0.3s ease";
+        setTimeout(() => toast.remove(), 300);
+      }, 4000);
+    }
+
+    function renderFutureCards(data, simulationId) {
+      const container = document.getElementById("futureCardsContainer");
+      container.innerHTML = "";
+
+      // Story Mode トグルUI（コンテナ上部に追加）
+      const canEnableStoryMode = hasRecentAssetCommit();
+      const storyModeToggle = document.createElement("div");
+      storyModeToggle.style.cssText = "grid-column: 1/-1; display:flex; justify-content:flex-end; gap:8px; align-items:center; margin-bottom:8px;";
+      storyModeToggle.innerHTML = `
+        <span style="font-size:11px; color:#888;">📖 Story Mode</span>
+        <button onclick="toggleStoryMode()" 
+          style="background:${storyModeEnabled ? '#d946ef' : '#333'}; 
+                 color:${storyModeEnabled ? '#fff' : '#666'}; 
+                 border:1px solid ${canEnableStoryMode ? '#d946ef' : '#555'}; 
+                 padding:4px 10px; border-radius:4px; font-size:10px; 
+                 cursor:${canEnableStoryMode ? 'pointer' : 'not-allowed'};"
+          ${canEnableStoryMode ? '' : 'disabled title="直近7日でコミットが必要"'}>
+          ${storyModeEnabled ? 'ON' : 'OFF'}
+        </button>
+      `;
+      container.appendChild(storyModeToggle);
+
+      // v5 or v4 判定
+      const isV5 = data.worldline_baseline && data.worldline_leap && data.worldline_guardrail;
+
+      const worldlines = isV5 ? [
+        { key: "worldline_baseline", color: "#38bdf8", icon: "🌱", label: "Baseline（現状延長）" },
+        { key: "worldline_leap", color: "#d946ef", icon: "🚀", label: "Leap（10X飛躍）" },
+        { key: "worldline_guardrail", color: "#22c55e", icon: "🛡️", label: "Guardrail（帰還ルート）" }
+      ] : [
+        { key: "persona_solid", color: "#38bdf8", icon: "🌱", label: "Solid Future" },
+        { key: "persona_leap", color: "#d946ef", icon: "🚀", label: "Leap Future" }
+      ];
+
+      worldlines.forEach(wl => {
+        const item = data[wl.key];
+        if (!item) return;
+
+        const card = document.createElement("div");
+        card.style.cssText = `background:rgba(0,0,0,0.3); border:1px solid ${wl.color}; border-radius:8px; padding:16px;`;
+
+        // 今日のCommit済みかチェック
+        const todayCommittedSim = getTodayCommit();
+        const isThisSimCommitted = todayCommittedSim && todayCommittedSim.id === simulationId;
+        const committedWorldline = todayCommittedSim?.commit?.worldline;
+        const committedStepIndex = todayCommittedSim?.commit?.stepIndex;
+
+        // micro_steps (v5) or next_steps (v4)
+        const steps = item.micro_steps || item.next_steps || [];
+        const stepsHtml = steps.map((step, i) => {
+          // memoedStepIndicesのチェック
+          const sim = (dataCache.simulations || []).find(s => s.id === simulationId);
+          const memoedSteps = sim?.memoedStepIndices || [];
+          const isThisStepMemoed = memoedSteps.includes(`${wl.key}-${i}`);
+
+          let buttonHtml;
+          if (isThisStepMemoed) {
+            // このステップがメモ済み
+            buttonHtml = `<span style="flex-shrink:0; background:#22c55e; color:#fff; padding:4px 8px; border-radius:4px; font-size:10px;">✓ Added</span>`;
+          } else {
+            // メモ可能（他がメモされていてもポンポン押せる）
+            buttonHtml = `<button onclick="memoMicroStep('${simulationId}', '${wl.key}', ${i})" style="flex-shrink:0; background:${wl.color}22; border:1px solid ${wl.color}; color:${wl.color}; padding:4px 8px; border-radius:4px; font-size:10px; cursor:pointer;">メモ</button>`;
+          }
+
+          return `
+          <div style="margin-bottom:10px; display:flex; gap:8px; align-items:flex-start;">
+            <span style="color:${wl.color}; font-family:monospace; font-weight:bold; flex-shrink:0;">#${i + 1}</span>
+            <div style="flex:1;">
+              <div style="font-size:13px; font-weight:bold; color:#fff;">${step.action || step.toString()}</div>
+              <div style="font-size:11px; color:${wl.color}; opacity:0.7; margin-top:2px;">${step.reason || ""}</div>
+            </div>
+            ${buttonHtml}
+          </div>
+        `;
+        }).join("");
+
+        // Roadmap (v5 only)
+        const roadmapHtml = item.roadmap ? `
+          <div style="background:${wl.color}11; padding:10px; border-radius:6px; margin-bottom:12px; border:1px solid ${wl.color}22;">
+            <div style="font-size:10px; color:${wl.color}; margin-bottom:6px; letter-spacing:1px;">📍 ROADMAP</div>
+            ${item.roadmap.map(r => `
+              <div style="font-size:11px; margin-bottom:4px; display:flex; gap:6px;">
+                <span style="color:${wl.color}; font-weight:bold; min-width:30px;">${r.horizon}</span>
+                <span style="color:#ccc;">${r.outcome}</span>
+              </div>
+            `).join("")}
+          </div>
+        ` : "";
+
+        // Asset steps (v5 only)
+        const assetHtml = item.asset_steps ? `
+          <div style="background:rgba(255,215,0,0.1); padding:10px; border-radius:6px; margin-top:12px; border:1px solid rgba(255,215,0,0.3);">
+            <div style="font-size:10px; color:#fbbf24; margin-bottom:6px; letter-spacing:1px;">🏆 ASSET STEPS</div>
+            ${item.asset_steps.map((a, idx) => {
+          // 既にコミット済みかチェック
+          const sim = (dataCache.simulations || []).find(s => s.id === simulationId);
+          const isCommitted = sim?.assetCommits?.some(ac => ac.worldline === wl.key && ac.assetIndex === idx);
+          return `
+              <div style="font-size:11px; margin-bottom:6px;">
+                <div style="color:#fff; font-weight:bold;">${a.asset} <span style="color:#fbbf24; font-size:9px;">[${a.type}]</span></div>
+                <div style="color:#aaa; font-size:10px;">${a.why}</div>
+                <div style="display:flex; gap:6px; margin-top:4px;">
+                  <button onclick="showAssetPrompt('${encodeURIComponent(JSON.stringify(a))}')" 
+                    style="background:#fbbf24; color:#000; border:none; padding:2px 6px; border-radius:3px; font-size:9px; cursor:pointer;">
+                    📝 資産生成プロンプトを表示
+                  </button>
+                  ${isCommitted
+              ? `<span style="color:#22c55e; font-size:9px;">✓ 確定済み</span>`
+              : `<button onclick="commitAsset('${simulationId}', '${wl.key}', ${idx})" 
+                        style="background:#22c55e; color:#fff; border:none; padding:2px 6px; border-radius:3px; font-size:9px; cursor:pointer;">
+                        📌 資産として確定
+                      </button>`
+            }
+                </div>
+              </div>
+            `}).join("")}
+          </div>
+        ` : "";
+
+        // Risks/Guardrails (v5 only)
+        const risksHtml = item.risks ? `
+          <div style="margin-top:10px; font-size:10px;">
+            <span style="color:#f59e0b;">⚡ 詰まりポイント:</span> 
+            <span style="color:#aaa;">${item.risks.slice(0, 2).join(", ")}</span>
+          </div>
+        ` : "";
+
+        const guardrailsHtml = item.guardrails ? `
+          <div style="font-size:10px; margin-top:4px;">
+            <span style="color:#22c55e;">🛡️ 復帰手順:</span>
+            <span style="color:#aaa;">${item.guardrails.slice(0, 2).join(", ")}</span>
+          </div>
+        ` : "";
+
+        // Evidence (v5 only)  
+        const evidenceHtml = item.evidence ? `
+          <div style="background:rgba(100,100,100,0.2); padding:8px; border-radius:6px; margin-top:10px;">
+            <div style="font-size:10px; color:#9ca3af; margin-bottom:4px;">📋 Evidence</div>
+            ${item.evidence.slice(0, 2).map(e => `
+              <div style="font-size:10px; color:#6b7280; margin-bottom:4px; font-style:italic;">"${e.log_excerpt?.slice(0, 50)}..."</div>
+            `).join("")}
+          </div>
+        ` : "";
+
+        // Rubric score with warning + detail breakdown
+        const scoreColor = item.rubric_score >= 90 ? wl.color : "#ef4444";
+        const rd = item.rubric_detail || {};
+        const hasDetail = rd.consistency !== undefined;
+        const detailHtml = hasDetail ? `
+          <div style="margin-top:6px; font-size:9px; color:#9ca3af; display:flex; flex-wrap:wrap; gap:3px;">
+            <span style="color:${rd.consistency >= 16 ? '#22c55e' : '#ef4444'}">一貫${rd.consistency}</span>
+            <span style="color:${rd.causality >= 16 ? '#22c55e' : '#ef4444'}">因果${rd.causality}</span>
+            <span style="color:${rd.actionability >= 12 ? '#22c55e' : '#ef4444'}">実行${rd.actionability}</span>
+            <span style="color:${rd.asset_leverage >= 12 ? '#22c55e' : '#ef4444'}">資産${rd.asset_leverage}</span>
+            <span style="color:${rd.guardrail_sanity >= 12 ? '#22c55e' : '#ef4444'}">安全${rd.guardrail_sanity}</span>
+            <span style="color:${rd.evidence_grounding >= 12 ? '#22c55e' : '#ef4444'}">根拠${rd.evidence_grounding}</span>
+          </div>
+        ` : "";
+
+        card.innerHTML = `
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+            <span style="color:${wl.color}; font-weight:bold; font-size:12px;">${wl.icon} ${wl.label}</span>
+            <div style="text-align:right;">
+              <span style="background:${scoreColor}; color:#fff; font-size:10px; padding:2px 6px; border-radius:4px;">
+                Score: ${item.rubric_score}${item.rubric_score < 90 ? ' ⚠️' : ''}
+              </span>
+              ${detailHtml}
+            </div>
+          </div>
+          <h4 style="margin:0 0 8px; font-size:16px; color:#fff;">${item.title}</h4>
+          ${storyModeEnabled
+            ? `<p style="font-size:12px; color:#ccc; line-height:1.5; margin-bottom:12px; font-style:italic;">"${item.narrative}"</p>`
+            : `<p style="font-size:11px; color:#666; margin-bottom:8px;">📐 設計図モード（Story ModeをONで物語表示）</p>`}
+          ${roadmapHtml}
+          <div style="background:${wl.color}11; padding:12px; border-radius:6px; border:1px solid ${wl.color}33; margin-bottom:12px;">
+            <div style="font-size:10px; color:${wl.color}; margin-bottom:8px; letter-spacing:1px;">
+              ${wl.key === "worldline_guardrail" ? "🛡️ 15分で復帰の足場を作る" : "🚀 MICRO STEPS (15分以内)"}
+            </div>
+            ${stepsHtml}
+          </div>
+
+          <!-- 詳細情報は折りたたみ -->
+          <details style="margin-top:8px; border-top:1px solid rgba(255,255,255,0.1); padding-top:8px;">
+            <summary style="font-size:11px; color:#aaa; cursor:pointer; list-style:none; display:flex; align-items:center; gap:4px;">
+              <span style="font-size:10px;">▶</span> 詳細を表示 (Assets, Risks, Evidence)
+            </summary>
+            <div style="padding-top:8px;">
+              ${assetHtml}
+              ${risksHtml}
+              ${guardrailsHtml}
+              ${evidenceHtml}
+            </div>
+          </details>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // Micro Step Memo: 一歩をNext Step Memoに追加（複数可）
+    function memoMicroStep(simulationId, worldlineKey, stepIndex) {
+      const sim = (dataCache.simulations || []).find(s => s.id === simulationId);
+      if (!sim) {
+        showToast("Simulation not found", "err");
+        return;
+      }
+
+      const worldline = sim.result[worldlineKey];
+      if (!worldline) {
+        showToast("Worldline not found", "err");
+        return;
+      }
+
+      const steps = worldline.micro_steps || worldline.next_steps || [];
+      const step = steps[stepIndex];
+      if (!step) {
+        showToast("Step not found", "err");
+        return;
+      }
+
+      // 既にMemo済みかチェック
+      sim.memoedStepIndices = sim.memoedStepIndices || [];
+      const memoKey = `${worldlineKey}-${stepIndex}`;
+      if (sim.memoedStepIndices.includes(memoKey)) {
+        showToast("Already memoed", "ok");
+        return;
+      }
+
+      // 常に新規作成として追加（個別のチェックボックスにするため）
+      const worldlineLabel = worldlineKey.replace("worldline_", "").replace("persona_", "");
+      const memoText = `${step.action} 【Future:${worldlineLabel}】`;
+
+      const newMemo = {
+        id: uuid(),
+        text: memoText,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        done: false,
+        deleted: false
+      };
+
+      dataCache.memos = dataCache.memos || [];
+      dataCache.memos.push(newMemo);
+      nextMemos.push(newMemo); // メモリ上のリストにも追加
+      saveNextMemosToStorage();
+
+      // Simulationのmemo情報を更新 (UI状態維持用)
+      sim.memoedStepIndices.push(memoKey);
+      sim.updatedAt = Date.now();
+      storageSaveData(dataCache);
+
+      showToast("メモに追加しました", "ok");
+      renderFutureCards(sim.result, sim.id); // UI更新
+      renderNextMemos();   // メモ欄更新
+    }
+
+    // 今日のCommitが既にあるかチェック
+    function hasTodayCommit() {
+      const today = formatDate(new Date());
+      const sims = dataCache.simulations || [];
+      return sims.some(sim => {
+        if (!sim.commit) return false;
+        const commitDate = formatDate(new Date(sim.commit.committedAt));
+        return commitDate === today;
+      });
+    }
+
+    // 今日のCommit済みシミュレーションを取得
+    function getTodayCommit() {
+      const today = formatDate(new Date());
+      const sims = dataCache.simulations || [];
+      return sims.find(sim => {
+        if (!sim.commit) return false;
+        const commitDate = formatDate(new Date(sim.commit.committedAt));
+        return commitDate === today;
+      });
+    }
+
+    // 資産生成プロンプトをポップアップ表示
+    function showAssetPrompt(encodedAsset) {
+      try {
+        const asset = JSON.parse(decodeURIComponent(encodedAsset));
+
+        // カテゴリ傾向を取得
+        const entries = getActiveEntries();
+        const categoryCount = {};
+        entries.slice(0, 30).forEach(e => {
+          const cat = e.category || "その他";
+          categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+        });
+        const topCategory = Object.entries(categoryCount).sort((a, b) => b[1] - a[1])[0];
+
+        const prompt = `# 資産生成リクエスト\n\n## 目的\n${asset.asset}\n\n## 出力形式\n${asset.type === "template" ? "Markdownテンプレート" : asset.type === "script" ? "実行可能なスクリプト" : asset.type === "checklist" ? "チェックリスト形式" : "ドキュメント（構造化）"}\n\n## 制約\n- 短く、再利用できる、現場で使える\n- 過度に複雑にしない\n- すぐに使い始められる形で\n\n## ユーザーの傾向\n最近のログでは「${topCategory ? topCategory[0] : "その他"}」カテゴリが多い。\n理由: ${asset.why}\n\n必要な成果物のみを出力してください。`;
+
+        // 既存モーダルがあれば削除
+        const existing = document.getElementById("assetPromptModal");
+        if (existing) existing.remove();
+
+        const modal = document.createElement("div");
+        modal.id = "assetPromptModal";
+        modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
+        modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+
+        modal.innerHTML = `
+          <div style="background:#1e1e2e; border:1px solid rgba(255,215,0,0.3); border-radius:12px; padding:20px; max-width:560px; width:100%; max-height:80vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+              <div style="font-size:14px; color:#fbbf24; font-weight:bold;">📝 資産生成プロンプト</div>
+              <button onclick="document.getElementById('assetPromptModal').remove()" style="background:none; border:none; color:#9ca3af; font-size:18px; cursor:pointer; padding:4px;">✕</button>
+            </div>
+            <div style="font-size:11px; color:#fbbf24; margin-bottom:8px;">🏆 ${asset.asset} <span style="color:#9ca3af;">[${asset.type}]</span></div>
+            <pre id="assetPromptText" style="background:rgba(0,0,0,0.4); color:#e2e8f0; padding:16px; border-radius:8px; font-size:12px; line-height:1.6; white-space:pre-wrap; word-wrap:break-word; border:1px solid rgba(255,255,255,0.1); margin:0;">${prompt}</pre>
+            <div style="display:flex; gap:8px; margin-top:16px; justify-content:flex-end;">
+              <button onclick="navigator.clipboard.writeText(document.getElementById('assetPromptText').textContent).then(()=>showToast('📋 コピーしました','ok'))" 
+                style="background:#fbbf24; color:#000; border:none; padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:bold;">📋 コピー</button>
+              <button onclick="document.getElementById('assetPromptModal').remove()" 
+                style="background:rgba(255,255,255,0.1); color:#ccc; border:1px solid rgba(255,255,255,0.2); padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer;">閉じる</button>
+            </div>
+          </div>
+        `;
+        document.body.appendChild(modal);
+      } catch (e) {
+        console.error(e);
+        showToast("プロンプト表示に失敗しました", "err");
+      }
+    }
+
+    // MY ASSETSからの資産プロンプト表示（編集・保存可能）
+    function showMyAssetPrompt(encodedKey) {
+      const key = decodeURIComponent(encodedKey);
+
+      // 全シミュレーションからこのassetの情報を取得
+      const sims = dataCache.simulations || [];
+      let assetInfo = null;
+
+      console.log(`Debug: showMyAssetPrompt key="${key}"`);
+      for (const sim of sims) {
+        const commits = sim.assetCommits || [];
+        for (const ac of commits) {
+          const acKey = (ac.asset || "").toLowerCase().trim();
+          // console.log(`  Compare vs "${acKey}"`);
+          if (acKey === key) {
+            assetInfo = ac;
+            break;
+          }
+        }
+        if (assetInfo) break;
+      }
+
+      if (!assetInfo) {
+        showToast("資産が見つかりません", "err");
+        return;
+      }
+
+      // カテゴリ傾向を取得
+      const activeEntries = getActiveEntries();
+      const categoryCount = {};
+      activeEntries.slice(0, 30).forEach(e => {
+        const cat = e.category || "その他";
+        categoryCount[cat] = (categoryCount[cat] || 0) + 1;
+      });
+      const topCategory = Object.entries(categoryCount).sort((a, b) => b[1] - a[1])[0];
+
+      // カスタムプロンプトがあればそれを使い、なければデフォルト生成
+      const defaultPrompt = `# 資産生成リクエスト\n\n## 目的\n${assetInfo.asset}\n\n## 出力形式\n${assetInfo.type === "template" ? "Markdownテンプレート" : assetInfo.type === "script" ? "実行可能なスクリプト" : assetInfo.type === "checklist" ? "チェックリスト形式" : "ドキュメント（構造化）"}\n\n## 制約\n- 短く、再利用できる、現場で使える\n- 過度に複雑にしない\n- すぐに使い始められる形で\n\n## ユーザーの傾向\n最近のログでは「${topCategory ? topCategory[0] : "その他"}」カテゴリが多い。\n理由: ${assetInfo.why || "（未設定）"}\n\n必要な成果物のみを出力してください。`;
+
+      const promptText = assetInfo.customPrompt || defaultPrompt;
+
+      // 既存モーダルがあれば削除
+      const existing = document.getElementById("assetPromptModal");
+      if (existing) existing.remove();
+
+      const modal = document.createElement("div");
+      modal.id = "assetPromptModal";
+      modal.style.cssText = "position:fixed; inset:0; background:rgba(0,0,0,0.7); display:flex; align-items:center; justify-content:center; z-index:9999; padding:20px;";
+      modal.addEventListener("click", (e) => { if (e.target === modal) modal.remove(); });
+
+      const dateStr = new Date(assetInfo.committedAt).toLocaleDateString("ja-JP", { year: "numeric", month: "short", day: "numeric" });
+
+      modal.innerHTML = `
+        <div style="background:#1e1e2e; border:1px solid rgba(34,197,94,0.4); border-radius:12px; padding:20px; max-width:600px; width:100%; max-height:85vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,0.5);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+            <div style="font-size:14px; color:#22c55e; font-weight:bold;">📌 ${assetInfo.asset}</div>
+            <button onclick="document.getElementById('assetPromptModal').remove()" style="background:none; border:none; color:#9ca3af; font-size:18px; cursor:pointer; padding:4px;">✕</button>
+          </div>
+          <div style="font-size:10px; color:#9ca3af; margin-bottom:16px; display:flex; gap:12px;">
+            <span>📂 ${assetInfo.type}</span>
+            <span>📅 ${dateStr}</span>
+            ${assetInfo.customPrompt ? '<span style="color:#fbbf24;">✏️ カスタム済み</span>' : '<span>📝 デフォルト</span>'}
+          </div>
+          <div style="font-size:11px; color:#ccc; margin-bottom:6px;">プロンプト（編集可能）:</div>
+          <textarea id="myAssetPromptText" style="width:100%; min-height:250px; background:rgba(0,0,0,0.4); color:#e2e8f0; padding:14px; border-radius:8px; font-size:12px; line-height:1.6; border:1px solid rgba(255,255,255,0.15); resize:vertical; font-family:inherit; box-sizing:border-box;">${promptText}</textarea>
+          <div style="display:flex; gap:8px; margin-top:16px; justify-content:space-between; flex-wrap:wrap;">
+            <div style="display:flex; gap:8px;">
+              <button onclick="saveMyAssetPrompt('${encodeURIComponent(key).replace(/'/g, "%27")}')" 
+                style="background:#22c55e; color:#fff; border:none; padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:bold;">💾 保存</button>
+              <button onclick="navigator.clipboard.writeText(document.getElementById('myAssetPromptText').value).then(()=>showToast('📋 コピーしました','ok'))" 
+                style="background:#fbbf24; color:#000; border:none; padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer; font-weight:bold;">📋 コピー</button>
+            </div>
+            <button onclick="document.getElementById('assetPromptModal').remove()" 
+              style="background:rgba(255,255,255,0.1); color:#ccc; border:1px solid rgba(255,255,255,0.2); padding:6px 16px; border-radius:6px; font-size:11px; cursor:pointer;">閉じる</button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    // MY ASSETSのプロンプトを保存
+    function saveMyAssetPrompt(encodedKey) {
+      const key = decodeURIComponent(encodedKey);
+      const textarea = document.getElementById("myAssetPromptText");
+      if (!textarea) return;
+
+      const newPrompt = textarea.value.trim();
+      if (!newPrompt) {
+        showToast("プロンプトが空です", "warn");
+        return;
+      }
+
+      // 全シミュレーションの該当assetCommitにcustomPromptを保存
+      const sims = dataCache.simulations || [];
+      let updated = false;
+      sims.forEach(sim => {
+        const commits = sim.assetCommits || [];
+        commits.forEach(ac => {
+          if ((ac.asset || "").toLowerCase().trim() === key) {
+            ac.customPrompt = newPrompt;
+            ac.updatedAt = Date.now();
+            updated = true;
+          }
+        });
+      });
+
+      if (updated) {
+        storageSaveData(dataCache);
+        showToast("💾 プロンプトを保存しました", "ok");
+      } else {
+        showToast("保存先が見つかりません", "err");
+      }
+    }
+
+    // Simulation History UI
+    function renderSimulationHistory() {
+      const containerId = "simulationHistory";
+      let container = document.getElementById(containerId);
+
+      // コンテナがなければ作成
+      if (!container) {
+        const futureContainer = document.getElementById("futureCardsContainer");
+        if (!futureContainer) return;
+
+        container = document.createElement("div");
+        container.id = containerId;
+        container.style.cssText = "margin-top:24px; padding:16px; background:rgba(0,0,0,0.2); border-radius:8px;";
+        futureContainer.parentNode.insertBefore(container, futureContainer.nextSibling);
+      }
+
+      const sims = (dataCache.simulations || []).filter(s => !s.deleted);
+      if (sims.length === 0) {
+        container.innerHTML = `
+          <div style="font-size:12px; color:#9ca3af;">📚 シミュレーション履歴はまだありません</div>
+        `;
+        return;
+      }
+
+      container.innerHTML = `
+        <div style="font-size:12px; color:#38bdf8; margin-bottom:12px; font-weight:bold;">📚 SIMULATION HISTORY (直近${Math.min(sims.length, 10)}件)</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+          ${sims.slice(0, 10).map((sim, i) => {
+        const date = new Date(sim.createdAt).toLocaleString("ja-JP", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+        const isV5 = sim.result?.worldline_baseline;
+        const titles = isV5
+          ? [sim.result.worldline_baseline?.title, sim.result.worldline_leap?.title, sim.result.worldline_guardrail?.title].filter(Boolean)
+          : [sim.result?.persona_solid?.title, sim.result?.persona_leap?.title].filter(Boolean);
+        const hasCommit = !!sim.commit;
+
+        // DEBUG INFO
+        const debugInfo = `ID:${sim.id.slice(0, 4)}.. Created:${sim.createdAt} Updated:${sim.updatedAt}`;
+
+        return `
+              <div onclick="loadSimulation('${sim.id}')" 
+                style="cursor:pointer; padding:8px 12px; background:rgba(56,189,248,0.1); border:1px solid rgba(56,189,248,0.2); border-radius:6px; display:flex; justify-content:space-between; align-items:center;"
+                onmouseover="this.style.background='rgba(56,189,248,0.2)'" 
+                onmouseout="this.style.background='rgba(56,189,248,0.1)'">
+                <div>
+                  <div style="display:flex; align-items:center; gap:6px;">
+                    <span style="font-size:10px; color:#9ca3af;">${date}</span>
+                    <span style="font-size:9px; color:#555; font-family:monospace;">${debugInfo}</span>
+                  </div>
+                  <span style="font-size:11px; color:#fff; margin-left:8px;">${titles[0]?.slice(0, 30) || "Untitled"}...</span>
+                  ${hasCommit ? '<span style="color:#22c55e; font-size:10px; margin-left:6px;">✓ committed</span>' : ''}
+                </div>
+                <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:10px; color:#38bdf8;">${sim.promptVersion}</span>
+              <button onclick="event.stopPropagation(); deleteSimulation('${sim.id}')" 
+                style="background:none; border:none; color:#ef4444; cursor:pointer; font-size:14px; opacity:0.7;" 
+                onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.7'" title="この履歴を削除">
+                🗑️
+              </button>
+            </div>
+          </div>
+        `;
+      }).join("")}
+        </div>
+        ${sims.length >= 2 ? `
+          <div id="butterflyDiff" style="margin-top:16px;"></div>
+        ` : ""}
+      `;
+
+      // Butterfly Diff を描画
+      if (sims.length >= 2) {
+        renderButterflyDiff(sims[0], sims[1]);
+      }
+
+      // Asset Shelf を描画
+      renderAssetShelf();
+    }
+
+    // 履歴から読み込み
+    function loadSimulation(simId) {
+      const sim = (dataCache.simulations || []).find(s => s.id === simId);
+      if (!sim || !sim.result) {
+        showToast("Simulation not found", "err");
+        return;
+      }
+      renderFutureCards(sim.result, sim.id);
+      document.getElementById("futureCardsContainer").style.display = "grid";
+      showToast("📂 履歴からロードしました", "ok");
+    }
+
+    function deleteSimulation(simId) {
+      if (!confirm("このシミュレーション履歴を削除しますか？\n（元に戻せません）")) return;
+
+      const sim = (dataCache.simulations || []).find(s => s.id === simId);
+      if (!sim) return;
+
+      // 論理削除 (同期での復活防止)
+      sim.deleted = true;
+      sim.updatedAt = Date.now();
+
+      storageSaveData(dataCache);
+
+      // UI更新
+      renderSimulationHistory();
+      showToast("🗑️ 履歴を削除しました", "ok");
+
+      // もし表示中のカードが削除されたものなら、カードも消す（UXとして自然）
+      // ただし今回は必須ではないので、Historyの再描画のみとする
+    }
+
+    // Butterfly Diff: 最新と前回の差分
+    function renderButterflyDiff(latest, previous) {
+      const container = document.getElementById("butterflyDiff");
+      if (!container) return;
+
+      console.log("🦋 Butterfly Diff Debug:", { latest, previous });
+
+      // 1. 基本情報（日付差分）
+      const daysDiff = Math.round((latest.createdAt - previous.createdAt) / (1000 * 60 * 60 * 24));
+      const dateLabel = daysDiff === 0 ? "Same Day" : `${daysDiff} days later`;
+
+      // 2. Trajectory Shift (v5.2 feature)
+      const shiftText = latest.result?.meta?.trajectory_shift || "";
+
+      // 3. Rubric Score Comparison
+      const getScore = (sim, type) => sim?.result?.[`worldline_${type}`]?.rubric_score || 0;
+      const compareScore = (type, label) => {
+        const curr = getScore(latest, type);
+        const prev = getScore(previous, type);
+        const diff = curr - prev;
+        const color = diff > 0 ? "#22c55e" : diff < 0 ? "#ef4444" : "#9ca3af";
+        const sign = diff > 0 ? "+" : diff < 0 ? "" : "±";
+        return `
+          <div style="display:flex; flex-direction:column; align-items:center;">
+            <span style="font-size:9px; color:#aaa;">${label}</span>
+            <span style="font-size:12px; font-weight:bold; color:${color};">${curr} <span style="font-size:9px;">(${sign}${diff})</span></span>
+          </div>
+        `;
+      };
+
+      const scoreDiffHtml = (latest.result?.meta?.version === "SEED_v5") ? `
+        <div style="display:flex; justify-content:space-around; margin-bottom:12px; background:rgba(0,0,0,0.2); padding:8px; border-radius:6px;">
+          ${compareScore("baseline", "Baseline")}
+          ${compareScore("leap", "Leap")}
+          ${compareScore("guardrail", "Guardrail")}
+        </div>
+      ` : "";
+
+      // Step正規化（指摘3: v4/v5両対応）
+      function normalizeStep(raw) {
+        if (typeof raw === 'string') return raw.toLowerCase().trim();
+        return (raw.action || raw.title || '').toLowerCase().trim();
+      }
+
+      // 順序ありリストを返す（指摘2対応）
+      function getStepsList(sim) {
+        const r = sim.result;
+        if (!r) return [];
+        const worldlines = r.worldline_baseline
+          ? [r.worldline_baseline, r.worldline_leap, r.worldline_guardrail]
+          : [r.persona_solid, r.persona_leap];
+        return worldlines.flatMap(w =>
+          (w?.micro_steps || w?.next_steps || []).map(s => normalizeStep(s))
+        ).filter(s => s);
+      }
+
+      const latestList = getStepsList(latest);
+      const previousList = getStepsList(previous);
+      const latestSteps = new Set(latestList);
+      const previousSteps = new Set(previousList);
+
+      const added = [...latestSteps].filter(s => !previousSteps.has(s));
+      const removed = [...previousSteps].filter(s => !latestSteps.has(s));
+
+      // 指摘2: moved（順位変動）算出
+      const prevIndexMap = new Map(previousList.map((s, i) => [s, i]));
+      const moved = latestList
+        .filter(s => previousSteps.has(s))
+        .map(s => ({ step: s, latestIdx: latestList.indexOf(s), prevIdx: prevIndexMap.get(s) }))
+        .filter(m => Math.abs(m.latestIdx - m.prevIdx) >= 1)
+        .slice(0, 3);
+
+      // 変化量スコア (0-100)
+      const totalSteps = Math.max(latestSteps.size + previousSteps.size, 1);
+      const changeScore = Math.round((added.length + removed.length) / totalSteps * 100);
+
+      container.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+          <div style="font-size:12px; color:#d946ef; font-weight:bold;">🦋 BUTTERFLY DIFF</div>
+          <div style="font-size:10px; color:#666;">vs Previous (${dateLabel})</div>
+        </div>
+        
+        ${shiftText ? `
+          <div style="font-size:11px; color:#e2e8f0; background:rgba(217, 70, 239, 0.1); border-left:3px solid #d946ef; padding:8px; margin-bottom:12px; line-height:1.4;">
+            <div style="font-size:9px; color:#d946ef; margin-bottom:2px; font-weight:bold;">TRAJECTORY SHIFT</div>
+            ${shiftText}
+          </div>
+        ` : ""}
+
+        ${scoreDiffHtml}
+
+        <div style="font-size:11px; color:#9ca3af; margin-bottom:8px;">
+          Step Change: <span style="color:${changeScore > 30 ? '#f59e0b' : '#22c55e'}; font-weight:bold;">${changeScore}%</span>
+        </div>
+        ${added.length > 0 ? `
+          <div style="font-size:10px; margin-bottom:6px;">
+            <span style="color:#22c55e;">+ 追加されたステップ:</span>
+            <div style="color:#aaa; margin-left:12px;">${added.slice(0, 3).map(s => `• ${s?.slice(0, 40)}...`).join("<br>")}</div>
+          </div>
+        ` : ""}
+        ${removed.length > 0 ? `
+          <div style="font-size:10px; margin-bottom:6px;">
+            <span style="color:#ef4444;">- 削除されたステップ:</span>
+            <div style="color:#aaa; margin-left:12px;">${removed.slice(0, 3).map(s => `• ${s?.slice(0, 40)}...`).join("<br>")}</div>
+          </div>
+        ` : ""}
+        ${moved.length > 0 ? `
+          <div style="font-size:10px; margin-bottom:6px;">
+            <span style="color:#f59e0b;">↕️ 順位変動:</span>
+            <div style="color:#aaa; margin-left:12px;">${moved.map(m => `• ${m.step?.slice(0, 30)}... (${m.prevIdx + 1}→${m.latestIdx + 1})`).join("<br>")}</div>
+          </div>
+        ` : ""}
+        ${added.length === 0 && removed.length === 0 && moved.length === 0 ? `
+          <div style="font-size:10px; color:#6b7280;">ステップに大きな変化はありません</div>
+        ` : ""}
+      `;
+    }
+
+    // Asset Shelf: 全シミュレーションから資産ステップを収集（提案ベース）
+    function getAllAssets() {
+      const sims = dataCache.simulations || [];
+      const assetMap = new Map(); // asset名をキーにして重複を管理
+
+      sims.forEach(sim => {
+        const result = sim.result;
+        if (!result) return;
+
+        const worldlines = result.worldline_baseline
+          ? [result.worldline_baseline, result.worldline_leap, result.worldline_guardrail]
+          : [result.persona_solid, result.persona_leap];
+
+        worldlines.forEach(wl => {
+          if (!wl?.asset_steps) return;
+          wl.asset_steps.forEach(a => {
+            const key = (a.asset || "").toLowerCase().trim();
+            if (!key) return;
+
+            if (assetMap.has(key)) {
+              assetMap.get(key).count++;
+            } else {
+              assetMap.set(key, {
+                asset: a.asset,
+                type: a.type || "doc",
+                why: a.why || "",
+                firstSeenAt: sim.createdAt,
+                count: 1
+              });
+            }
+          });
+        });
+      });
+
+      return Array.from(assetMap.values()).sort((a, b) => b.count - a.count);
+    }
+
+    // 確定済み資産を全シミュレーションから横断収集
+    function getCommittedAssets() {
+      const sims = dataCache.simulations || [];
+      const commitMap = new Map();
+
+      sims.forEach(sim => {
+        const commits = sim.assetCommits || [];
+        commits.forEach(ac => {
+          const key = (ac.asset || "").toLowerCase().trim();
+          if (!key) return;
+
+          if (commitMap.has(key)) {
+            const existing = commitMap.get(key);
+            if (ac.committedAt > existing.committedAt) {
+              existing.committedAt = ac.committedAt;
+              if (ac.why) existing.why = ac.why;
+            }
+            existing.commitCount++;
+          } else {
+            commitMap.set(key, {
+              mapKey: key,
+              asset: ac.asset,
+              type: ac.type || "doc",
+              why: ac.why || "",
+              customPrompt: ac.customPrompt || null,
+              committedAt: ac.committedAt,
+              worldline: ac.worldline,
+              simulationId: sim.id,
+              commitCount: 1
+            });
+          }
+        });
+      });
+
+      return Array.from(commitMap.values()).sort((a, b) => b.committedAt - a.committedAt);
+    }
+
+    // Asset Shelf UI（2層構造: MY ASSETS + ASSET IDEAS）
+    function renderAssetShelf() {
+      const containerId = "assetShelf";
+      let container = document.getElementById(containerId);
+
+      // コンテナがなければ作成
+      if (!container) {
+        const historyContainer = document.getElementById("simulationHistory");
+        if (!historyContainer) return;
+
+        container = document.createElement("div");
+        container.id = containerId;
+        container.style.cssText = "margin-top:24px; padding:16px; background:rgba(255,215,0,0.05); border:1px solid rgba(255,215,0,0.2); border-radius:8px;";
+        historyContainer.parentNode.insertBefore(container, historyContainer.nextSibling);
+      }
+
+      const committedAssets = getCommittedAssets();
+      const allAssets = getAllAssets();
+
+      const typeIcons = {
+        template: "📄",
+        script: "⚙️",
+        checklist: "✅",
+        doc: "📋"
+      };
+
+      // ── 1. MY ASSETS（確定済み資産）──
+      let myAssetsHtml;
+      if (committedAssets.length === 0) {
+        myAssetsHtml = `
+          <div style="font-size:11px; color:#9ca3af; padding:12px; background:rgba(0,0,0,0.2); border-radius:6px;">
+            まだ確定した資産はありません。<br>
+            世界線カードの「📌 資産として確定」で資産を登録できます。
+          </div>
+        `;
+      } else {
+        // type別にグループ化
+        const byType = {};
+        committedAssets.forEach(a => {
+          const t = a.type || "doc";
+          if (!byType[t]) byType[t] = [];
+          byType[t].push(a);
+        });
+
+        myAssetsHtml = `
+          <div style="font-size:10px; color:#9ca3af; margin-bottom:10px;">
+            確定済み ${committedAssets.length} 件 ｜ 使えるときに使う資産ストック
+          </div>
+          ${Object.entries(byType).map(([type, items]) => `
+            <div style="margin-bottom:10px;">
+              <div style="font-size:11px; color:#22c55e; margin-bottom:6px;">${typeIcons[type] || "📋"} ${type.toUpperCase()} (${items.length})</div>
+              <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                ${items.map(a => {
+          const dateStr = new Date(a.committedAt).toLocaleDateString("ja-JP", { month: "short", day: "numeric" });
+          // Fix: Escape single quotes for onclick attribute to prevent syntax errors
+          const escapedKey = encodeURIComponent(a.mapKey).replace(/'/g, "%27");
+          return `
+                    <div onclick="showMyAssetPrompt('${escapedKey}')" style="background:rgba(34,197,94,0.15); border:1px solid rgba(34,197,94,0.4); padding:6px 10px; border-radius:4px; font-size:10px; cursor:pointer; transition:all 0.15s;" onmouseover="this.style.background='rgba(34,197,94,0.3)';this.style.transform='translateY(-1px)'" onmouseout="this.style.background='rgba(34,197,94,0.15)';this.style.transform='none'">
+                      <div style="color:#fff; font-weight:bold;">${a.asset.slice(0, 40)}${a.asset.length > 40 ? '...' : ''}</div>
+                      <div style="color:#22c55e; font-size:9px; margin-top:2px;">✓ ${dateStr}${a.commitCount > 1 ? ` ×${a.commitCount}回` : ''} · 📝 クリックでプロンプト</div>
+                    </div>
+                  `;
+        }).join("")}
+              </div>
+            </div>
+          `).join("")}
+        `;
+      }
+
+      // ── 2. ASSET IDEAS（資産案 / 折りたたみ）──
+      let ideasHtml = "";
+      if (allAssets.length > 0) {
+        const byType = {};
+        allAssets.forEach(a => {
+          const t = a.type || "doc";
+          if (!byType[t]) byType[t] = [];
+          byType[t].push(a);
+        });
+
+        ideasHtml = `
+          <details style="margin-top:16px; border-top:1px solid rgba(255,215,0,0.15); padding-top:12px;">
+            <summary style="font-size:11px; color:#fbbf24; cursor:pointer; list-style:none; display:flex; align-items:center; gap:4px;">
+              <span style="font-size:10px;">▶</span> 💡 ASSET IDEAS（AIの資産案 ${allAssets.length}件）
+            </summary>
+            <div style="padding-top:10px;">
+              <div style="font-size:10px; color:#9ca3af; margin-bottom:8px;">
+                全シミュレーションの提案を集約 ｜ 複数回出現 = 重要度高
+              </div>
+              ${Object.entries(byType).map(([type, items]) => `
+                <div style="margin-bottom:10px;">
+                  <div style="font-size:11px; color:#fbbf24; margin-bottom:6px;">${typeIcons[type] || "📋"} ${type.toUpperCase()} (${items.length})</div>
+                  <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                    ${items.map(a => `
+                      <div style="background:rgba(251,191,36,0.1); border:1px solid rgba(251,191,36,0.3); padding:6px 10px; border-radius:4px; font-size:10px;">
+                        <div style="color:#fff; font-weight:bold;">${a.asset.slice(0, 30)}${a.asset.length > 30 ? '...' : ''}</div>
+                        ${a.count > 1 ? `<div style="color:#fbbf24; font-size:9px;">×${a.count}回出現</div>` : ''}
+                      </div>
+                    `).join("")}
+                  </div>
+                </div>
+              `).join("")}
+            </div>
+          </details>
+        `;
+      }
+
+      container.innerHTML = `
+        <div style="font-size:12px; color:#22c55e; margin-bottom:12px; font-weight:bold;">📌 MY ASSETS（確定済み資産）</div>
+        ${myAssetsHtml}
+        ${ideasHtml}
+        <div style="margin-top:16px; padding:12px; background:rgba(100,100,100,0.1); border-radius:6px; border:1px dashed #555;">
+          <div style="font-size:10px; color:#9ca3af; margin-bottom:6px;">📦 月1棚卸し推奨</div>
+          <div style="font-size:9px; color:#6b7280; line-height:1.4;">
+            資産が増えたら月1で棚卸し。<br>
+            • <span style="color:#22c55e;">統合</span>: 重複・類似を1つに<br>
+            • <span style="color:#ef4444;">削除</span>: 使わなくなったものを整理<br>
+            • <span style="color:#fbbf24;">昇格</span>: 頻度高いものをテンプレ化
+          </div>
+        </div>
+      `;
+    }
+
+    function getChartColors() {
+      return {
+        accent: '#38bdf8', /* Sky-400 */
+        accentSoft: 'rgba(56, 189, 248, 0.2)',
+        mental: '#a78bfa', /* Violet-400 */
+        mentalSoft: 'rgba(167, 139, 250, 0.2)',
+        grid: 'rgba(255, 255, 255, 0.08)',
+        text: '#94a3b8' /* Slate-400 */
+      };
+    }
+
+    // ... (renderRadarChart, renderFlowChart are already here) ...
+
+
+
+    function renderKeywordChart() {
+      const ctx = document.getElementById('chartKeywords');
+      if (!ctx) return;
+
+      const entries = getActiveEntries();
+      const wordCounts = {};
+
+      // 辞書の全キーワードを使って集計（簡易的だが確実）
+      const allKeywords = [];
+      Object.values(CATEGORY_KEYWORDS).forEach(list => allKeywords.push(...list));
+
+      // 重複除外
+      const uniqueKeywords = [...new Set(allKeywords)];
+
+      // 全エントリスキャン
+      // ※パフォーマンス注意: O(Entries * Keywords) なので重いかも。最適化推奨。
+      // ここでは簡易実装。
+      entries.forEach(e => {
+        const text = e.text || "";
+        uniqueKeywords.forEach(word => {
+          if (text.includes(word)) {
+            wordCounts[word] = (wordCounts[word] || 0) + 1;
+          }
+        });
+      });
+
+      // Top 30を抽出
+      const sortedWords = Object.entries(wordCounts)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 30);
+
+      // バブルチャート用に配置
+      // X軸: カテゴリインデックス的なもの？ Y軸: ランダム？
+      // ここではWordCloudの代用として、散布図にランダム配置する。
+
+      const bubbles = sortedWords.map((item, i) => {
+        const [word, count] = item;
+        return {
+          x: Math.random() * 100,
+          y: Math.random() * 100,
+          r: Math.min(count * 2 + 5, 30),
+          word: word,
+          count: count
+        };
+      });
+
+      const colors = getChartColors();
+
+      new Chart(ctx, {
+        type: 'bubble',
+        data: {
+          datasets: [{
+            label: 'Keywords',
+            data: bubbles,
+            backgroundColor: (ctx) => {
+              // ランダムで色を変える演出
+              const v = ctx.raw?.count || 0;
+              return v > 5 ? colors.accentSoft : colors.mentalSoft;
+            },
+            borderColor: colors.grid,
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: { display: false }, // 軸は隠す
+            y: { display: false }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                label: (ctx) => `${ctx.raw.word}: ${ctx.raw.count}`
+              }
+            },
+            // バブルの中心に文字を表示したいが、標準では難しい。
+            // Tooltipで確認してもらう割り切り。
+          }
+        }
+      });
+    }
+
+    function renderRadarChart() {
+      const ctx = document.getElementById('chartRadar');
+      if (!ctx) return;
+
+      const entries = getActiveEntries();
+      const counts = {};
+
+      // カテゴリごとの集計
+      CATEGORY_LIST.forEach(cat => {
+        counts[cat] = 0;
+      });
+
+      entries.forEach(e => {
+        const cat = e.category || "その他";
+        if (counts[cat] !== undefined) {
+          counts[cat]++;
+        }
+      });
+
+      const labels = CATEGORY_LIST;
+      const dataCounts = labels.map(c => counts[c]);
+
+      const colors = getChartColors();
+
+      // 既存チャートの破棄
+      const existingChart = Chart.getChart(ctx);
+      if (existingChart) existingChart.destroy();
+
+      new Chart(ctx, {
+        type: 'radar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: '投稿数',
+              data: dataCounts,
+              backgroundColor: colors.accentSoft,
+              borderColor: colors.accent,
+              pointBackgroundColor: colors.accent,
+              borderWidth: 2,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            r: {
+              angleLines: { color: colors.grid },
+              grid: { color: colors.grid },
+              pointLabels: { color: colors.text, font: { size: 10 } },
+              ticks: { display: false, backdropColor: 'transparent' }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: colors.text } }
+          }
+        }
+      });
+    }
+
+    function renderFlowChart() {
+      const ctx = document.getElementById('chartFlow');
+      if (!ctx) return;
+
+      // 過去30日分の日付生成
+      const dates = [];
+      const mentalData = [];
+
+      for (let i = 29; i >= 0; i--) {
+        const d = new Date();
+        d.setDate(d.getDate() - i);
+        const ymd = formatDate(d); // YYYY-MM-DD
+        dates.push(ymd);
+
+        // 日次メンタル参照
+        const state = (dataCache.dailyStates || {})[ymd];
+        mentalData.push(state && state.mental ? state.mental : null);
+      }
+
+      // 既存チャートの破棄（再描画時の重複防止）
+      const existingChart = Chart.getChart(ctx);
+      if (existingChart) existingChart.destroy();
+
+      const colors = getChartColors();
+
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: dates.map(d => d.slice(5)), // MM-DD
+          datasets: [
+            {
+              label: 'Mental (日次)',
+              data: mentalData,
+              borderColor: colors.mental,
+              backgroundColor: colors.mental,
+              tension: 0.4,
+              spanGaps: true
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              grid: { color: colors.grid },
+              ticks: { color: colors.text, maxTicksLimit: 10 }
+            },
+            y: {
+              min: 0,
+              max: 5,
+              grid: { color: colors.grid },
+              ticks: { color: colors.text, stepSize: 1 }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: colors.text } },
+            tooltip: {
+              callbacks: {
+                title: (items) => {
+                  const idx = items[0].dataIndex;
+                  return dates[idx]; // YYYY-MM-DD表示
+                }
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function renderCrossTodChart() {
+      const ctx = document.getElementById('chartCrossTod');
+      if (!ctx) return;
+
+      const entries = getActiveEntries();
+
+      // カテゴリ×TOD集計初期化
+      const todCounts = {};
+      const labels = CATEGORY_LIST.slice(); // コピー
+
+      labels.forEach(cat => {
+        todCounts[cat] = { morning: 0, day: 0, night: 0, none: 0 };
+      });
+
+      entries.forEach(e => {
+        const cat = e.category || "その他";
+        // 未知のカテゴリがあれば追加（念のため）
+        if (!todCounts[cat]) {
+          todCounts[cat] = { morning: 0, day: 0, night: 0, none: 0 };
+          if (!labels.includes(cat)) labels.push(cat);
+        }
+
+        const tods = e.tod || [];
+        if (tods.length === 0) {
+          todCounts[cat].none++;
+        } else {
+          tods.forEach(t => {
+            if (t === "morning") todCounts[cat].morning++;
+            else if (t === "day") todCounts[cat].day++;
+            else if (t === "night") todCounts[cat].night++;
+          });
+        }
+      });
+
+      const dataMorning = labels.map(c => todCounts[c].morning);
+      const dataDay = labels.map(c => todCounts[c].day);
+      const dataNight = labels.map(c => todCounts[c].night);
+      const dataNone = labels.map(c => todCounts[c].none);
+
+      const colors = getChartColors();
+
+      // 既存チャートの破棄
+      const existingChart = Chart.getChart(ctx);
+      if (existingChart) existingChart.destroy();
+
+      new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: labels,
+          datasets: [
+            {
+              label: '朝',
+              data: dataMorning,
+              backgroundColor: '#fcd34d', /* Amber-300 */
+              stack: 'Stack 0',
+            },
+            {
+              label: '昼',
+              data: dataDay,
+              backgroundColor: '#38bdf8', /* Sky-400 */
+              stack: 'Stack 0',
+            },
+            {
+              label: '夜',
+              data: dataNight,
+              backgroundColor: '#818cf8', /* Indigo-400 */
+              stack: 'Stack 0',
+            },
+            {
+              label: '未設定',
+              data: dataNone,
+              backgroundColor: 'rgba(255, 255, 255, 0.05)',
+              stack: 'Stack 0',
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            x: {
+              stacked: true,
+              grid: { color: colors.grid },
+              ticks: { color: colors.text }
+            },
+            y: {
+              stacked: true,
+              grid: { color: colors.grid },
+              ticks: { color: colors.text }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: colors.text } },
+            tooltip: {
+              mode: 'index',
+              intersect: false
+            }
+          }
+        }
+      });
+    }
+
+    const STORAGE_KEY = "ippoLogEntries_v2";
+    const NEXT_MEMO_KEY = "ippoNextMemo_v1";
+
+    // ===== OneDrive (MSAL + Microsoft Graph) =====
+    const OD_SETTINGS_KEY = "ippoOneDriveSettings_v2";
+    const OD_CACHE_KEY = "ippoDataCache_v1";
+    const OD_QUEUE_KEY = "ippoSyncQueue_v1";
+    const OD_MIGRATION_KEY = "ippoMigrationDone_v1";
+    const OD_STATUS_KEY = "ippoSyncStatus_v1";
+
+    const DEFAULT_FILE_PATH = "/Apps/IppoDashboard/ippo_data.json";
+    const OD_SCOPES = ["Files.ReadWrite.AppFolder", "offline_access"];
+
+    let odMsalApp = null;
+    let odAccount = null;
+    let odEtag = null;
+
+    let dataCache = { schemaVersion: 2, entries: [], memos: [], simulations: [] };
+
+    function uuid() {
+      if (window.crypto?.randomUUID) return window.crypto.randomUUID();
+      const arr = new Uint8Array(16);
+      window.crypto?.getRandomValues?.(arr);
+      if (!arr.length) {
+        return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+          const r = Math.random() * 16 | 0;
+          const v = c === "x" ? r : (r & 0x3 | 0x8);
+          return v.toString(16);
+        });
+      }
+      arr[6] = (arr[6] & 0x0f) | 0x40;
+      arr[8] = (arr[8] & 0x3f) | 0x80;
+      const hex = Array.from(arr, b => b.toString(16).padStart(2, "0")).join("");
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+    }
+
+    function odGetRedirectUriDefault() {
+      return location.href.split("#")[0].split("?")[0];
+    }
+
+    function odLoadSettings() {
+      try { return JSON.parse(localStorage.getItem(OD_SETTINGS_KEY) || "null"); } catch { return null; }
+    }
+    function odSaveSettings(s) {
+      localStorage.setItem(OD_SETTINGS_KEY, JSON.stringify(s));
+    }
+    function odClearSettings() {
+      localStorage.removeItem(OD_SETTINGS_KEY);
+    }
+
+    function odLoadCache() {
+      try {
+        const raw = localStorage.getItem(OD_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !Array.isArray(parsed.entries) || !Array.isArray(parsed.memos)) return null;
+        return parsed;
+      } catch {
+        return null;
+      }
+    }
+
+    function odLoadSyncMeta() {
+      try {
+        const raw = localStorage.getItem(OD_STATUS_KEY);
+        return raw ? JSON.parse(raw) : {};
+      } catch {
+        return {};
+      }
+    }
+
+    function odSaveSyncMeta(meta) {
+      localStorage.setItem(OD_STATUS_KEY, JSON.stringify(meta));
+    }
+
+    function odSaveCache(cache) {
+      localStorage.setItem(OD_CACHE_KEY, JSON.stringify(cache));
+    }
+
+    function odLoadQueue() {
+      try {
+        const raw = localStorage.getItem(OD_QUEUE_KEY);
+        const parsed = raw ? JSON.parse(raw) : [];
+        return Array.isArray(parsed) ? parsed : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function odSaveQueue(queue) {
+      localStorage.setItem(OD_QUEUE_KEY, JSON.stringify(queue));
+    }
+
+    function odEnqueueChange() {
+      const queue = odLoadQueue();
+      queue.push({ ts: Date.now() });
+      odSaveQueue(queue);
+      odUpdateSyncStatus();
+    }
+
+    function odClearQueue() {
+      odSaveQueue([]);
+    }
+
+    function odEls() {
+      return {
+        details: document.getElementById("onedriveDetails"),
+        clientId: document.getElementById("odClientId"),
+        tenant: document.getElementById("odTenant"),
+        redirectInput: document.getElementById("odRedirectInput"),
+        filePath: document.getElementById("odFilePath"),
+        status: document.getElementById("odStatus"),
+        redirect: document.getElementById("odRedirectUri"),
+        copyRedirect: document.getElementById("odCopyRedirect"),
+        save: document.getElementById("odSave"),
+        clear: document.getElementById("odClear"),
+        signIn: document.getElementById("odSignIn"),
+        signOut: document.getElementById("odSignOut"),
+        syncNow: document.getElementById("odSyncNow"),
+        exportBtn: document.getElementById("odExport"),
+        importInput: document.getElementById("odImportInput"),
+        syncState: document.getElementById("odSyncState"),
+        lastSync: document.getElementById("odLastSync"),
+        pendingCount: document.getElementById("odPendingCount"),
+        lastError: document.getElementById("odLastError"),
+      };
+    }
+
+    function odSetStatus(text) {
+      const { status } = odEls();
+      if (status) status.textContent = text;
+    }
+
+    function odUpdateUi() {
+      const els = odEls();
+      const hasSettings = !!(els.clientId?.value?.trim());
+      const signedIn = !!odAccount;
+      if (els.signOut) els.signOut.disabled = !signedIn;
+      if (els.signIn) els.signIn.disabled = !hasSettings;
+      if (els.syncNow) els.syncNow.disabled = !(signedIn && hasSettings);
+    }
+
+    function odInitUiDefaults() {
+      const els = odEls();
+      if (!els.redirect) return;
+      els.redirect.textContent = odGetRedirectUriDefault();
+
+      const saved = odLoadSettings() || {};
+      if (saved?.clientId && els.clientId) els.clientId.value = saved.clientId;
+      if (saved?.tenant && els.tenant) els.tenant.value = saved.tenant;
+      if (els.redirectInput) els.redirectInput.value = saved.redirectUri || odGetRedirectUriDefault();
+      if (els.filePath) els.filePath.value = saved.filePath || DEFAULT_FILE_PATH;
+
+      odSetStatus("未接続");
+      odUpdateUi();
+      const meta = odLoadSyncMeta();
+      if (els.lastSync) els.lastSync.textContent = meta.lastSync || "-";
+      if (els.lastError) els.lastError.textContent = meta.lastError || "-";
+      odSetSyncState(navigator.onLine ? "待機中" : "オフライン");
+      odUpdateSyncStatus();
+    }
+
+    function odBuildMsalConfig() {
+      const els = odEls();
+      const clientId = (els.clientId?.value || "").trim();
+      if (!clientId) throw new Error("Client ID が未設定です。");
+      const tenant = (els.tenant?.value || "").trim() || "common";
+      const redirectUri = (els.redirectInput?.value || "").trim() || odGetRedirectUriDefault();
+      return {
+        auth: {
+          clientId,
+          authority: `https://login.microsoftonline.com/${tenant}`,
+          redirectUri,
+        },
+        cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false },
+        system: { allowNativeBroker: false },
+      };
+    }
+
+    async function odEnsureMsal() {
+      if (!window.msal || !window.msal.PublicClientApplication) {
+        throw new Error("MSALライブラリが読み込めていません（通信遮断か、CDNが死んでる）。");
+      }
+      const config = odBuildMsalConfig();
+      odMsalApp = new window.msal.PublicClientApplication(config);
+      const accounts = odMsalApp.getAllAccounts();
+      odAccount = accounts && accounts.length ? accounts[0] : null;
+      odSetStatus(odAccount ? `接続: ${odAccount.username}` : "未接続");
+      odUpdateUi();
+    }
+
+    async function odSignIn() {
+      await odEnsureMsal();
+      const result = await odMsalApp.loginPopup({ scopes: OD_SCOPES, prompt: "select_account" });
+      odAccount = result.account || null;
+      odSetStatus(odAccount ? `接続: ${odAccount.username}` : "未接続");
+      odUpdateUi();
+      await odFetchAndMergeRemote();
+    }
+
+    async function odSignOut() {
+      if (!odMsalApp) await odEnsureMsal();
+      const account = odAccount;
+      odAccount = null;
+      odUpdateUi();
+      odSetStatus("未接続");
+      if (account) await odMsalApp.logoutPopup({ account });
+    }
+
+    async function odGetToken() {
+      if (!odMsalApp) await odEnsureMsal();
+      if (!odAccount) throw new Error("サインインしてません。");
+      try {
+        const r = await odMsalApp.acquireTokenSilent({ account: odAccount, scopes: OD_SCOPES });
+        return r.accessToken;
+      } catch (e) {
+        const r = await odMsalApp.acquireTokenPopup({ scopes: OD_SCOPES });
+        return r.accessToken;
+      }
+    }
+
+    function odGetFilePath() {
+      const els = odEls();
+      const fromUi = (els.filePath?.value || "").trim();
+      return fromUi || DEFAULT_FILE_PATH;
+    }
+
+    function odGetGraphFileUrl() {
+      const path = odGetFilePath().replace(/^\/?Apps\//, "");
+      const normalized = path.startsWith("/") ? path.slice(1) : path;
+      const encodedPath = normalized.split("/").map(encodeURIComponent).join("/");
+      return `https://graph.microsoft.com/v1.0/me/drive/special/approot:/${encodedPath}:/content`;
+    }
+
+    async function odGetRemoteData() {
+      const token = await odGetToken();
+      const url = odGetGraphFileUrl();
+      const res = await fetch(url, { headers: { "Authorization": `Bearer ${token}` } });
+      if (res.status === 404) {
+        return { data: null, etag: null };
+      }
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(`OneDrive取得失敗: ${res.status} ${t}`);
+      }
+      const etag = res.headers.get("ETag");
+      const raw = await res.text();
+      let data;
+      try { data = JSON.parse(raw); } catch {
+        throw new Error("OneDriveのJSONが壊れています。");
+      }
+      return { data, etag };
+    }
+
+    async function odPutRemoteData(data, etag) {
+      const token = await odGetToken();
+      const url = odGetGraphFileUrl();
+      const headers = {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json",
+      };
+      if (etag) headers["If-Match"] = etag;
+      const res = await fetch(url, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify(data, null, 2)
+      });
+      if (res.status === 412) {
+        throw new Error("etag_mismatch");
+      }
+      if (!res.ok) {
+        const t = await res.text().catch(() => "");
+        throw new Error(`OneDrive保存失敗: ${res.status} ${t}`);
+      }
+      odEtag = res.headers.get("ETag") || odEtag;
+    }
+
+    function normalizeEntry(entry) {
+      // カテゴリが「その他」の場合、強化されたキーワードで再推論を試みる
+      let category = entry.category;
+      if (!category) {
+        // カテゴリが未設定の場合のみ推論する
+        category = inferCategory(entry.text);
+      }
+      category = normalizeCategory(category);
+
+      const normalized = {
+        id: entry.id || uuid(),
+        date: entry.date || "",
+        text: entry.text || "",
+        category: category,
+        energy: entry.energy ?? null,
+        mental: entry.mental ?? null,
+        starred: !!entry.starred,
+        tod: Array.isArray(entry.tod) ? entry.tod : [],
+        ts: entry.ts || entry.updatedAt || 0,
+        updatedAt: entry.updatedAt || entry.ts || 0,
+        deleted: !!entry.deleted,
+      };
+      return normalized;
+    }
+
+    function normalizeMemo(memo) {
+      return {
+        id: memo.id || uuid(),
+        text: memo.text || "",
+        createdAt: memo.createdAt || Date.now(),
+        updatedAt: memo.updatedAt || memo.createdAt || 0,
+        done: !!memo.done,
+        deleted: !!memo.deleted,
+      };
+    }
+
+    let debugNormSimLogged = false;
+    function normalizeSimulationV2(sim) {
+      if (!debugNormSimLogged) {
+        console.log("Debug: normalizeSimulationV2 called (Cache Busted)");
+        debugNormSimLogged = true;
+      }
+      return {
+        id: sim.id || uuid(),
+        createdAt: sim.createdAt || Date.now(),
+        updatedAt: sim.updatedAt || sim.createdAt || 0,
+        promptVersion: sim.promptVersion || "SEED_v5",
+        logWindowDays: sim.logWindowDays || 90,
+        recentCount: sim.recentCount || 30,
+        inputDigest: sim.inputDigest || {},
+        result: sim.result || {},
+        commit: sim.commit || null,
+        assetCommits: sim.assetCommits || [], // Fix: Ensure assetCommits are preserved
+        memoedStepIndices: sim.memoedStepIndices || [], // Fix: Ensure memo state is preserved
+        deleted: !!sim.deleted,
+      };
+    }
+
+    const MAX_SIMULATION_HISTORY = 20;
+
+    function mergeData(base, incoming) {
+      // Schema migration: upgrade to v2 if needed
+      const merged = { schemaVersion: 2, entries: [], memos: [], simulations: [] };
+
+      const entryMap = new Map();
+      [...(base?.entries || []), ...(incoming?.entries || [])].forEach(raw => {
+        const e = normalizeEntry(raw);
+        const existing = entryMap.get(e.id);
+        if (!existing || e.updatedAt >= existing.updatedAt) {
+          entryMap.set(e.id, e);
+        }
+      });
+      merged.entries = Array.from(entryMap.values());
+
+      const memoMap = new Map();
+      [...(base?.memos || []), ...(incoming?.memos || [])].forEach(raw => {
+        const m = normalizeMemo(raw);
+        const existing = memoMap.get(m.id);
+        if (!existing || m.updatedAt >= existing.updatedAt) {
+          memoMap.set(m.id, m);
+        }
+      });
+      merged.memos = Array.from(memoMap.values());
+
+      // Simulations merge
+      const simMap = new Map();
+      console.groupCollapsed("🧩 Simulation Merge Debug");
+      [...(base?.simulations || []), ...(incoming?.simulations || [])].forEach(raw => {
+        const s = normalizeSimulationV2(raw);
+        const existing = simMap.get(s.id);
+
+        if (existing) {
+          // FIX: If timestamps are identical, we MUST NOT overwrite Existing with Incoming
+          // especially if Existing is 'deleted' and Incoming is not.
+          // We only overwrite if Incoming is STRICTLY newer.
+          const win = s.updatedAt > existing.updatedAt;
+
+          const log = `Compare [${s.id.slice(0, 4)}...]:\n` +
+            `  Existing : del=${existing.deleted}, up=${new Date(existing.updatedAt).toISOString()} (${existing.updatedAt})\n` +
+            `  Incoming : del=${s.deleted}, up=${new Date(s.updatedAt).toISOString()} (${s.updatedAt})\n` +
+            `  Result   : ${win ? "Incoming Wins" : "Existing Keeps"}`;
+          console.log(log);
+          appendDebugLog(log);
+        }
+
+        // Only set if not existing, or if we determined it's a winner (strictly newer)
+        if (!existing || s.updatedAt > existing.updatedAt) {
+          simMap.set(s.id, s);
+        }
+      });
+      console.groupEnd();
+      appendDebugLog(`Merge finished. Total: ${simMap.size} simulations (Filtered to ${MAX_SIMULATION_HISTORY})`);
+      // Sort by createdAt desc and limit to MAX_SIMULATION_HISTORY
+      const allSims = Array.from(simMap.values()).sort((a, b) => b.createdAt - a.createdAt);
+      merged.simulations = allSims.slice(0, MAX_SIMULATION_HISTORY);
+
+      // DailyStates merge (A-2 fix)
+      merged.dailyStates = {};
+      const baseStates = base?.dailyStates || {};
+      const incStates = incoming?.dailyStates || {};
+      const allDates = new Set([...Object.keys(baseStates), ...Object.keys(incStates)]);
+      allDates.forEach(date => {
+        const b = baseStates[date];
+        const i = incStates[date];
+        if (!b) {
+          merged.dailyStates[date] = i;
+        } else if (!i) {
+          merged.dailyStates[date] = b;
+        } else {
+          // Both exist, take the newer one
+          merged.dailyStates[date] = (b.updatedAt || 0) >= (i.updatedAt || 0) ? b : i;
+        }
+      });
+
+      return merged;
+    }
+
+    async function odFetchAndMergeRemote() {
+      if (!odAccount || !navigator.onLine) return;
+      odSetSyncState("同期中...");
+      try {
+        const remote = await odGetRemoteData();
+        odEtag = remote.etag || odEtag;
+        if (remote.data) {
+          dataCache = mergeData(remote.data, dataCache);
+          odSaveCache(dataCache);
+        } else {
+          await odPutRemoteData(dataCache, null);
+        }
+        loadEntriesFromCache();
+        loadNextMemosFromCache();
+        renderAll();
+        renderNextMemos();
+        odMarkSynced();
+      } catch (err) {
+        odSetSyncError(err?.message || String(err));
+      }
+    }
+
+    function odSetSyncState(state) {
+      const els = odEls();
+      if (els.syncState) els.syncState.textContent = state;
+    }
+
+    function odSetSyncError(message) {
+      const els = odEls();
+      if (els.lastError) els.lastError.textContent = message || "-";
+      if (els.syncState) els.syncState.textContent = "エラー";
+      const meta = odLoadSyncMeta();
+      odSaveSyncMeta({ ...meta, lastError: message || "-" });
+    }
+
+    function odMarkSynced() {
+      const els = odEls();
+      const now = new Date();
+      const lastSync = formatDateTimeForRecord(now);
+      if (els.lastSync) els.lastSync.textContent = lastSync;
+      if (els.lastError) els.lastError.textContent = "-";
+      if (els.syncState) els.syncState.textContent = "同期済み";
+      odSaveSyncMeta({ lastSync, lastError: "-" });
+    }
+
+    function odUpdateSyncStatus() {
+      const els = odEls();
+      const queue = odLoadQueue();
+      if (els.pendingCount) els.pendingCount.textContent = String(queue.length);
+    }
+
+    async function odFlushQueue() {
+      if (!odAccount || !navigator.onLine) return;
+      const queue = odLoadQueue();
+      if (!queue.length) return;
+      odSetSyncState("同期中...");
+      try {
+        const remote = await odGetRemoteData();
+        odEtag = remote.etag || odEtag;
+        if (remote.data) {
+          const merged = mergeData(remote.data, dataCache);
+          dataCache = merged;
+          await odPutRemoteData(dataCache, odEtag);
+        } else {
+          await odPutRemoteData(dataCache, null);
+        }
+        odClearQueue();
+        odSaveCache(dataCache);
+        odMarkSynced();
+        loadEntriesFromCache();
+        loadNextMemosFromCache();
+        renderAll();
+        renderNextMemos();
+      } catch (err) {
+        if (err?.message === "etag_mismatch") {
+          try {
+            const latest = await odGetRemoteData();
+            odEtag = latest.etag || odEtag;
+            dataCache = mergeData(latest.data || { schemaVersion: 2, entries: [], memos: [], simulations: [] }, dataCache);
+            await odPutRemoteData(dataCache, odEtag);
+            odClearQueue();
+            odSaveCache(dataCache);
+            odMarkSynced();
+          } catch (inner) {
+            odSetSyncError(inner?.message || String(inner));
+          }
+        } else {
+          odSetSyncError(err?.message || String(err));
+        }
+      }
+      odUpdateSyncStatus();
+    }
+
+    async function odAutoConnect() {
+      const settings = odLoadSettings();
+      if (!settings?.clientId) return;
+      try {
+        await odEnsureMsal();
+        if (odAccount && navigator.onLine) {
+          await odFetchAndMergeRemote();
+        }
+      } catch (err) {
+        odSetSyncError(err?.message || String(err));
+      }
+    }
+
+    function storageLoadData() {
+      const cached = odLoadCache();
+      if (cached) {
+        // Schema migration: ensure v2 structure
+        if (!cached.schemaVersion || cached.schemaVersion < 2) {
+          cached.schemaVersion = 2;
+          cached.simulations = cached.simulations || [];
+          cached.dailyStates = cached.dailyStates || {}; // A-2: 日次メンタル用
+        }
+        // Normalize simulations (指摘1,4対応: seedKey/assetCommits保持)
+        if (cached.simulations) {
+          cached.simulations = cached.simulations.map(sim => normalizeSimulation(sim));
+        }
+        dataCache = cached;
+        return cached;
+      }
+      const fresh = { schemaVersion: 2, entries: [], memos: [], simulations: [], dailyStates: {} };
+      dataCache = fresh;
+      odSaveCache(fresh);
+      return fresh;
+    }
+
+    // Simulation正規化（seedKey/assetCommits保持）
+    function normalizeSimulation(sim) {
+      return {
+        id: sim.id || crypto.randomUUID(),
+        seedKey: sim.seedKey || null,
+        promptVersion: sim.promptVersion || 'unknown',
+        result: sim.result || null,
+        createdAt: sim.createdAt || Date.now(),
+        updatedAt: sim.updatedAt || Date.now(),
+        commit: sim.commit || null,
+        assetCommits: sim.assetCommits || []
+      };
+    }
+
+    function storageSaveData(newData) {
+      dataCache = newData;
+      odSaveCache(newData);
+      odEnqueueChange();
+      if (navigator.onLine) odFlushQueue();
+    }
+
+    function storageEnqueueChange() {
+      odEnqueueChange();
+    }
+
+    function storageFlushQueue() {
+      return odFlushQueue();
+    }
+
+    function migrateLegacyData() {
+      const done = localStorage.getItem(OD_MIGRATION_KEY);
+      if (done) return;
+      const legacyEntriesRaw = localStorage.getItem(STORAGE_KEY);
+      const legacyMemosRaw = localStorage.getItem(NEXT_MEMO_KEY);
+      if (!legacyEntriesRaw && !legacyMemosRaw) {
+        localStorage.setItem(OD_MIGRATION_KEY, "1");
+        return;
+      }
+      let legacyEntries = [];
+      let legacyMemos = [];
+      try { legacyEntries = JSON.parse(legacyEntriesRaw || "[]"); } catch { legacyEntries = []; }
+      try { legacyMemos = JSON.parse(legacyMemosRaw || "[]"); } catch { legacyMemos = []; }
+
+      const mappedEntries = Array.isArray(legacyEntries)
+        ? legacyEntries.map(raw => {
+          const cleaned = cleanupLegacyEntry(raw);
+          return {
+            id: uuid(),
+            date: cleaned.date || "",
+            text: cleaned.text || "",
+            category: normalizeCategory(cleaned.category || inferCategory(cleaned.text)),
+            ts: parseRecordedAtToTs(cleaned.recordedAt) || Date.now(),
+            updatedAt: Date.now(),
+            deleted: false,
+          };
+        })
+        : [];
+
+      const mappedMemos = Array.isArray(legacyMemos)
+        ? legacyMemos.map(m => {
+          const createdAt = parseRecordedAtToTs(m.createdAt) || Date.now();
+          return {
+            id: uuid(),
+            text: m.text || "",
+            createdAt,
+            updatedAt: createdAt,
+            done: false,
+            deleted: false,
+          };
+        })
+        : [];
+
+      dataCache = mergeData(dataCache, { schemaVersion: 2, entries: mappedEntries, memos: mappedMemos, simulations: [] });
+      odSaveCache(dataCache);
+      storageEnqueueChange();
+      localStorage.setItem(OD_MIGRATION_KEY, "1");
+    }
+
+    function parseRecordedAtToTs(recordedAt) {
+      if (!recordedAt) return null;
+      if (typeof recordedAt === "number") return recordedAt;
+      const match = recordedAt.match(/(\d{4})\/(\d{2})\/(\d{2})\s+(\d{2}):(\d{2})/);
+      if (!match) return null;
+      const [, y, m, d, hh, mm] = match.map(Number);
+      return new Date(y, m - 1, d, hh, mm).getTime();
+    }
+
+    // ===== /OneDrive =====
+    const CATEGORY_LIST = [
+      "仕事・企画",
+      "家族・子ども",
+      "健康・身体",
+      "環境・暮らし",
+      "学び・勉強",
+      "技術・開発",
+      "仕込む・売る",
+      "趣味・遊び",
+      "心・メンタル",
+      "その他"
+    ];
+
+    const CATEGORY_KEYWORDS = {
+      "家族・子ども": [
+        "子供", "子ども", "息子", "娘", "家族", "奥さん", "妻", "嫁", "ママ", "パパ",
+        "公園", "遊んだ", "一緒に", "お風呂", "寝かしつけ", "宿題", "プール", "運動会",
+        "国語", "算数", "勉強を教えた", "子供と"
+      ],
+      "健康・身体": [
+        "睡眠", "眠れた", "頭痛", "鉄分", "歩いた", "歩けた", "散歩", "自炊", "ご飯", "朝食", "昼食", "夕食",
+        "食べた", "検診", "体重", "股関節", "腰", "ジム", "運動", "ストレッチ", "プランク",
+        "ランニング", "筋トレ", "カロリー", "血圧", "薬", "睡眠薬", "早く起きれた", "朝早く",
+        "ジョギング", "昼散歩", "歩", "2日酔い", "姿勢"
+      ],
+      "環境・暮らし": [
+        "机", "椅子", "オイルヒータ", "暖房", "観葉植物", "ベランダ", "仕事部屋",
+        "部屋", "片付け", "掃除", "レイアウト", "環境", "デスク", "イス", "照明",
+        "冷蔵庫", "洗濯", "収納", "模様替え", "引っ越し", "整理", "片づけ",
+        "マット", "棚", "クッション", "モニタ"
+      ],
+      "仕事・企画": [
+        "新規事業", "企画書", "企画案", "企画部門", "dx", "bpo", "案件", "ztna",
+        "部長", "本部長", "上長", "上司", "営業", "提案", "見積", "資料",
+        "プロジェクト", "PJ", "キックオフ", "会議", "mtg", "打ち合わせ", "1on1",
+        "顧客", "クライアント", "商談", "プレゼン", "レポート", "説明資料",
+        "チーム", "後輩", "新卒", "同僚", "製造", "協力会社", "関連会社",
+        "センター長", "チーフ", "飲み会", "商品企画", "ルーブリック"
+      ],
+      "学び・勉強": [
+        "勉強", "学習", "検定", "dx検定", "試験", "資格", "問題集", "文書情報管理士",
+        "講座", "セミナー", "勉強会", "本を読んだ", "知識", "読書", "読んだ",
+        "耳読", "マインドフルネス", "瞑想", "哲学", "ギーク思考"
+      ],
+      "技術・開発": [
+        "chatgpt", "gpt", "codex", "canvas", "github", "アプリ", "コーディング",
+        "プログラミング", "html", "javascript", "python", "vba", "vbs",
+        "ollama", "gemma", "gemini", "ローカルllm", "ai", "バイブコーディング",
+        "作った", "導入した", "改修", "改造", "ツール", "スマホで動く",
+        "onedrive", "ダウンロード", "サーバ", "自動起動"
+      ],
+      "仕込む・売る": [
+        "投資", "株", "株式", "nisa", "つみたて", "積立", "積み立て", "資産", "資産形成",
+        "貯金", "家計簿", "支出", "収入", "ボーナス", "給料", "年収", "保険",
+        "利回り", "口座", "インデックス", "配当", "投信", "投資信託", "金利", "債券",
+        "節約", "親越え"
+      ],
+      "趣味・遊び": [
+        "趣味", "遊び", "ゲーム", "switch", "スイッチ", "ポケモン", "steam",
+        "漫画", "マンガ", "アニメ", "映画", "ドラマ", "旅行", "温泉",
+        "キャンプ", "散策", "観光", "カメラ", "写真", "読書", "小説",
+        "ラーメン", "グルメ", "カフェ", "お出かけ", "壁紙", "カードゲーム",
+        "アップルパイ", "フィリング", "的当て", "街コロ"
+      ],
+      "心・メンタル": [
+        "気分", "メンタル", "落ち込", "不安", "ストレス", "モヤモヤ", "しんど", "つらい",
+        "安心", "ほっとした", "緊張", "疲れた", "自己肯定感", "効力感", "やる気",
+        "うれしかった", "うれしい", "楽しかった", "イライラ", "焦り", "メンタルケア", "心の余裕",
+        "ログをかけた", "怒ったりしなかった", "切れずに", "純粋に"
+      ]
+    };
+
+    let entries = [];
+    let nextMemos = [];
+
+    function getActiveEntries() {
+      return entries.filter(e => !e.deleted);
+    }
+
+    function deleteEntryById(id) {
+      const target = entries.find(en => en.id === id);
+      if (!target) return;
+      target.deleted = true;
+      target.updatedAt = Date.now();
+      saveEntriesToStorage();
+    }
+
+    function parseDateStr(str) {
+      const parts = str.split("-");
+      if (parts.length !== 3) return null;
+      const y = Number(parts[0]);
+      const m = Number(parts[1]) - 1;
+      const d = Number(parts[2]);
+      return new Date(y, m, d);
+    }
+
+    function formatDate(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      return `${y}-${m}-${d}`;
+    }
+
+    function formatDateTimeForRecord(date) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, "0");
+      const d = String(date.getDate()).padStart(2, "0");
+      const hh = String(date.getHours()).padStart(2, "0");
+      const mm = String(date.getMinutes()).padStart(2, "0");
+      return `${y}/${m}/${d} ${hh}:${mm}`;
+    }
+
+    function getRecordTime(entry) {
+      const ts = entry.ts || entry.updatedAt || Date.now();
+      return formatDateTimeForRecord(new Date(ts));
+    }
+
+    function getUniqueDatesFromEntries() {
+      const set = new Set(getActiveEntries().map(e => e.date));
+      return Array.from(set).filter(Boolean).sort();
+    }
+
+    function inferCategory(text) {
+      const t = (text || "").toLowerCase();
+      const scores = {};
+      CATEGORY_LIST.forEach(cat => scores[cat] = 0);
+
+      for (const [cat, words] of Object.entries(CATEGORY_KEYWORDS)) {
+        words.forEach(w => {
+          if (!w) return;
+          const wLower = w.toLowerCase();
+          if (t.includes(wLower)) scores[cat] += 1;
+        });
+      }
+
+      let bestCat = "その他";
+      let bestScore = 0;
+      for (const cat of CATEGORY_LIST) {
+        const s = scores[cat] || 0;
+        if (s > bestScore) {
+          bestScore = s;
+          bestCat = cat;
+        }
+      }
+      if (bestScore === 0) return "その他";
+      return bestCat;
+    }
+
+    function normalizeCategory(cat) {
+      if (!cat) return "その他";
+      if (cat === "お金・投資") return "仕込む・売る"; // Migration for legacy data
+      if (CATEGORY_LIST.includes(cat)) return cat;
+      if (cat === "その他" || cat === "その他 ") return "その他";
+      return "その他";
+    }
+
+    function cleanupLegacyEntry(raw) {
+      let date = raw.date || raw["日付"] || "";
+      let text = raw.text || raw["内容"] || "";
+      let recordedAt = raw.recordedAt || raw["記録日時"] || "";
+      let category = raw.category || raw["カテゴリ"] || "";
+
+      const m = text.match(/^(.*?),(20\d{2}\/\d{2}\/\d{2} \d{2}:\d{2})(?:,(\d+))?(?:,(\d+))?.*$/);
+      if (m) {
+        text = m[1];
+        if (!recordedAt || /^\d+$/.test(recordedAt)) {
+          recordedAt = m[2];
+        }
+      }
+
+      category = normalizeCategory(category || inferCategory(text));
+      const obj = { date, text, recordedAt, category };
+      return obj;
+    }
+
+    function countCategories(list) {
+      const counts = {};
+      CATEGORY_LIST.forEach(c => counts[c] = 0);
+      list.forEach(e => {
+        const c = normalizeCategory(e.category || inferCategory(e.text));
+        counts[c] += 1;
+      });
+      return counts;
+    }
+
+    function computeMetrics() {
+      const active = getActiveEntries();
+      if (!active.length) {
+        return { total: 0, weekly: 0, monthly: 0, weekStart: null, weekEnd: null, baseMonth: null };
+      }
+      const dates = getUniqueDatesFromEntries();
+      const latestStr = dates[dates.length - 1];
+      const latestDate = parseDateStr(latestStr);
+      if (!latestDate) return { total: active.length, weekly: active.length, monthly: active.length };
+
+      const baseYear = latestDate.getFullYear();
+      const baseMonth = latestDate.getMonth();
+
+      const day = latestDate.getDay();
+      const diffToMonday = (day + 6) % 7;
+      const weekStart = new Date(latestDate);
+      weekStart.setDate(weekStart.getDate() - diffToMonday);
+      const weekEnd = new Date(weekStart);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+
+      let weekly = 0;
+      let monthly = 0;
+      active.forEach(e => {
+        const d = parseDateStr(e.date);
+        if (!d) return;
+        if (d >= weekStart && d <= weekEnd) weekly++;
+        if (d.getFullYear() === baseYear && d.getMonth() === baseMonth) monthly++;
+      });
+
+      return { total: active.length, weekly, monthly, weekStart, weekEnd, baseMonth, baseYear };
+    }
+
+    function getEntriesForDate(dateStr) {
+      return entries.filter(e => e.date === dateStr && !e.deleted);
+    }
+
+    function getEntriesInLastNDays(n) {
+      const active = getActiveEntries();
+      if (!active.length) return [];
+      const dates = getUniqueDatesFromEntries();
+      const latestStr = dates[dates.length - 1];
+      const latestDate = parseDateStr(latestStr);
+      if (!latestDate) return active.slice();
+      const threshold = new Date(latestDate);
+      threshold.setDate(threshold.getDate() - (n - 1));
+      return active.filter(e => {
+        const d = parseDateStr(e.date);
+        return d && d >= threshold && d <= latestDate;
+      });
+    }
+
+    function parseRawCsv(text) {
+      const rows = [];
+      let currentRow = [];
+      let currentField = "";
+      let inQuote = false;
+
+      for (let i = 0; i < text.length; i++) {
+        const char = text[i];
+        const nextChar = text[i + 1];
+
+        if (inQuote) {
+          if (char === '"') {
+            if (nextChar === '"') {
+              currentField += '"';
+              i++; // skip escaped quote
+            } else {
+              inQuote = false;
+            }
+          } else {
+            currentField += char;
+          }
+        } else {
+          if (char === '"') {
+            inQuote = true;
+          } else if (char === ',') {
+            currentRow.push(currentField);
+            currentField = "";
+          } else if (char === '\r' || char === '\n') {
+            if (char === '\r' && nextChar === '\n') {
+              i++;
+            }
+            currentRow.push(currentField);
+            rows.push(currentRow);
+            currentRow = [];
+            currentField = "";
+          } else {
+            currentField += char;
+          }
+        }
+      }
+      if (currentField || currentRow.length > 0) {
+        currentRow.push(currentField);
+        rows.push(currentRow);
+      }
+      return rows;
+    }
+
+    function parseIppoCsv(csvText) {
+      // Use robust parser
+      const rows = parseRawCsv(csvText);
+      const result = [];
+      let inEntries = false;
+
+      for (let cols of rows) {
+        if (cols.length === 0) continue;
+        // 空行チェック (1列で空文字)
+        if (cols.length === 1 && !cols[0].trim()) continue;
+
+        const col0 = (cols[0] || "").trim();
+
+        if (!inEntries) {
+          // ヘッダー検出: "日付" カラムがあれば開始
+          if (col0 === "日付") {
+            inEntries = true;
+          }
+          continue;
+        }
+
+        if (cols.length < 2) continue;
+
+        const date = col0;
+        const text = (cols[1] || "").trim();
+        const recordedAt = (cols[2] || "").trim();
+
+        if (!date || !text) continue;
+
+        const entry = cleanupLegacyEntry({
+          date,
+          text,
+          recordedAt,
+          category: inferCategory(text)
+        });
+
+        let ts = parseRecordedAtToTs(entry.recordedAt);
+        if (!ts && (entry.date || date)) {
+          const d = new Date(entry.date || date);
+          if (!isNaN(d.getTime())) ts = d.getTime();
+        }
+        ts = ts || Date.now();
+
+        result.push({
+          id: uuid(),
+          date: entry.date || date,
+          text: entry.text || text,
+          category: normalizeCategory(entry.category || inferCategory(text)),
+          ts: ts,
+          updatedAt: Date.now(),
+          deleted: false,
+        });
+      }
+
+      return result;
+    }
+
+    function loadEntriesFromCache() {
+      entries = (dataCache.entries || []).map(normalizeEntry);
+    }
+
+    function saveEntriesToStorage() {
+      const normalized = entries.map(normalizeEntry);
+      const deleted = normalized.filter(e => e.deleted);
+      const active = normalized.filter(e => !e.deleted);
+      dataCache.entries = [...deleted, ...active];
+      storageSaveData(dataCache);
+    }
+
+    function loadNextMemosFromCache() {
+      nextMemos = (dataCache.memos || []).map(normalizeMemo).filter(m => !m.done && !m.deleted);
+    }
+
+    function saveNextMemosToStorage(updatedMemo = null) {
+      const memoMap = new Map();
+      (dataCache.memos || []).map(normalizeMemo).forEach(m => memoMap.set(m.id, m));
+      nextMemos.map(normalizeMemo).forEach(m => memoMap.set(m.id, m));
+      if (updatedMemo) {
+        const normalized = normalizeMemo(updatedMemo);
+        memoMap.set(normalized.id, normalized);
+      }
+      dataCache.memos = Array.from(memoMap.values());
+      storageSaveData(dataCache);
+    }
+
+    function renderNextMemos() {
+      const listEl = document.getElementById("nextMemoList");
+      const emptyEl = document.getElementById("nextMemoEmpty");
+      if (!listEl || !emptyEl) return;
+
+      listEl.innerHTML = "";
+      if (!nextMemos.length) {
+        emptyEl.style.display = "";
+        return;
+      }
+      emptyEl.style.display = "none";
+
+      nextMemos.forEach(memo => {
+        const li = document.createElement("li");
+        li.className = "next-memo-item";
+
+        const label = document.createElement("label");
+        label.className = "next-memo-label";
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "next-memo-check";
+
+        const textWrap = document.createElement("div");
+        const textSpan = document.createElement("span");
+        textSpan.className = "next-memo-text";
+        textSpan.textContent = memo.text;
+
+        const meta = document.createElement("div");
+        meta.className = "next-memo-meta";
+        meta.textContent = memo.createdAt ? `追加: ${formatDateTimeForRecord(new Date(memo.createdAt))}` : "";
+
+        textWrap.appendChild(textSpan);
+        if (memo.createdAt) textWrap.appendChild(meta);
+
+        label.appendChild(checkbox);
+        label.appendChild(textWrap);
+
+        const delBtn = document.createElement("button");
+        delBtn.type = "button";
+        delBtn.className = "btn-ghost-small";
+        delBtn.textContent = "削除";
+
+        checkbox.addEventListener("change", () => {
+          if (!checkbox.checked) return;
+          const ok = window.confirm("このメモは『終わった』として削除して大丈夫？");
+          if (!ok) {
+            checkbox.checked = false;
+            return;
+          }
+          memo.done = true;
+          memo.updatedAt = Date.now();
+          nextMemos = nextMemos.filter(x => x.id !== memo.id);
+          saveNextMemosToStorage(memo);
+          renderNextMemos();
+        });
+
+        delBtn.addEventListener("click", () => {
+          const ok = window.confirm("このメモを削除しますか？");
+          if (!ok) return;
+          memo.deleted = true;
+          memo.updatedAt = Date.now();
+          nextMemos = nextMemos.filter(x => x.id !== memo.id);
+          saveNextMemosToStorage(memo);
+          renderNextMemos();
+        });
+
+        li.appendChild(label);
+        li.appendChild(delBtn);
+        listEl.appendChild(li);
+      });
+    }
+
+    function renderDateSelect() {
+      const select = document.getElementById("dateSelect");
+      const dates = getUniqueDatesFromEntries();
+      select.innerHTML = "";
+      if (!dates.length) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.textContent = "-";
+        select.appendChild(opt);
+        return;
+      }
+      const sortedDesc = dates.slice().sort().reverse();
+      sortedDesc.forEach(d => {
+        const opt = document.createElement("option");
+        opt.value = d;
+        opt.textContent = d;
+        select.appendChild(opt);
+      });
+      const current = select.getAttribute("data-current");
+      if (current && sortedDesc.includes(current)) select.value = current;
+      else {
+        select.value = sortedDesc[0];
+        select.setAttribute("data-current", sortedDesc[0]);
+      }
+    }
+
+    function renderDiaryForDate(dateStr) {
+      const out = document.getElementById("diaryOutput");
+      const msg = document.getElementById("diaryMessage");
+
+      if (!getActiveEntries().length || !dateStr || dateStr === "-") {
+        out.value = "";
+        msg.textContent = "一歩がないので、この日の自動日記はまだ作れません。";
+        return;
+      }
+
+      const list = getEntriesForDate(dateStr);
+      if (!list.length) {
+        out.value = "";
+        msg.textContent = "一歩がないので、この日の自動日記はまだ作れません。";
+        return;
+      }
+
+      const counts = countCategories(list);
+      const total = list.length;
+      const nonZeroCats = CATEGORY_LIST.filter(cat => counts[cat] > 0);
+      const topCats = nonZeroCats
+        .slice()
+        .sort((a, b) => (counts[b] || 0) - (counts[a] || 0))
+        .slice(0, 3);
+
+      const withTime = list
+        .slice()
+        .map(e => {
+          const rec = getRecordTime(e);
+          let hour = null;
+          const parts = rec.split(" ");
+          if (parts.length >= 2) {
+            const t = parts[1];
+            const hh = t.split(":")[0];
+            const hNum = Number(hh);
+            if (!Number.isNaN(hNum)) hour = hNum;
+          }
+          return { entry: e, hour };
+        })
+        .sort((a, b) => getRecordTime(a.entry).localeCompare(getRecordTime(b.entry)));
+
+      const morning = [];
+      const afternoon = [];
+      const night = [];
+
+      withTime.forEach(obj => {
+        const h = obj.hour;
+        if (h == null) {
+          afternoon.push(obj.entry);
+        } else if (h < 12) {
+          morning.push(obj.entry);
+        } else if (h < 18) {
+          afternoon.push(obj.entry);
+        } else {
+          night.push(obj.entry);
+        }
+      });
+
+      const lines = [];
+
+      lines.push(`【${dateStr}のふりかえり】`);
+      lines.push("");
+      lines.push(`今日は「一歩」を${total}件。`);
+
+      if (topCats.length === 1) {
+        lines.push(`特に ${topCats[0]} まわりで動きが多かった一日。`);
+      } else if (topCats.length === 2) {
+        lines.push(`特に ${topCats[0]} と ${topCats[1]} あたりで動きが多かった一日。`);
+      } else if (topCats.length >= 3) {
+        lines.push(
+          `特に ${topCats[0]}・${topCats[1]}・${topCats[2]} あたりに、じわじわと前進が積み上がった。`
+        );
+      }
+
+      function addSlotParagraph(label, arr) {
+        if (!arr.length) return;
+        const picked = arr.slice(0, 2);
+        const quoted = picked.map(e => `「${e.text}」`).join("、");
+        lines.push("");
+        lines.push(`${label}は、${quoted} といった一歩を踏んだ時間帯。`);
+      }
+
+      const anySlot =
+        morning.length > 0 || afternoon.length > 0 || night.length > 0;
+
+      if (anySlot) {
+        addSlotParagraph("午前中", morning);
+        addSlotParagraph("午後", afternoon);
+        addSlotParagraph("夜は", night);
+      } else {
+        const picked = list.slice(0, 3);
+        const quoted = picked.map(e => `「${e.text}」`).join("、");
+        lines.push("");
+        lines.push(`一日を通して、${quoted} といった一歩が積み上がった。`);
+      }
+
+      lines.push("");
+      lines.push("【今日のメモ】");
+      lines.push("・うまくいった／進んだと感じたこと：");
+      lines.push("・ちょっと引っかかっていること：");
+      lines.push("・明日もう一歩だけ続けるなら：");
+
+      lines.push("");
+      lines.push("【明日の自分へのひとこと】");
+      lines.push("＊ここにひとことメモを書く（例：『今日の続きのここだけやる』『無理しすぎない』など）");
+
+      out.value = lines.join("\n");
+      msg.textContent = "時間帯とカテゴリをざっくりまとめたストーリーモードの日記ドラフト。中身は自由に追記・修正OK。";
+    }
+
+    function renderDailyTable(dateStr) {
+      const tbody = document.getElementById("dailyTbody");
+      const label = document.getElementById("selectedDateLabel");
+      const countLabel = document.getElementById("dailyCountLabel");
+      const scoreEl = document.getElementById("dailyScore");
+      const wrap = document.getElementById("dailyTableWrap");
+      const empty = document.getElementById("noDataDaily");
+
+      if (!getActiveEntries().length || !dateStr || dateStr === "-") {
+        wrap.style.display = "none";
+        empty.style.display = "";
+        label.textContent = "-";
+        countLabel.textContent = "0件";
+        scoreEl.textContent = "0.0";
+        renderDiaryForDate("-");
+        return;
+      }
+
+      const list = getEntriesForDate(dateStr);
+      label.textContent = dateStr || "-";
+      countLabel.textContent = list.length + "件";
+
+      const score = Math.min(list.length * 0.2, 5);
+      scoreEl.textContent = score.toFixed(1);
+
+      tbody.innerHTML = "";
+      list.slice()
+        .sort((a, b) => getRecordTime(a).localeCompare(getRecordTime(b)))
+        .forEach(e => {
+          const tr = document.createElement("tr");
+
+          const tdTime = document.createElement("td");
+          const timePart = getRecordTime(e).split(" ")[1] || "";
+          tdTime.textContent = timePart;
+          tr.appendChild(tdTime);
+
+          // B-2: 朝昼夜TODカラム（複数選択可）
+          const tdTod = document.createElement("td");
+          tdTod.style.whiteSpace = "nowrap";
+          const todWrap = document.createElement("div");
+          todWrap.className = "tod-wrap";
+
+          const tods = [
+            { key: "morning", icon: "🌅", label: "朝" },
+            { key: "afternoon", icon: "☀️", label: "昼" },
+            { key: "night", icon: "🌙", label: "夜" }
+          ];
+
+          tods.forEach(t => {
+            const btn = document.createElement("button");
+            btn.type = "button";
+            btn.textContent = t.icon;
+            btn.title = t.label;
+            btn.className = "btn-tod" + ((e.tod || []).includes(t.key) ? " active" : "");
+            btn.addEventListener("click", () => {
+              e.tod = e.tod || [];
+              if (e.tod.includes(t.key)) {
+                e.tod = e.tod.filter(k => k !== t.key);
+              } else {
+                e.tod.push(t.key);
+              }
+              e.updatedAt = Date.now();
+              saveEntriesToStorage();
+
+              // ボタンの見た目だけ更新（再描画は重いので避ける）
+              btn.className = "btn-tod" + (e.tod.includes(t.key) ? " active" : "");
+            });
+            todWrap.appendChild(btn);
+          });
+          tdTod.appendChild(todWrap);
+          // tr.appendChild(tdTod); // 移動
+
+          const tdText = document.createElement("td");
+          tdText.className = "entry-text";
+          tdText.textContent = e.text;
+          tr.appendChild(tdText);
+
+          const tdCat = document.createElement("td");
+          const selectCat = document.createElement("select");
+          selectCat.className = "category-select";
+
+          CATEGORY_LIST.forEach(catName => {
+            const opt = document.createElement("option");
+            opt.value = catName;
+            opt.textContent = catName;
+            selectCat.appendChild(opt);
+          });
+
+          const currentCat = normalizeCategory(e.category || inferCategory(e.text));
+          selectCat.value = currentCat;
+
+          selectCat.addEventListener("change", () => {
+            e.category = selectCat.value;
+            e.updatedAt = Date.now();
+            saveEntriesToStorage();
+            renderMetrics();
+            renderCategoryBars();
+            const select = document.getElementById("dateSelect");
+            renderDiaryForDate(select.value);
+          });
+
+          tdCat.appendChild(selectCat);
+          tr.appendChild(tdCat);
+          tr.appendChild(tdTod); // ここに移動
+
+          const tdAction = document.createElement("td");
+          tdAction.style.whiteSpace = "nowrap";
+
+          // スターボタン（偉大な一歩マーク）
+          const starBtn = document.createElement("button");
+          starBtn.type = "button";
+          starBtn.textContent = e.starred ? "★" : "☆";
+          starBtn.className = "btn-star" + (e.starred ? " starred" : "");
+          starBtn.title = e.starred ? "偉大な一歩マークを解除" : "偉大な一歩としてマーク";
+          starBtn.addEventListener("click", () => {
+            const target = entries.find(en => en.id === e.id);
+            if (target) {
+              target.starred = !target.starred;
+              target.updatedAt = Date.now();
+              saveEntriesToStorage();
+              const select = document.getElementById("dateSelect");
+              renderDailyTable(select.value);
+            }
+          });
+          tdAction.appendChild(starBtn);
+
+          const delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.textContent = "削除";
+          delBtn.className = "btn-danger";
+          delBtn.addEventListener("click", () => {
+            const ok = window.confirm("この一歩を削除しますか？");
+            if (!ok) return;
+            deleteEntryById(e.id);
+            renderAll();
+          });
+          tdAction.appendChild(delBtn);
+          tr.appendChild(tdAction);
+
+          tbody.appendChild(tr);
+        });
+
+      wrap.style.display = "";
+      empty.style.display = "none";
+
+      // B-3: 日次メンタルUI更新
+      const dailyState = (dataCache.dailyStates || {})[dateStr] || {};
+      const currentMental = dailyState.mental;
+      document.querySelectorAll("#dailyMentalBtns .rating-btn").forEach(btn => {
+        btn.classList.toggle("selected", parseInt(btn.dataset.value) === currentMental);
+      });
+
+      renderDiaryForDate(dateStr);
+    }
+
+    function renderMetrics() {
+      const m = computeMetrics();
+      document.getElementById("metricTotal").textContent = m.total;
+      document.getElementById("metricWeekly").textContent = m.weekly;
+      document.getElementById("metricMonthly").textContent = m.monthly;
+
+      const subtitle = document.getElementById("metricsSubtitle");
+      const weeklyRange = document.getElementById("metricWeeklyRange");
+
+      if (!getActiveEntries().length || !m.weekStart || !m.weekEnd) {
+        subtitle.textContent = "データが読み込まれていません";
+        weeklyRange.textContent = "-";
+        return;
+      }
+      const ws = formatDate(m.weekStart);
+      const we = formatDate(m.weekEnd);
+      subtitle.textContent = `最新の日付を基準に集計（週：${ws}〜${we}）`;
+      weeklyRange.textContent = `${ws}〜${we}`;
+    }
+
+    function renderCategoryBars() {
+      const container = document.getElementById("categoryBars");
+      const empty = document.getElementById("noCategory");
+
+      if (!getActiveEntries().length) {
+        container.innerHTML = "";
+        empty.style.display = "";
+        return;
+      }
+      const lastList = getEntriesInLastNDays(7);
+      const counts = countCategories(lastList);
+      const max = Math.max(...Object.values(counts));
+
+      container.innerHTML = "";
+      CATEGORY_LIST.forEach(cat => {
+        const c = counts[cat] || 0;
+
+        const wrap = document.createElement("div");
+        wrap.className = "category-bar";
+
+        const header = document.createElement("div");
+        header.className = "category-bar-header";
+
+        const left = document.createElement("span");
+        left.textContent = cat;
+        const right = document.createElement("span");
+        right.textContent = c + "件";
+
+        header.appendChild(left);
+        header.appendChild(right);
+
+        const barOuter = document.createElement("div");
+        barOuter.className = "category-bar-fill";
+        const barInner = document.createElement("span");
+        barInner.style.width = max > 0 ? (c / max * 100).toFixed(1) + "%" : "0%";
+        barOuter.appendChild(barInner);
+
+        wrap.appendChild(header);
+        wrap.appendChild(barOuter);
+        container.appendChild(wrap);
+      });
+
+      empty.style.display = "none";
+    }
+
+    function renderAll() {
+      renderMetrics();
+      renderCategoryBars();
+
+      renderDateSelect();
+      const dates = getUniqueDatesFromEntries();
+      const select = document.getElementById("dateSelect");
+      let targetDate = select.value;
+      if (!targetDate && dates.length) {
+        targetDate = dates[dates.length - 1];
+        select.value = targetDate;
+      }
+      if (targetDate) renderDailyTable(targetDate);
+      else renderDailyTable("-");
+
+      renderCrossTodChart();
+    }
+
+    function toCsv(rows) {
+      return rows.map(cols => cols.map(c => {
+        const s = (c == null) ? "" : String(c);
+        if (s.includes('"') || s.includes(",") || s.includes("\n") || s.includes("\r")) {
+          return '"' + s.replace(/"/g, '""') + '"';
+        }
+        return s;
+      }).join(",")).join("\r\n");
+    }
+
+    function downloadCsv(filename, rows) {
+      if (!rows || !rows.length) {
+        alert("エクスポートするデータがありません。");
+        return;
+      }
+      const csvText = toCsv(rows);
+      const blob = new Blob([csvText], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    function buildMonthlySummaryRows() {
+      if (!getActiveEntries().length) return [];
+      const monthMap = {};
+      getActiveEntries().forEach(e => {
+        const dateStr = e.date || "";
+        if (!dateStr) return;
+        const month = dateStr.slice(0, 7);
+        const cat = normalizeCategory(e.category || inferCategory(e.text));
+        if (!monthMap[month]) monthMap[month] = {};
+        if (!monthMap[month][cat]) monthMap[month][cat] = 0;
+        monthMap[month][cat]++;
+      });
+
+      const months = Object.keys(monthMap).sort();
+      const rows = [["月", "カテゴリ", "件数"]];
+      months.forEach(m => {
+        CATEGORY_LIST.forEach(cat => {
+          const count = monthMap[m][cat] || 0;
+          if (count > 0) rows.push([m, cat, count]);
+        });
+      });
+      return rows;
+    }
+
+    function buildAllEntriesRows() {
+      if (!getActiveEntries().length) return [];
+      const rows = [["日付", "一歩の内容", "記録日時", "カテゴリ"]];
+      const sorted = getActiveEntries().slice().sort((a, b) => {
+        const ka = (a.date || "") + " " + getRecordTime(a);
+        const kb = (b.date || "") + " " + getRecordTime(b);
+        return ka.localeCompare(kb);
+      });
+      sorted.forEach(e => {
+        rows.push([
+          e.date || "",
+          e.text || "",
+          getRecordTime(e),
+          normalizeCategory(e.category || inferCategory(e.text))
+        ]);
+      });
+      return rows;
+    }
+
+    function downloadJson() {
+      const payload = JSON.stringify(dataCache, null, 2);
+      const blob = new Blob([payload], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "ippo_data.json";
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    async function importJsonFile(file) {
+      const text = await file.text();
+      let parsed;
+      try { parsed = JSON.parse(text); } catch {
+        alert("JSONの読み込みに失敗しました。");
+        return;
+      }
+      if (!parsed || !Array.isArray(parsed.entries) || !Array.isArray(parsed.memos)) {
+        alert("JSON形式が違います。");
+        return;
+      }
+      dataCache = mergeData(dataCache, parsed);
+      odSaveCache(dataCache);
+      storageEnqueueChange();
+      loadEntriesFromCache();
+      loadNextMemosFromCache();
+      renderAll();
+      renderNextMemos();
+      if (navigator.onLine) storageFlushQueue();
+    }
+
+    function setupEvents() {
+      // タブ切り替え
+      const tabBtns = document.querySelectorAll(".tab-btn");
+      const tabContents = document.querySelectorAll(".tab-content");
+      tabBtns.forEach(btn => {
+        btn.addEventListener("click", () => {
+          const target = btn.dataset.tab;
+          tabBtns.forEach(b => b.classList.remove("active"));
+          tabContents.forEach(c => c.classList.remove("active"));
+          btn.classList.add("active");
+          const targetEl = document.getElementById(target === "ippo" ? "tabIppo" : "tabFuture");
+          if (targetEl) targetEl.classList.add("active");
+        });
+      });
+
+      // 体力・メンタル評価ボタン
+      let currentEnergy = null;
+      let currentMental = null;
+
+      function setupRatingBtns(containerId, clearId, getValue, setValue) {
+        const container = document.getElementById(containerId);
+        const clearBtn = document.getElementById(clearId);
+        if (!container) return;
+
+        container.querySelectorAll(".rating-btn").forEach(btn => {
+          btn.addEventListener("click", () => {
+            const val = parseInt(btn.dataset.value, 10);
+            container.querySelectorAll(".rating-btn").forEach(b => b.classList.remove("selected"));
+            btn.classList.add("selected");
+            setValue(val);
+          });
+        });
+
+        if (clearBtn) {
+          clearBtn.addEventListener("click", () => {
+            container.querySelectorAll(".rating-btn").forEach(b => b.classList.remove("selected"));
+            setValue(null);
+          });
+        }
+      }
+
+      setupRatingBtns("energyBtns", "energyClear", () => currentEnergy, v => currentEnergy = v);
+      setupRatingBtns("mentalBtns", "mentalClear", () => currentMental, v => currentMental = v);
+
+      // 日付セレクト
+      const select = document.getElementById("dateSelect");
+      select.addEventListener("change", () => {
+        const v = select.value;
+        select.setAttribute("data-current", v);
+        renderDailyTable(v);
+      });
+
+      const csvInput = document.getElementById("csvInput");
+      const fileStatus = document.getElementById("fileStatus");
+      csvInput.addEventListener("change", (ev) => {
+        const file = ev.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const text = e.target.result;
+          const parsed = parseIppoCsv(text);
+          if (!parsed.length) {
+            fileStatus.textContent = "CSVを読み込んだが、エントリが見つかりませんでした";
+            fileStatus.style.color = "#f97373";
+            return;
+          }
+          entries = parsed;
+          saveEntriesToStorage();
+          fileStatus.textContent = `${file.name} から ${entries.length}件 読み込み済み`;
+          fileStatus.style.color = "#9ca3af";
+          renderAll();
+        };
+        reader.onerror = () => {
+          fileStatus.textContent = "CSV読み込みに失敗しました";
+          fileStatus.style.color = "#f97373";
+        };
+        reader.readAsText(file, "UTF-8");
+      });
+
+      const addForm = document.getElementById("addForm");
+      const addText = document.getElementById("addText");
+      addText.addEventListener("keydown", (ev) => {
+        if (ev.key === "Enter" && !ev.shiftKey) {
+          ev.preventDefault();
+          document.getElementById("addForm").dispatchEvent(new Event("submit"));
+        }
+      });
+      const addDate = document.getElementById("addDate");
+      const addMsg = document.getElementById("addMessage");
+
+      addForm.addEventListener("submit", (ev) => {
+        ev.preventDefault();
+        const text = (addText.value || "").trim();
+        let dateStr = addDate.value;
+        if (!text) {
+          addMsg.textContent = "一歩の内容を入れてください。";
+          addMsg.className = "message err";
+          return;
+        }
+        if (!dateStr) dateStr = formatDate(new Date());
+
+        const now = new Date();
+        const entry = {
+          id: uuid(),
+          date: dateStr,
+          text: text,
+          category: inferCategory(text),
+          tod: [],
+          ts: now.getTime(),
+          updatedAt: now.getTime(),
+          deleted: false,
+        };
+
+        entries.push(entry);
+        entries.sort((a, b) => {
+          const ka = (a.date || "") + " " + getRecordTime(a);
+          const kb = (b.date || "") + " " + getRecordTime(b);
+          return ka.localeCompare(kb);
+        });
+        saveEntriesToStorage();
+
+        addText.value = "";
+        // 評価ボタンをリセット
+        currentEnergy = null;
+        currentMental = null;
+        document.querySelectorAll("#energyBtns .rating-btn, #mentalBtns .rating-btn").forEach(b => b.classList.remove("selected"));
+
+        addMsg.textContent = "一歩を追加しました。";
+        addMsg.className = "message ok";
+
+        renderAll();
+        const select = document.getElementById("dateSelect");
+        select.value = dateStr;
+        select.setAttribute("data-current", dateStr);
+        renderDailyTable(dateStr);
+      });
+
+      const today = new Date();
+      addDate.value = formatDate(today);
+
+      const resetBtn = document.getElementById("resetButton");
+      resetBtn.addEventListener("click", () => {
+        const ok = window.confirm("保存されている一歩ログをすべて削除します。本当にリセットしますか？");
+        if (!ok) return;
+
+        entries = [];
+        nextMemos = [];
+        dataCache = { schemaVersion: 1, entries: [], memos: [] };
+        odSaveCache(dataCache);
+        storageEnqueueChange();
+
+        const fileStatus = document.getElementById("fileStatus");
+        fileStatus.textContent = "データを全てリセットしました";
+        fileStatus.style.color = "#f97373";
+
+        document.getElementById("dailyTbody").innerHTML = "";
+        document.getElementById("dailyTableWrap").style.display = "none";
+        document.getElementById("noDataDaily").style.display = "";
+        document.getElementById("selectedDateLabel").textContent = "-";
+        document.getElementById("dailyCountLabel").textContent = "0件";
+        document.getElementById("dailyScore").textContent = "0.0";
+
+        renderAll();
+        renderDiaryForDate("-");
+        renderNextMemos();
+      });
+
+      document.getElementById("exportMonthlyBtn").addEventListener("click", () => {
+        const rows = buildMonthlySummaryRows();
+        downloadCsv("ippo-monthly-summary.csv", rows);
+      });
+
+      document.getElementById("exportAllBtn").addEventListener("click", () => {
+        const rows = buildAllEntriesRows();
+        downloadCsv("ippo-all-entries.csv", rows);
+      });
+
+      // B-3: 日次メンタルUIイベント
+      document.getElementById("dailyMentalBtns").addEventListener("click", (e) => {
+        if (!e.target.classList.contains("rating-btn")) return;
+        const val = parseInt(e.target.dataset.value);
+        const dateSelect = document.getElementById("dateSelect");
+        const dateStr = dateSelect.value;
+        if (!dateStr || dateStr === "-") return;
+
+        dataCache.dailyStates = dataCache.dailyStates || {};
+        if (!dataCache.dailyStates[dateStr]) dataCache.dailyStates[dateStr] = {};
+
+        dataCache.dailyStates[dateStr].mental = val;
+        dataCache.dailyStates[dateStr].updatedAt = Date.now();
+        storageSaveData(dataCache);
+
+        // UI更新
+        document.querySelectorAll("#dailyMentalBtns .rating-btn").forEach(btn => {
+          btn.classList.toggle("selected", parseInt(btn.dataset.value) === val);
+        });
+
+        // チャート更新（未来ラボ）
+        renderFlowChart();
+      });
+
+      document.getElementById("dailyMentalClear").addEventListener("click", () => {
+        const dateSelect = document.getElementById("dateSelect");
+        const dateStr = dateSelect.value;
+        if (!dateStr || dateStr === "-") return;
+
+        if (dataCache.dailyStates && dataCache.dailyStates[dateStr]) {
+          delete dataCache.dailyStates[dateStr].mental;
+          dataCache.dailyStates[dateStr].updatedAt = Date.now();
+          storageSaveData(dataCache);
+        }
+
+        // UI更新
+        document.querySelectorAll("#dailyMentalBtns .rating-btn").forEach(btn => {
+          btn.classList.remove("selected");
+        });
+
+        // チャート更新
+        renderFlowChart();
+      });
+
+      const regenDiaryBtn = document.getElementById("regenerateDiaryBtn");
+      const copyDiaryBtn = document.getElementById("copyDiaryBtn");
+      const diaryMsg = document.getElementById("diaryMessage");
+
+      regenDiaryBtn.addEventListener("click", () => {
+        const select = document.getElementById("dateSelect");
+        const dateStr = select.value;
+        renderDiaryForDate(dateStr);
+      });
+
+      copyDiaryBtn.addEventListener("click", async () => {
+        const out = document.getElementById("diaryOutput");
+        const text = out.value || "";
+        if (!text.trim()) {
+          diaryMsg.textContent = "コピーする日記がありません。";
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(text);
+          diaryMsg.textContent = "クリップボードにコピーしました。";
+        } catch (err) {
+          diaryMsg.textContent = "コピーに失敗しました。テキストを選択して手動でコピーしてください。";
+        }
+      });
+
+      const memoForm = document.getElementById("nextMemoForm");
+      const memoInput = document.getElementById("nextMemoInput");
+      if (memoForm && memoInput) {
+        memoForm.addEventListener("submit", (ev) => {
+          ev.preventDefault();
+          const text = (memoInput.value || "").trim();
+          if (!text) return;
+
+          const now = new Date();
+          const memo = { id: uuid(), text, createdAt: now.getTime(), updatedAt: now.getTime(), done: false };
+          nextMemos.push(memo);
+          saveNextMemosToStorage();
+          memoInput.value = "";
+          renderNextMemos();
+        });
+      }
+
+      initOneDriveEvents();
+    }
+
+    function initOneDriveEvents() {
+      const els = odEls();
+      if (!els.details) return;
+
+      odInitUiDefaults();
+
+      els.copyRedirect?.addEventListener("click", async () => {
+        const txt = odGetRedirectUriDefault();
+        try {
+          await navigator.clipboard.writeText(txt);
+          alert("コピーしました。");
+        } catch {
+          const ta = document.createElement("textarea");
+          ta.value = txt;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand("copy");
+          ta.remove();
+          alert("コピーしました。");
+        }
+      });
+
+      els.save?.addEventListener("click", () => {
+        const clientId = (els.clientId?.value || "").trim();
+        const tenant = (els.tenant?.value || "").trim();
+        const redirectUri = (els.redirectInput?.value || "").trim() || odGetRedirectUriDefault();
+        const filePath = (els.filePath?.value || "").trim() || DEFAULT_FILE_PATH;
+        if (!clientId) {
+          alert("Client ID を入れてから保存して。");
+          return;
+        }
+        odSaveSettings({ clientId, tenant, redirectUri, filePath });
+        odSetStatus("設定保存（未接続）");
+        odUpdateUi();
+      });
+
+      els.clear?.addEventListener("click", () => {
+        if (!confirm("OneDrive設定をクリアします。よろしい？")) return;
+        odClearSettings();
+        if (els.clientId) els.clientId.value = "";
+        if (els.tenant) els.tenant.value = "";
+        if (els.redirectInput) els.redirectInput.value = odGetRedirectUriDefault();
+        if (els.filePath) els.filePath.value = DEFAULT_FILE_PATH;
+        odMsalApp = null;
+        odAccount = null;
+        odSetStatus("未接続");
+        odUpdateUi();
+      });
+
+      els.signIn?.addEventListener("click", async () => {
+        try { await odSignIn(); }
+        catch (e) { alert(e?.message || String(e)); }
+      });
+
+      els.signOut?.addEventListener("click", async () => {
+        try { await odSignOut(); }
+        catch (e) { alert(e?.message || String(e)); }
+      });
+
+      els.syncNow?.addEventListener("click", async () => {
+        try { await odFlushQueue(); }
+        catch (e) { alert(e?.message || String(e)); }
+      });
+
+      els.exportBtn?.addEventListener("click", () => {
+        downloadJson();
+      });
+
+      els.importInput?.addEventListener("change", async (ev) => {
+        const file = ev.target.files[0];
+        if (!file) return;
+        await importJsonFile(file);
+        ev.target.value = "";
+      });
+    }
+
+    window.addEventListener("online", () => {
+      odSetSyncState("オンライン復帰");
+      storageFlushQueue();
+    });
+    window.addEventListener("offline", () => {
+      odSetSyncState("オフライン");
+    });
+
+    document.addEventListener("DOMContentLoaded", async () => {
+      storageLoadData();
+      migrateLegacyData();
+      loadEntriesFromCache();
+      loadNextMemosFromCache();
+      setupEvents();
+      initTabs(); // タブ初期化
+      renderAll();
+      renderNextMemos();
+      odUpdateSyncStatus();
+      await odAutoConnect();
+      if (navigator.onLine) storageFlushQueue();
+    });
+  </script>
+</body>
+
+</html>
