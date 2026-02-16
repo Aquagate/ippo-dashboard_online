@@ -40,6 +40,10 @@ export async function odEnsureMsal(config: OdAuthConfig): Promise<void> {
     const msalConfig = odBuildMsalConfig(config);
     odMsalApp = new PublicClientApplication(msalConfig);
     await odMsalApp.initialize();
+
+    // Handle redirect callback (important for popup flow and redirect flow)
+    await odMsalApp.handleRedirectPromise();
+
     const accounts = odMsalApp.getAllAccounts();
     odAccount = accounts && accounts.length ? accounts[0] : null;
 }
