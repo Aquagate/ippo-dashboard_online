@@ -328,32 +328,45 @@ window.addEventListener("online", () => {
 
 document.addEventListener("DOMContentLoaded", async () => {
     // 0. Auth Callback Guard (Handle Popup Redirect)
-    // If this is the callback window (popup), we MUST process the hash and close.
-    // Even if we can't load settings, we MUST NOT load the full app.
     const hash = window.location.hash;
-    if (hash.includes("code=") || hash.includes("error=")) {
+    const search = window.location.search;
+
+    // DEBUG: Check if we are checking the right things
+    // console.log("Checking Auth:", hash, search);
+
+    if (hash.includes("code=") || hash.includes("error=") || search.includes("code=") || search.includes("error=")) {
+
+        // VISUAL DEBUG: Force screen takeover to prove this code is running
+        document.body.innerHTML = `
+            <div style="padding:20px; font-family:sans-serif; color:white; background:darkblue; height:100vh;">
+                <h1>🛑 Auth Guard Triggered!</h1>
+                <p>Processing Authentication Callback...</p>
+                <div style="background:black; padding:10px; font-family:monospace;">
+                    Hash: ${hash || "(none)"}<br>
+                    Search: ${search || "(none)"}
+                </div>
+            </div>
+        `;
+
         console.log("Processing Auth Callback...");
         const odSettings = odLoadSettings();
 
         if (odSettings?.clientId) {
-            // Initialize MSAL to handle the hash (it will close the window if consistent)
             await odEnsureMsal({
                 clientId: odSettings.clientId,
                 tenant: odSettings.tenant,
                 redirectUri: odSettings.redirectUri
             });
         } else {
-            console.error("Auth Callback: Settings not found in localStorage.");
-            document.body.innerHTML = `
-                <div style="padding:20px; font-family:sans-serif; color:#333;">
-                    <h3>Authentication Processing...</h3>
-                    <p>Cleaning up auth callback.</p>
-                    <p>If this window does not close automatically, please close it.</p>
-                    <small style="color:red;">Warning: Could not load settings from localStorage.</small>
-                </div>
-            `;
+            // Append error to the screen
+            const errDiv = document.createElement("div");
+            errDiv.style.color = "red";
+            errDiv.style.backgroundColor = "white";
+            errDiv.style.padding = "10px";
+            errDiv.innerHTML = "<h3>⚠️ Warning: Settings not found in localStorage.</h3><p>Could not initialize MSAL.</p>";
+            document.body.appendChild(errDiv);
         }
-        return; // Stop app initialization in ALL cases
+        return; // Stop app initialization
     }
 
     await storageLoadData();
