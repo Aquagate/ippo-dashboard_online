@@ -328,20 +328,32 @@ window.addEventListener("online", () => {
 
 document.addEventListener("DOMContentLoaded", async () => {
     // 0. Auth Callback Guard (Handle Popup Redirect)
-    // If this is the callback window (popup), we should process the hash and close.
-    // We don't want to load the full app (Data, UI) in the popup.
+    // If this is the callback window (popup), we MUST process the hash and close.
+    // Even if we can't load settings, we MUST NOT load the full app.
     const hash = window.location.hash;
-    const odSettings = odLoadSettings();
-    if (odSettings?.clientId && (hash.includes("code=") || hash.includes("error="))) {
+    if (hash.includes("code=") || hash.includes("error=")) {
         console.log("Processing Auth Callback...");
-        // Initialize MSAL to handle the hash (it will close the window if consistent)
-        // We need the same config as the main window
-        await odEnsureMsal({
-            clientId: odSettings.clientId,
-            tenant: odSettings.tenant,
-            redirectUri: odSettings.redirectUri
-        });
-        return; // Stop app initialization
+        const odSettings = odLoadSettings();
+
+        if (odSettings?.clientId) {
+            // Initialize MSAL to handle the hash (it will close the window if consistent)
+            await odEnsureMsal({
+                clientId: odSettings.clientId,
+                tenant: odSettings.tenant,
+                redirectUri: odSettings.redirectUri
+            });
+        } else {
+            console.error("Auth Callback: Settings not found in localStorage.");
+            document.body.innerHTML = `
+                <div style="padding:20px; font-family:sans-serif; color:#333;">
+                    <h3>Authentication Processing...</h3>
+                    <p>Cleaning up auth callback.</p>
+                    <p>If this window does not close automatically, please close it.</p>
+                    <small style="color:red;">Warning: Could not load settings from localStorage.</small>
+                </div>
+            `;
+        }
+        return; // Stop app initialization in ALL cases
     }
 
     await storageLoadData();
