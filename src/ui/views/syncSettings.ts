@@ -2,7 +2,7 @@
 // Handles OneDrive Settings Panel and Status Display
 
 import {
-    setSyncCallbacks, syncInit, syncSignIn, syncSignOut, syncFlush, syncAutoConnect
+    registerSyncCallbacks, syncInit, syncSignIn, syncSignOut, syncFlush, syncAutoConnect
 } from '../../services/sync/syncManager';
 import {
     odLoadSettings, odSaveSettings, odClearSettings, odLoadQueue
@@ -90,102 +90,121 @@ function updateButtons() {
 // Init
 
 export function initSyncUI(): void {
-    const els = odEls();
-    if (!els.details) return;
-
-    // Load Settings
-    const saved = odLoadSettings() || {};
-    if (els.redirect) els.redirect.textContent = odGetRedirectUriDefault();
-    if (saved.clientId) els.clientId.value = saved.clientId;
-    if (saved.tenant) els.tenant.value = saved.tenant;
-    if (els.redirectInput) els.redirectInput.value = saved.redirectUri || odGetRedirectUriDefault();
-    if (els.filePath) els.filePath.value = saved.filePath || DEFAULT_FILE_PATH;
-
-    // Register Callbacks
-    setSyncCallbacks({
-        onStatusChange: (status) => {
-            updateStatus(status);
-            updateButtons();
-        },
-        onSyncStateChange: (state) => {
-            updateSyncState(state);
-        },
-        onError: (msg) => {
-            updateError(msg);
-        },
-        onSynced: (ts) => {
-            updateSynced(ts);
-            updateQueueCount();
-        },
-        onDataUpdated: () => {
-            // Reload & Render
-            loadEntriesFromCache();
-            loadNextMemosFromCache();
-            renderAll();
-            renderNextMemos();
-            updateQueueCount();
-        }
-    });
-
-    // Attach Listeners
-    els.save?.addEventListener("click", () => {
-        const clientId = els.clientId.value.trim();
-        const tenant = els.tenant.value.trim();
-        const redirectUri = els.redirectInput.value.trim();
-        const filePath = els.filePath.value.trim();
-
-        if (!clientId) {
-            alert("Client ID を設定してください。");
+    try {
+        console.log("Starting initSyncUI...");
+        const els = odEls();
+        if (!els.details) {
+            console.warn("Element #onedriveDetails not found.");
             return;
         }
 
-        odSaveSettings({ clientId, tenant, redirectUri, filePath });
-        updateStatus("設定保存 (再接続してね)");
-        updateButtons();
+        // Load Settings
+        const saved = odLoadSettings() || {};
+        if (els.redirect) els.redirect.textContent = odGetRedirectUriDefault();
+        if (saved.clientId) els.clientId.value = saved.clientId;
+        if (saved.tenant) els.tenant.value = saved.tenant;
+        if (els.redirectInput) els.redirectInput.value = saved.redirectUri || odGetRedirectUriDefault();
+        if (els.filePath) els.filePath.value = saved.filePath || DEFAULT_FILE_PATH;
 
-        // Retrigger init
+        console.log("Registering callbacks...");
+        // Register Callbacks
+        registerSyncCallbacks({
+            onStatusChange: (status) => {
+                updateStatus(status);
+                updateButtons();
+            },
+            onSyncStateChange: (state) => {
+                updateSyncState(state);
+            },
+            onError: (msg) => {
+                updateError(msg);
+            },
+            onSynced: (ts) => {
+                updateSynced(ts);
+                updateQueueCount();
+            },
+            onDataUpdated: () => {
+                // Reload & Render
+                loadEntriesFromCache();
+                loadNextMemosFromCache();
+                renderAll();
+                renderNextMemos();
+                updateQueueCount();
+            }
+        });
+
+        console.log("Attaching listeners...");
+        // Attach Listeners
+        if (els.save) {
+            els.save.addEventListener("click", () => {
+                console.log("Save clicked");
+                const clientId = els.clientId.value.trim();
+                const tenant = els.tenant.value.trim();
+                const redirectUri = els.redirectInput.value.trim();
+                const filePath = els.filePath.value.trim();
+
+                if (!clientId) {
+                    alert("Client ID を設定してください。");
+                    return;
+                }
+
+                odSaveSettings({ clientId, tenant, redirectUri, filePath });
+                updateStatus("設定保存 (再接続してね)");
+                updateButtons();
+
+                // Retrigger init
+                syncInit();
+            });
+        } else {
+            console.error("Save button #odSave not found!");
+        }
+
+        els.clear?.addEventListener("click", () => {
+            if (!confirm("OneDrive設定をクリアしますか？")) return;
+            odClearSettings();
+            els.clientId.value = "";
+            els.tenant.value = "";
+            els.redirectInput.value = odGetRedirectUriDefault();
+            els.filePath.value = DEFAULT_FILE_PATH;
+
+            updateStatus("未接続");
+            updateButtons();
+        });
+
+        els.signIn?.addEventListener("click", () => syncSignIn());
+        els.signOut?.addEventListener("click", () => syncSignOut());
+        els.syncNow?.addEventListener("click", () => syncFlush());
+
+        els.exportBtn?.addEventListener("click", () => downloadJson());
+        els.importInput?.addEventListener("change", async (ev) => {
+            const file = (ev.target as HTMLInputElement).files?.[0];
+            if (file) {
+                await importJsonFile(file);
+                (ev.target as HTMLInputElement).value = "";
+            }
+        });
+
+        // Copy Redirect
+        els.copyRedirect?.addEventListener("click", async () => {
+            const txt = els.redirect?.textContent || "";
+            try {
+                await navigator.clipboard.writeText(txt);
+                alert("コピーしました");
+            } catch {
+                prompt("コピーしてください", txt);
+            }
+        });
+
+        // Queue count init
+        updateQueueCount();
+
+        // Initial sync check
         syncInit();
-    });
 
-    els.clear?.addEventListener("click", () => {
-        if (!confirm("OneDrive設定をクリアしますか？")) return;
-        odClearSettings();
-        els.clientId.value = "";
-        els.tenant.value = "";
-        els.redirectInput.value = odGetRedirectUriDefault();
-        els.filePath.value = DEFAULT_FILE_PATH;
+        console.log("initSyncUI completed.");
 
-        updateStatus("未接続");
-        updateButtons();
-    });
-
-    els.signIn?.addEventListener("click", () => syncSignIn());
-    els.signOut?.addEventListener("click", () => syncSignOut());
-    els.syncNow?.addEventListener("click", () => syncFlush());
-
-    els.exportBtn?.addEventListener("click", () => downloadJson());
-    els.importInput?.addEventListener("change", async (ev) => {
-        const file = (ev.target as HTMLInputElement).files?.[0];
-        if (file) {
-            await importJsonFile(file);
-            (ev.target as HTMLInputElement).value = "";
-        }
-    });
-
-    // Copy Redirect
-    els.copyRedirect?.addEventListener("click", async () => {
-        const txt = els.redirect?.textContent || "";
-        try {
-            await navigator.clipboard.writeText(txt);
-            alert("コピーしました");
-        } catch {
-            prompt("コピーしてください", txt);
-        }
-    });
-
-    // Queue count init
-    updateQueueCount();
-
-    // Initial sync check
-    syncInit();
+    } catch (e) {
+        console.error("Critical Error in initSyncUI:", e);
+        alert("Sync UI Init Error: " + e);
+    }
 }

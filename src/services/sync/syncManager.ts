@@ -23,12 +23,17 @@ export interface SyncCallbacks {
     onDataUpdated?: () => void;
 }
 
-let handlers: SyncCallbacks = {};
+let listeners: SyncCallbacks[] = [];
 let _isSyncing = false;
 let _odEtag: string | null = null;
 
-export function setSyncCallbacks(callbacks: SyncCallbacks) {
-    handlers = { ...handlers, ...callbacks };
+export function registerSyncCallbacks(callbacks: SyncCallbacks) {
+    listeners.push(callbacks);
+}
+
+// Helper to notify all listeners
+function notify(action: (cb: SyncCallbacks) => void) {
+    listeners.forEach(cb => action(cb));
 }
 
 // Helper to get config from storage
@@ -52,23 +57,23 @@ function getFilePath(): string {
 export async function syncInit(): Promise<void> {
     const config = getConfig();
     if (!config) {
-        handlers.onStatusChange?.("未接続 (設定なし)");
+        notify(cb => cb.onStatusChange?.("未接続 (設定なし)"));
         return;
     }
 
     try {
         await odEnsureMsal(config);
         const account = odGetAccountName();
-        handlers.onStatusChange?.(account ? `接続: ${account}` : "未接続");
+        notify(cb => cb.onStatusChange?.(account ? `接続: ${account}` : "未接続"));
 
         // Restore meta state
         const meta = odLoadSyncMeta();
-        if (meta.lastSync) handlers.onSynced?.(meta.lastSync);
-        if (meta.lastError && meta.lastError !== "-") handlers.onError?.(meta.lastError);
-        handlers.onSyncStateChange?.(navigator.onLine ? "待機中" : "オフライン");
+        if (meta.lastSync) notify(cb => cb.onSynced?.(meta.lastSync));
+        if (meta.lastError && meta.lastError !== "-") notify(cb => cb.onError?.(meta.lastError));
+        notify(cb => cb.onSyncStateChange?.(navigator.onLine ? "待機中" : "オフライン"));
 
     } catch (e: any) {
-        handlers.onError?.(e.message || String(e));
+        notify(cb => cb.onError?.(e.message || String(e)));
     }
 }
 
@@ -78,7 +83,7 @@ export async function syncSignIn(): Promise<void> {
 
     await odSignIn(config);
     const account = odGetAccountName();
-    handlers.onStatusChange?.(account ? `接続: ${account}` : "未接続");
+    notify(cb => cb.onStatusChange?.(account ? `接続: ${account}` : "未接続"));
 
     await syncFetchAndMerge();
 }
@@ -86,7 +91,7 @@ export async function syncSignIn(): Promise<void> {
 export async function syncSignOut(): Promise<void> {
     const config = getConfig();
     if (config) await odSignOut(config);
-    handlers.onStatusChange?.("未接続");
+    notify(cb => cb.onStatusChange?.("未接続"));
 }
 
 // ===== Sync Logic =====
@@ -96,7 +101,7 @@ export async function syncFetchAndMerge(): Promise<void> {
     if (!config || !odGetAccountName() || !navigator.onLine) return;
 
     _isSyncing = true;
-    handlers.onSyncStateChange?.("同期中...");
+    notify(cb => cb.onSyncStateChange?.("同期中..."));
 
     try {
         const remote = await odGetRemoteData(config, getFilePath());
@@ -114,7 +119,7 @@ export async function syncFetchAndMerge(): Promise<void> {
 
         notifySuccess();
     } catch (e: any) {
-        handlers.onError?.(e.message || String(e));
+        notify(cb => cb.onError?.(e.message || String(e)));
     } finally {
         _isSyncing = false;
     }
@@ -128,7 +133,7 @@ export async function syncFlush(): Promise<void> {
     if (queue.length === 0) return; // Nothing to sync
 
     _isSyncing = true;
-    handlers.onSyncStateChange?.("送信中...");
+    notify(cb => cb.onSyncStateChange?.("送信中..."));
 
     try {
         // Optimistic: Try to push if we have an etag
@@ -155,7 +160,7 @@ export async function syncFlush(): Promise<void> {
     } catch (e: any) {
         if (e.message === "etag_mismatch") {
             // Retry once
-            handlers.onSyncStateChange?.("競合解決中...");
+            notify(cb => cb.onSyncStateChange?.("競合解決中..."));
             try {
                 const retryRemote = await odGetRemoteData(config, getFilePath());
                 _odEtag = retryRemote.etag || _odEtag;
@@ -170,10 +175,10 @@ export async function syncFlush(): Promise<void> {
                 await odSaveCache(retryMerged);
                 notifySuccess();
             } catch (inner: any) {
-                handlers.onError?.(inner.message || String(inner));
+                notify(cb => cb.onError?.(inner.message || String(inner)));
             }
         } else {
-            handlers.onError?.(e.message || String(e));
+            notify(cb => cb.onError?.(e.message || String(e)));
         }
     } finally {
         _isSyncing = false;
@@ -192,8 +197,8 @@ export async function syncAutoConnect(): Promise<void> {
 function notifySuccess() {
     const now = new Date();
     const ts = formatDateTimeForRecord(now);
-    handlers.onSynced?.(ts);
-    handlers.onDataUpdated?.();
-    handlers.onSyncStateChange?.("同期済み");
+    notify(cb => cb.onSynced?.(ts));
+    notify(cb => cb.onDataUpdated?.());
+    notify(cb => cb.onSyncStateChange?.("同期済み"));
     odSaveSyncMeta({ lastSync: ts, lastError: "-" });
 }

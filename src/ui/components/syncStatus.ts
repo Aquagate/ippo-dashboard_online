@@ -35,15 +35,20 @@ export function initSyncStatus(): void {
     document.body.appendChild(container);
 
     // Register Callbacks
-    setSyncCallbacks({
+    registerSyncCallbacks({
         onStatusChange: (status: string) => {
             // "接続: user" or "未接続"
             if (status.startsWith("接続")) {
                 container.title = status;
+                text.textContent = "接続済";
+                icon.textContent = '☁️';
+                container.style.border = '1px solid #22c55e';
+                container.style.color = '#bbf7d0';
             } else {
                 text.textContent = status;
                 icon.textContent = '🔌';
                 container.style.border = '1px solid #666';
+                container.style.color = 'white';
             }
         },
         onSyncStateChange: (state: string) => {
