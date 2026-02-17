@@ -1,4 +1,4 @@
-import { setSyncCallbacks } from '../../services/sync/syncManager';
+import { registerSyncCallbacks } from '../../services/sync/syncManager';
 
 export function initSyncStatus(): void {
     // Create UI Container
