@@ -386,6 +386,33 @@ document.addEventListener("DOMContentLoaded", async () => {
                 statusDiv.innerHTML += `<br>❌ Error: ${e.message || e}`;
             }
 
+            // DIAGNOSTIC: Check for Origin Mismatch (Always run this check)
+            try {
+                const currentOrigin = new URL(window.location.href).origin;
+                const redirectOrigin = new URL(odSettings.redirectUri).origin;
+
+                if (currentOrigin !== redirectOrigin) {
+                    statusDiv.innerHTML += `
+                        <div style="margin-top:15px; background:darkred; padding:10px; border:1px solid red;">
+                            <strong>⚠️ CRITICAL CONFIG ERROR DETECTED</strong><br>
+                            Current Origin: ${currentOrigin}<br>
+                            Redirect Origin: ${redirectOrigin}<br>
+                            <br>
+                            <strong>Explanation:</strong> You are running the app on <em>${currentOrigin}</em>, but authentication is redirecting to <em>${redirectOrigin}</em>.<br>
+                            MSAL cannot see the token request cache because LocalStorage is not shared between domains.<br>
+                            <br>
+                            <strong>Solution:</strong><br>
+                            1. Register <code>${currentOrigin}/...</code> in Azure AD.<br>
+                            2. Update the "Redirect URI" in settings to match your current URL.
+                        </div>
+                        `;
+                } else {
+                    statusDiv.innerHTML += `<br><small style="color:gray">Origin Check: OK (${currentOrigin})</small>`;
+                }
+            } catch (e) {
+                console.warn("Could not parse URLs for diagnostic check", e);
+            }
+
         } else {
             // Append error to the screen
             statusDiv.innerHTML = "<h3>⚠️ Warning: Settings not found in localStorage.</h3><p>Could not initialize MSAL.</p>";
