@@ -327,99 +327,106 @@ window.addEventListener("online", () => {
 // ===== Bootstrap =====
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // 0. Auth Callback Guard (Handle Popup Redirect)
+    // 0. Auth Handler (Redirect Flow)
+    // If we are returning from MSAL redirect, handles the hash and continues.
     const hash = window.location.hash;
     const search = window.location.search;
 
-    // DEBUG: Check if we are checking the right things
-    // console.log("Checking Auth:", hash, search);
-
     if (hash.includes("code=") || hash.includes("error=") || search.includes("code=") || search.includes("error=")) {
 
-        // VISUAL DEBUG: Force screen takeover to prove this code is running
-        document.body.innerHTML = `
-            <div style="padding:20px; font-family:sans-serif; color:white; background:darkblue; height:100vh;">
-                <h1>🛑 Auth Guard Triggered!</h1>
-                <p>Processing Authentication Callback...</p>
-                <div style="background:black; padding:10px; font-family:monospace;">
-                    Hash: ${hash.substring(0, 20) + "..." || "(none)"}<br>
-                    Search: ${search || "(none)"}
-                </div>
-                <div id="debug-status" style="margin-top:20px; border:1px solid white; padding:10px;">
-                    Initializing...
-                </div>
-            </div>
-        `;
-
-        console.log("Processing Auth Callback...");
-        const odSettings = odLoadSettings();
+        // VISUAL FEEDBACK: Show we are processing login
+        const loadingDiv = document.createElement("div");
+        loadingDiv.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); color:white; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:9999;";
+        loadingDiv.innerHTML = `<h1>🔄 Processing Login...</h1><p>Please wait while we complete authentication.</p><div id="debug-status" style="margin-top:20px; font-family:monospace; font-size:12px; max-width:80%;">Initializing...</div>`;
+        document.body.appendChild(loadingDiv);
 
         const statusDiv = document.getElementById("debug-status")!;
+        const odSettings = odLoadSettings();
 
         if (odSettings?.clientId) {
-            statusDiv.innerHTML = `
-                <strong>Settings Loaded:</strong><br>
-                ClientId: ${odSettings.clientId.substring(0, 5)}...<br>
-                RedirectUri: ${odSettings.redirectUri}<br>
-                <br>
-                Calling MSAL...
-            `;
-
+            statusDiv.innerHTML = "Settings found. Calling MSAL...";
             try {
-                // Initialize MSAL to handle the hash (it will close the window if consistent)
+                // Initialize MSAL and handle hash
                 const result = await odEnsureMsal({
                     clientId: odSettings.clientId,
                     tenant: odSettings.tenant,
                     redirectUri: odSettings.redirectUri
                 });
 
-                statusDiv.innerHTML += `<br><strong>MSAL Result:</strong> ${result ? "SUCCESS" : "NULL (Ignored)"}`;
-
                 if (result) {
-                    statusDiv.innerHTML += `<br>Closing window in 2 seconds...`;
-                    setTimeout(() => window.close(), 2000);
+                    // LOGIN SUCCESS!
+                    statusDiv.innerHTML = "✅ Authentication Successful! Resuming app...";
+
+                    // Clear the hash/search from URL so we don't re-trigger this on reload
+                    const url = new URL(window.location.href);
+                    url.hash = "";
+                    url.search = ""; // Be careful if search had other params? But usually code is in hash for SPA or search for cleanup.
+                    // Actually, cleaner to just strip code/error related stuff, but wiping is safer for now.
+                    // Restore 'tab' param if it was there? Hard to know what was there before redirect.
+                    window.history.replaceState({}, document.title, url.pathname); // Keep pathname, strip query/hash
+
+                    // Remove loading screen and allow app to continue
+                    document.body.removeChild(loadingDiv);
+
+                    // Proceed to normal init below...
                 } else {
-                    statusDiv.innerHTML += `<br>⚠️ MSAL ignored the hash. Redirect URI mismatch?`;
+                    // No result usually means hash didn't contain auth info or was ignored.
+                    // But we checked for 'code='... maybe it was something else?
+                    // Just let app continue, maybe it was a false alarm?
+                    // Or if it failed silently...
+                    statusDiv.innerHTML += "<br>⚠️ MSAL finished but returned no result. Proceeding...";
+                    setTimeout(() => document.body.removeChild(loadingDiv), 1000);
                 }
 
             } catch (e: any) {
-                statusDiv.innerHTML += `<br>❌ Error: ${e.message || e}`;
-            }
-
-            // DIAGNOSTIC: Check for Origin Mismatch (Always run this check)
-            try {
-                const currentOrigin = new URL(window.location.href).origin;
-                const redirectOrigin = new URL(odSettings.redirectUri).origin;
-
-                if (currentOrigin !== redirectOrigin) {
-                    statusDiv.innerHTML += `
-                        <div style="margin-top:15px; background:darkred; padding:10px; border:1px solid red;">
-                            <strong>⚠️ CRITICAL CONFIG ERROR DETECTED</strong><br>
-                            Current Origin: ${currentOrigin}<br>
-                            Redirect Origin: ${redirectOrigin}<br>
-                            <br>
-                            <strong>Explanation:</strong> You are running the app on <em>${currentOrigin}</em>, but authentication is redirecting to <em>${redirectOrigin}</em>.<br>
-                            MSAL cannot see the token request cache because LocalStorage is not shared between domains.<br>
-                            <br>
-                            <strong>Solution:</strong><br>
-                            1. Register <code>${currentOrigin}/...</code> in Azure AD.<br>
-                            2. Update the "Redirect URI" in settings to match your current URL.
+                // LOGIN FAILED
+                loadingDiv.innerHTML = `
+                    <div style="padding:20px; font-family:sans-serif; color:white; background:darkred; height:100vh; width:100%;">
+                        <h1>❌ Authentication Failed</h1>
+                        <p>Could not complete sign-in.</p>
+                        <div style="background:black; padding:10px; font-family:monospace;">
+                            Error: ${e.message || e}
                         </div>
-                        `;
-                } else {
-                    statusDiv.innerHTML += `<br><small style="color:gray">Origin Check: OK (${currentOrigin})</small>`;
-                }
-            } catch (e) {
-                console.warn("Could not parse URLs for diagnostic check", e);
-            }
+                        <div id="diag-area"></div>
+                        <button onclick="window.location.reload()" style="margin-top:20px; padding:10px;">Reload App</button>
+                    </div>
+                `;
+                const diagArea = loadingDiv.querySelector("#diag-area")!;
 
+                // Diagnostic: Mismatch
+                try {
+                    const currentOrigin = new URL(window.location.href).origin;
+                    const redirectOrigin = new URL(odSettings.redirectUri).origin;
+                    if (currentOrigin !== redirectOrigin) {
+                        diagArea.innerHTML = `
+                            <div style="margin-top:15px; background:#500; padding:10px; border:1px solid red;">
+                                <strong>⚠️ CONFIG ERROR: Origin Mismatch</strong><br>
+                                Current: ${currentOrigin}<br>
+                                Config: ${redirectOrigin}<br>
+                                Update Redirect URI in settings to match Current.
+                            </div>`;
+                    }
+                } catch { }
+
+                // Diagnostic: Storage
+                const msalKeys = Object.keys(localStorage).filter(k => k.toLowerCase().includes("msal"));
+                if (msalKeys.length === 0) {
+                    diagArea.innerHTML += `
+                        <div style="margin-top:10px; border-top:1px solid #555; padding-top:5px;">
+                            <strong>⚠️ Storage Error:</strong> No MSAL keys found in LocalStorage.
+                        </div>`;
+                }
+
+                return; // Stop app initialization
+            }
         } else {
-            // Append error to the screen
-            statusDiv.innerHTML = "<h3>⚠️ Warning: Settings not found in localStorage.</h3><p>Could not initialize MSAL.</p>";
-            statusDiv.style.backgroundColor = "darkred";
+            // No settings? weird if we got a code.
+            statusDiv.innerHTML += "<br>⚠️ No settings found. Proceeding...";
+            setTimeout(() => document.body.removeChild(loadingDiv), 2000);
         }
-        return; // Stop app initialization
     }
+
+    // ===== Normal App Initialization =====
 
     await storageLoadData();
     migrateLegacyData();

@@ -27,8 +27,19 @@ function odBuildMsalConfig(config: OdAuthConfig): any {
             authority: `https://login.microsoftonline.com/${tenant}`,
             redirectUri,
         },
-        cache: { cacheLocation: "localStorage", storeAuthStateInCookie: false },
-        system: { allowNativeBroker: false },
+        cache: { cacheLocation: "localStorage", storeAuthStateInCookie: true },
+        system: {
+            allowNativeBroker: false,
+            loggerOptions: {
+                loggerCallback: (level: any, message: any, containsPii: any) => {
+                    if (containsPii) return;
+                    console.log(`[MSAL] ${message}`);
+                    const debugArea = document.getElementById("debugLogArea") as HTMLTextAreaElement;
+                    if (debugArea) debugArea.value += `[MSAL] ${message}\n`;
+                },
+                logLevel: 1, // Warning
+            }
+        },
     };
 }
 
@@ -53,15 +64,16 @@ export function odGetAccountName(): string | null {
 export async function odSignIn(config: OdAuthConfig): Promise<void> {
     await odEnsureMsal(config);
     if (!odMsalApp) return;
-    const result = await odMsalApp.loginPopup({ scopes: OD_SCOPES, prompt: "select_account" });
-    odAccount = result.account || null;
+    // Switch to Redirect Flow to avoid popup storage issues
+    await odMsalApp.loginRedirect({ scopes: OD_SCOPES, prompt: "select_account" });
+    // Note: This promise will likely not resolve because the page redirects.
 }
 
 export async function odSignOut(config: OdAuthConfig): Promise<void> {
     if (!odMsalApp) await odEnsureMsal(config);
     const account = odAccount;
     odAccount = null;
-    if (account && odMsalApp) await odMsalApp.logoutPopup({ account });
+    if (account && odMsalApp) await odMsalApp.logoutRedirect({ account });
 }
 
 async function odGetToken(config: OdAuthConfig): Promise<string> {
@@ -71,8 +83,12 @@ async function odGetToken(config: OdAuthConfig): Promise<string> {
         const r = await odMsalApp!.acquireTokenSilent({ account: odAccount, scopes: OD_SCOPES });
         return r.accessToken;
     } catch (e) {
-        const r = await odMsalApp!.acquireTokenPopup({ scopes: OD_SCOPES });
-        return r.accessToken;
+        // Fallback to Redirect (Popup is unreliable)
+        console.warn("Silent token acquisition failed. Redirecting to sign in...");
+        await odMsalApp!.acquireTokenRedirect({ scopes: OD_SCOPES });
+        // acquireTokenRedirect returns Promise<void> and redirects the page.
+        // We throw an error to stop the current operation (e.g. save/load) gracefully.
+        throw new Error("Authenticating... (Page will reload)");
     }
 }
 
