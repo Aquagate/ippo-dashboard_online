@@ -168,12 +168,12 @@ function buildPreviousSimSummary(sim: Simulation | null): string | null {
 `.trim();
 }
 
-async function copySimulationContext(): Promise<void> {
+async function copySimulationContext(days: number = 90): Promise<void> {
     const entries = getActiveEntries();
     const sorted = entries.slice().sort((a, b) => b.ts - a.ts);
 
-    // 直近90日 (3ヶ月)
-    const windowMs = 90 * 24 * 60 * 60 * 1000;
+    // 指定された日数
+    const windowMs = days * 24 * 60 * 60 * 1000;
     const border = Date.now() - windowMs;
     let recent = sorted.filter(e => e.ts >= border);
 
@@ -438,7 +438,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
 
     try {
         await navigator.clipboard.writeText(prompt);
-        showToast("📋 SEED v5 Context copied! LLMに貼り付けて未来をシミュレート", "ok");
+        showToast(`📋 SEED v5 Context (${days} days) copied! LLMに貼り付けて未来をシミュレート`, "ok");
     } catch (e) {
         console.error(e);
         showToast("コピー失敗（SSLが必要な場合があります）", "err");
@@ -1197,7 +1197,8 @@ function initStoryMode(): void {
 // ===== Bridge Events =====
 
 function initBridgeEvents(): void {
-    document.getElementById("btnBridgeExport")?.addEventListener("click", copySimulationContext);
+    document.getElementById("btnBridgeExport30")?.addEventListener("click", () => copySimulationContext(30));
+    document.getElementById("btnBridgeExport90")?.addEventListener("click", () => copySimulationContext(90));
     document.getElementById("btnBridgeImport")?.addEventListener("click", importSimulationResult);
 
     const chk = document.getElementById("chkDisableLimit") as HTMLInputElement;

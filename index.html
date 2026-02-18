@@ -362,10 +362,16 @@
           <div class="bridge-step">
             <div style="font-size:12px; opacity:0.7; margin-bottom:4px;">STEP 1: Generate Context</div>
             <p style="font-size:13px; margin:0 0 8px;">過去ログと未来予測プロンプトを生成し、クリップボードにコピーします。</p>
-            <button id="btnBridgeExport" class="btn-primary" type="button"
-              style="background:var(--bg-soft); border:1px solid #d946ef; color:#d946ef; width:100%;">
-              📋 Copy Simulation Context
-            </button>
+            <div style="display:flex; gap:8px;">
+              <button id="btnBridgeExport30" class="btn-primary" type="button"
+                style="background:var(--bg-soft); border:1px solid #eab308; color:#eab308; flex:1;">
+                ⚡ 30 Days (Direct)
+              </button>
+              <button id="btnBridgeExport90" class="btn-primary" type="button"
+                style="background:var(--bg-soft); border:1px solid #d946ef; color:#d946ef; flex:1;">
+                🐢 90 Days (Gentle)
+              </button>
+            </div>
           </div>
 
           <!-- Step 2: Import -->
