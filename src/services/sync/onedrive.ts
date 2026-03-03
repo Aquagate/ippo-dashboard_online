@@ -44,6 +44,13 @@ function odBuildMsalConfig(config: OdAuthConfig): any {
 }
 
 export async function odEnsureMsal(config: OdAuthConfig): Promise<AuthenticationResult | null> {
+    // シングルトン: 初期化済みならキャッシュ済みアカウントを返す
+    if (odMsalApp) {
+        const accounts = odMsalApp.getAllAccounts();
+        odAccount = accounts && accounts.length ? accounts[0] : null;
+        return null;
+    }
+
     const msalConfig = odBuildMsalConfig(config);
     odMsalApp = new PublicClientApplication(msalConfig);
     await odMsalApp.initialize();

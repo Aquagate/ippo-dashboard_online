@@ -70,7 +70,9 @@ export async function syncInit(): Promise<void> {
         const meta = odLoadSyncMeta();
         if (meta.lastSync) notify(cb => cb.onSynced?.(meta.lastSync));
         if (meta.lastError && meta.lastError !== "-") notify(cb => cb.onError?.(meta.lastError));
-        notify(cb => cb.onSyncStateChange?.(navigator.onLine ? "待機中" : "オフライン"));
+        notify(cb => cb.onSyncStateChange?.(
+            !navigator.onLine ? "オフライン" : odGetAccountName() ? "接続済み" : "待機中"
+        ));
 
     } catch (e: any) {
         notify(cb => cb.onError?.(e.message || String(e)));
