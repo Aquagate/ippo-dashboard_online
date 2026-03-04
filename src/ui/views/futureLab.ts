@@ -13,6 +13,7 @@ import { storageSaveData, odSaveCache, odEnqueueChange } from '../../services/st
 import { showToast } from '../toast';
 import { renderFlowChart, renderCrossTodChart, renderKeywordChart, renderRadarChart, renderGreatStepsGallery, renderAll, renderNextMemos } from './ippoLog';
 import { nextMemos, setNextMemos } from '../../app/store';
+import { buildEvidenceSummary } from '../../domain/future/evidence';
 import { sanitize } from '../../utils/sanitize';
 
 let isLabInitialized = false;
@@ -172,6 +173,13 @@ async function copySimulationContext(days: number = 90): Promise<void> {
     const entries = getActiveEntries();
     const sorted = entries.slice().sort((a, b) => b.ts - a.ts);
 
+    // Evidence Summary 生成（P1-06）
+    const evidenceSummary = buildEvidenceSummary({
+        entries: sorted,
+        dailyStates: dataCache.dailyStates || {},
+        windowDays: days,
+    });
+
     // 指定された日数
     const windowMs = days * 24 * 60 * 60 * 1000;
     const border = Date.now() - windowMs;
@@ -278,10 +286,10 @@ async function copySimulationContext(days: number = 90): Promise<void> {
     }
 
     const prompt = `
-# SEED v5 Simulation Request (v2.5.1 tuned)
+# SEED v5 Simulation Request (v2.6.0 — Leap Enhanced)
 
 あなたは「未来シミュレーションエンジン」です。
-ユーザーの過去ログ（観測）にもとづき、3つの世界線（Baseline / Leap / Guardrail）を提示してください。
+ユーザーの過去ログ（観測）と **事前生成されたEvidence Summary** にもとづき、3つの世界線（Baseline / Leap / Guardrail）を提示してください。
 **「活動時間帯（Time of Day）」と「行動内容」の相関**にも注目し、生活リズムの観点からも分析を行ってください。
 
 ## 大前提（守るルール）
@@ -294,6 +302,9 @@ async function copySimulationContext(days: number = 90): Promise<void> {
 - ログに無い文脈を捏造しない（evidenceはログ引用ベース）
 - 恐怖訴求は禁止（破滅/手遅れ/最悪 などの煽り語を使わない）
 - 出力はJSONのみ（余計な文章は禁止）
+
+## Evidence Summary（アプリ側で事前生成・事実ベース）
+${evidenceSummary.text}
 
 ## Context (User Logs & Optional States)
 期間: ${dateRange.from} 〜 ${dateRange.to}
@@ -347,9 +358,22 @@ rubric_detail = { consistency: 点, causality: 点, actionability: 点, asset_le
 3つの世界線（Baseline / Leap / Guardrail）のmicro_stepsに重複が30%以上あれば作り直すこと。
 各世界線は異なるアプローチ・戦略を示すこと。
 
+## Leap三段構造（worldline_leap専用ルール）
+
+worldline_leap には、通常のフィールドに加えて **\`leap_sections\`** を必ず含めること。
+この3セクションが Leap の核心であり、Evidence Summary を土台に「踏襲＋飛躍」を安定して出力する。
+
+\`\`\`
+leap_sections: {
+  evidence_mirror: "Evidence Summaryから読み取れる『繰り返し・強み・避けるべき罠』を5〜8項目で列挙し、踏襲する軸を3つに圧縮して宣言する。箇条書き。",
+  chaos_leap: "踏襲する軸を壊さずに、矛盾を注入した10X飛躍案を5本出す。各案に『何が変われば可能か』を1行添える。うち2本は異世界レベルで飛ぶ（役割/環境/時間の使い方を反転）。箇条書き。",
+  action_seeds: "飛躍案から『今日できる1分』を3つ、『今週できる30分』を3つ提案。それぞれに成功条件を1行で書く。箇条書き。"
+}
+\`\`\`
+
 ## 出力言語
 
-title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence, rubric_reason は全て日本語で出力してください。
+title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence, rubric_reason, leap_sections の各値は全て日本語で出力してください。
 キー名のみ英語。
 
 ## JSON Output Schema
@@ -413,6 +437,11 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
     "risks": [],
     "guardrails": [],
     "evidence": [],
+    "leap_sections": {
+      "evidence_mirror": "（箇条書き: 繰り返し・強み・罠 + 踏襲軸3つ）",
+      "chaos_leap": "（箇条書き: 10X飛躍案5本 + 各導線1行。うち2本は異世界級）",
+      "action_seeds": "（箇条書き: 今日1分×3 + 今週30分×3 + 成功条件）"
+    },
     "rubric_score": 0,
     "rubric_detail": {}
   },
@@ -710,6 +739,35 @@ function renderFutureCards(result: SimulationResult, simId: string): void {
                 <span style="color:${rd.evidence_grounding >= 12 ? '#22c55e' : '#ef4444'}">根拠${rd.evidence_grounding}</span>
             </div>` : "";
 
+        // Leap三段セクション（P1-05: Leap専用、leap_sectionsがある場合のみ表示）
+        let leapSectionsHtml = "";
+        if (wl.key === "worldline_leap" && item.leap_sections) {
+            const ls = item.leap_sections;
+            const sectionData = [
+                { title: "🪞 Evidence Mirror", content: ls.evidence_mirror, color: "#38bdf8" },
+                { title: "🌀 Chaos Leap", content: ls.chaos_leap, color: "#d946ef" },
+                { title: "🌱 Action Seeds", content: ls.action_seeds, color: "#22c55e" },
+            ];
+            leapSectionsHtml = sectionData
+                .filter(s => s.content)
+                .map(s => `
+                    <details class="leap-section" open>
+                        <summary style="font-size:12px; font-weight:bold; color:${s.color}; cursor:pointer; padding:6px 0; list-style:none; display:flex; align-items:center; gap:6px;">
+                            <span style="font-size:8px;">▶</span> ${s.title}
+                        </summary>
+                        <div style="font-size:12px; color:#ccc; line-height:1.6; padding:4px 0 10px 8px; white-space:pre-wrap;">${sanitize(s.content || "")}</div>
+                    </details>
+                `).join("");
+            if (leapSectionsHtml) {
+                leapSectionsHtml = `
+                    <div style="background:rgba(217,70,239,0.08); border:1px solid rgba(217,70,239,0.25); border-radius:8px; padding:12px; margin-bottom:12px;">
+                        <div style="font-size:10px; color:#d946ef; margin-bottom:6px; letter-spacing:1px;">🎯 LEAP三段構造</div>
+                        ${leapSectionsHtml}
+                    </div>`;
+            }
+        }
+
+        card.className = "future-lab-card";
         card.innerHTML = `
             <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
                 <span style="color:${wl.color}; font-weight:bold; font-size:12px;">${wl.icon} ${wl.label}</span>
@@ -722,6 +780,7 @@ function renderFutureCards(result: SimulationResult, simId: string): void {
             ${storyModeEnabled
                 ? `<p style="font-size:12px; color:#ccc; line-height:1.5; margin-bottom:12px; font-style:italic;">"${sanitize(item.narrative)}"</p>`
                 : `<p style="font-size:11px; color:#666; margin-bottom:8px;">📐 設計図モード（Story ModeをONで物語表示）</p>`}
+            ${leapSectionsHtml}
             ${roadmapHtml}
             <div style="background:${wl.color}11; padding:12px; border-radius:6px; border:1px solid ${wl.color}33; margin-bottom:12px;">
                 <div style="font-size:10px; color:${wl.color}; margin-bottom:8px; letter-spacing:1px;">

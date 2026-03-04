@@ -69,6 +69,12 @@ export interface Worldline {
     risks?: string[];
     guardrails?: string[];
     evidence?: SimulationEvidence[];
+    /** Leap専用: 3セクション構造 (Evidence Mirror / Chaos Leap / Action Seeds) */
+    leap_sections?: {
+        evidence_mirror?: string;
+        chaos_leap?: string;
+        action_seeds?: string;
+    };
     rubric_score: number;
     rubric_reason?: string;
     rubric_detail?: RubricDetail;
