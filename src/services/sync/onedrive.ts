@@ -21,6 +21,14 @@ function odBuildMsalConfig(config: OdAuthConfig): any {
     if (!config.clientId) throw new Error("Client ID が未設定です。");
     const tenant = config.tenant || "common";
     const redirectUri = config.redirectUri || odGetRedirectUriDefault();
+
+    // デバッグモードの判定（設定から読む）
+    let debugLogging = false;
+    try {
+        const settings = JSON.parse(localStorage.getItem("ippoOneDriveSettings_v2") || "null");
+        debugLogging = !!settings?.debugLogging;
+    } catch { /* ignore */ }
+
     return {
         auth: {
             clientId: config.clientId,
@@ -33,11 +41,14 @@ function odBuildMsalConfig(config: OdAuthConfig): any {
             loggerOptions: {
                 loggerCallback: (level: any, message: any, containsPii: any) => {
                     if (containsPii) return;
-                    console.log(`[MSAL] ${message}`);
-                    const debugArea = document.getElementById("debugLogArea") as HTMLTextAreaElement;
-                    if (debugArea) debugArea.value += `[MSAL] ${message}\n`;
+                    // デバッグモード時のみUIとconsoleに出力
+                    if (debugLogging) {
+                        console.log(`[MSAL] ${message}`);
+                        const debugArea = document.getElementById("debugLogArea") as HTMLTextAreaElement;
+                        if (debugArea) debugArea.value += `[MSAL] ${message}\n`;
+                    }
                 },
-                logLevel: 1, // Warning
+                logLevel: 2, // Info以上（0=Error, 1=Warning, 2=Info, 3=Verbose）
             }
         },
     };
