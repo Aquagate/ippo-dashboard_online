@@ -1,4 +1,5 @@
 // ===== Main Entry Point =====
+// CSS読み込み + bootstrap呼び出し + イベントハンドラのみ
 
 import './styles/main.css';
 import { uuid, formatDate, formatDateTimeForRecord } from './utils/helpers';
@@ -8,51 +9,19 @@ import {
     deleteEntryById, parseIppoCsv, migrateLegacyData,
     downloadCsv, buildMonthlySummaryRows, buildAllEntriesRows,
     downloadJson, importJsonFile, computeMetrics, getRecordTime,
-    createEntry, createMemo, // Added helpers
+    createEntry, createMemo,
 } from './app/actions';
 import { getDeviceId } from './utils/device';
 import {
-    storageLoadData, storageSaveData, odSaveCache, odEnqueueChange, saveLastGood, odLoadSettings,
-    wasRecoveredFromLastGood,
+    storageSaveData, odSaveCache, odEnqueueChange,
 } from './services/storage/localStorage';
-import { initSyncUI } from './ui/views/syncSettings';
-import { syncAutoConnect, syncFlush } from './services/sync/syncManager';
-import { odEnsureMsal } from './services/sync/onedrive';
+import { syncFlush } from './services/sync/syncManager';
 import {
     renderAll, renderNextMemos, renderDailyTable, renderDiaryForDate,
     renderMetrics, renderCategoryBars, renderFlowChart,
 } from './ui/views/ippoLog';
-import { initFutureLab } from './ui/views/futureLab';
-import { initSettings } from './ui/views/settings';
-import { initSyncStatus } from './ui/components/syncStatus';
 import { inferCategory } from './domain/categories';
-import { showToast } from './ui/toast';
-
-const DEFAULT_FILE_PATH = "/Apps/IppoDashboard/ippo_data.json";
-
-// ===== Tab Switching =====
-
-function initTabs(): void {
-    const tabs = document.querySelectorAll(".tab-btn");
-    tabs.forEach(btn => {
-        btn.addEventListener("click", () => {
-            const target = (btn as HTMLElement).dataset.tab;
-            if (target) switchTab(target);
-        });
-    });
-}
-
-function switchTab(tabName: string): void {
-    document.querySelectorAll(".tab-btn").forEach(btn => {
-        btn.classList.toggle("active", (btn as HTMLElement).dataset.tab === tabName);
-    });
-    document.getElementById("tabIppo")?.classList.toggle("active", tabName === "ippo");
-    document.getElementById("tabFuture")?.classList.toggle("active", tabName === "future");
-    document.getElementById("tabSettings")?.classList.toggle("active", tabName === "settings");
-    if (tabName === "future") {
-        initFutureLab();
-    }
-}
+import { bootstrap } from './app/bootstrap';
 
 // ===== Event Setup =====
 
@@ -315,8 +284,6 @@ function setupEvents(): void {
             renderNextMemos();
         });
     }
-
-
 }
 
 // ===== Online/Offline =====
@@ -325,139 +292,9 @@ window.addEventListener("online", () => {
     syncFlush();
 });
 
-
 // ===== Bootstrap =====
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // 0. Auth Handler (Redirect Flow)
-    // If we are returning from MSAL redirect, handles the hash and continues.
-    const hash = window.location.hash;
-    const search = window.location.search;
-
-    if (hash.includes("code=") || hash.includes("error=") || search.includes("code=") || search.includes("error=")) {
-
-        // VISUAL FEEDBACK: Show we are processing login
-        const loadingDiv = document.createElement("div");
-        loadingDiv.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); color:white; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:9999;";
-        loadingDiv.innerHTML = `<h1>🔄 Processing Login...</h1><p>Please wait while we complete authentication.</p><div id="debug-status" style="margin-top:20px; font-family:monospace; font-size:12px; max-width:80%;">Initializing...</div>`;
-        document.body.appendChild(loadingDiv);
-
-        const statusDiv = document.getElementById("debug-status")!;
-        const odSettings = odLoadSettings();
-
-        if (odSettings?.clientId) {
-            statusDiv.innerHTML = "Settings found. Calling MSAL...";
-            try {
-                // Initialize MSAL and handle hash
-                const result = await odEnsureMsal({
-                    clientId: odSettings.clientId,
-                    tenant: odSettings.tenant,
-                    redirectUri: odSettings.redirectUri
-                });
-
-                if (result) {
-                    // LOGIN SUCCESS!
-                    statusDiv.innerHTML = "✅ Authentication Successful! Resuming app...";
-
-                    // Clear the hash/search from URL so we don't re-trigger this on reload
-                    const url = new URL(window.location.href);
-                    url.hash = "";
-                    url.search = ""; // Be careful if search had other params? But usually code is in hash for SPA or search for cleanup.
-                    // Actually, cleaner to just strip code/error related stuff, but wiping is safer for now.
-                    // Restore 'tab' param if it was there? Hard to know what was there before redirect.
-                    window.history.replaceState({}, document.title, url.pathname); // Keep pathname, strip query/hash
-
-                    // Remove loading screen and allow app to continue
-                    document.body.removeChild(loadingDiv);
-
-                    // Proceed to normal init below...
-                } else {
-                    // No result usually means hash didn't contain auth info or was ignored.
-                    // But we checked for 'code='... maybe it was something else?
-                    // Just let app continue, maybe it was a false alarm?
-                    // Or if it failed silently...
-                    statusDiv.innerHTML += "<br>⚠️ MSAL finished but returned no result. Proceeding...";
-                    setTimeout(() => document.body.removeChild(loadingDiv), 1000);
-                }
-
-            } catch (e: any) {
-                // LOGIN FAILED
-                loadingDiv.innerHTML = `
-                    <div style="padding:20px; font-family:sans-serif; color:white; background:darkred; height:100vh; width:100%;">
-                        <h1>❌ Authentication Failed</h1>
-                        <p>Could not complete sign-in.</p>
-                        <div style="background:black; padding:10px; font-family:monospace;">
-                            Error: ${e.message || e}
-                        </div>
-                        <div id="diag-area"></div>
-                        <button onclick="window.location.reload()" style="margin-top:20px; padding:10px;">Reload App</button>
-                    </div>
-                `;
-                const diagArea = loadingDiv.querySelector("#diag-area")!;
-
-                // Diagnostic: Mismatch
-                try {
-                    const currentOrigin = new URL(window.location.href).origin;
-                    const redirectOrigin = new URL(odSettings.redirectUri).origin;
-                    if (currentOrigin !== redirectOrigin) {
-                        diagArea.innerHTML = `
-                            <div style="margin-top:15px; background:#500; padding:10px; border:1px solid red;">
-                                <strong>⚠️ CONFIG ERROR: Origin Mismatch</strong><br>
-                                Current: ${currentOrigin}<br>
-                                Config: ${redirectOrigin}<br>
-                                Update Redirect URI in settings to match Current.
-                            </div>`;
-                    }
-                } catch { }
-
-                // Diagnostic: Storage
-                const msalKeys = Object.keys(localStorage).filter(k => k.toLowerCase().includes("msal"));
-                if (msalKeys.length === 0) {
-                    diagArea.innerHTML += `
-                        <div style="margin-top:10px; border-top:1px solid #555; padding-top:5px;">
-                            <strong>⚠️ Storage Error:</strong> No MSAL keys found in LocalStorage.
-                        </div>`;
-                }
-
-                return; // Stop app initialization
-            }
-        } else {
-            // No settings? weird if we got a code.
-            statusDiv.innerHTML += "<br>⚠️ No settings found. Proceeding...";
-            setTimeout(() => document.body.removeChild(loadingDiv), 2000);
-        }
-    }
-
-    // ===== Normal App Initialization =====
-
-    await storageLoadData();
-    if (wasRecoveredFromLastGood()) {
-        showToast("⚠️ データ破損を検出しました。前回正常起動時のバックアップから復旧しました。", "ok");
-    }
-    migrateLegacyData();
-    loadEntriesFromCache();
-    loadNextMemosFromCache();
-
-    // Check URL query param for tab
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get("tab");
-    if (tab) switchTab(tab);
-
-    renderAll();
-    renderNextMemos();
-
-    initTabs();
-    initSettings();
+    await bootstrap();
     setupEvents();
-    initSyncUI();
-    initSyncStatus();
-
-    // Auto-connect if configured
-    await syncAutoConnect();
-    if (navigator.onLine) syncFlush();
-
-    // Schedule LastGood backup if successful so far
-    setTimeout(() => {
-        saveLastGood(dataCache);
-    }, 5000);
 });

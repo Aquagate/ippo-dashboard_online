@@ -186,6 +186,26 @@ export function initSyncUI(): void {
     // Queue count init
     updateQueueCount();
 
+    // Debug Logging Toggle
+    const debugCheckbox = document.getElementById("odDebugLogging") as HTMLInputElement;
+    const debugBadge = document.getElementById("odDebugBadge");
+    const debugWarning = document.getElementById("odDebugWarning");
+    if (debugCheckbox) {
+        // 保存済みの状態を復元
+        const currentSettings = odLoadSettings() || {};
+        debugCheckbox.checked = !!currentSettings.debugLogging;
+        if (debugBadge) debugBadge.style.display = debugCheckbox.checked ? "inline" : "none";
+        if (debugWarning) debugWarning.style.display = debugCheckbox.checked ? "block" : "none";
+
+        debugCheckbox.addEventListener("change", () => {
+            const settings = odLoadSettings() || {};
+            settings.debugLogging = debugCheckbox.checked;
+            odSaveSettings(settings);
+            if (debugBadge) debugBadge.style.display = debugCheckbox.checked ? "inline" : "none";
+            if (debugWarning) debugWarning.style.display = debugCheckbox.checked ? "block" : "none";
+        });
+    }
+
     // Initial sync check
     syncInit();
 }
