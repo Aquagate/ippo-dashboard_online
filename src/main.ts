@@ -13,6 +13,7 @@ import {
 import { getDeviceId } from './utils/device';
 import {
     storageLoadData, storageSaveData, odSaveCache, odEnqueueChange, saveLastGood, odLoadSettings,
+    wasRecoveredFromLastGood,
 } from './services/storage/localStorage';
 import { initSyncUI } from './ui/views/syncSettings';
 import { syncAutoConnect, syncFlush } from './services/sync/syncManager';
@@ -25,6 +26,7 @@ import { initFutureLab } from './ui/views/futureLab';
 import { initSettings } from './ui/views/settings';
 import { initSyncStatus } from './ui/components/syncStatus';
 import { inferCategory } from './domain/categories';
+import { showToast } from './ui/toast';
 
 const DEFAULT_FILE_PATH = "/Apps/IppoDashboard/ippo_data.json";
 
@@ -429,6 +431,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     // ===== Normal App Initialization =====
 
     await storageLoadData();
+    if (wasRecoveredFromLastGood()) {
+        showToast("⚠️ データ破損を検出しました。前回正常起動時のバックアップから復旧しました。", "ok");
+    }
     migrateLegacyData();
     loadEntriesFromCache();
     loadNextMemosFromCache();

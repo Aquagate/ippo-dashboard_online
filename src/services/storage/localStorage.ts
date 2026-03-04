@@ -142,13 +142,27 @@ async function migrateFromLocalStorage(): Promise<DataCache | null> {
     }
 }
 
-// ===== High-level Storage API =====
+// 復旧が発生したかどうかのフラグ（UI通知に使う）
+let _recoveredFromLastGood = false;
+export function wasRecoveredFromLastGood(): boolean { return _recoveredFromLastGood; }
 
 export async function storageLoadData(): Promise<DataCache> {
     // 1. Try IDB
     let cached = await odLoadCache();
 
-    // 2. If no IDB, try migration from localStorage
+    // 2. If IDB failed, try lastGood backup
+    if (!cached) {
+        const lastGood = await loadLastGood();
+        if (lastGood) {
+            console.warn("IDB load failed. Recovering from Last Good backup.");
+            cached = lastGood;
+            _recoveredFromLastGood = true;
+            // Restore to IDB so next startup works normally
+            await idbSet(IDB_CACHE_KEY, cached);
+        }
+    }
+
+    // 3. If still no data, try migration from localStorage
     if (!cached) {
         cached = await migrateFromLocalStorage();
     }
@@ -165,7 +179,7 @@ export async function storageLoadData(): Promise<DataCache> {
         return cached;
     }
 
-    // 3. Fallback to fresh
+    // 4. Fallback to fresh
     const fresh: DataCache = { schemaVersion: 2, entries: [], memos: [], simulations: [], dailyStates: {} };
     setDataCache(fresh);
     await odSaveCache(fresh);
