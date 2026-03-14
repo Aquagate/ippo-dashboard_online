@@ -32,8 +32,10 @@ function getChartColors() {
     return {
         accent: '#38bdf8',
         accentSoft: 'rgba(56, 189, 248, 0.2)',
-        mental: '#a78bfa',
-        mentalSoft: 'rgba(167, 139, 250, 0.2)',
+        nightEnergy: '#a78bfa',
+        nightEnergySoft: 'rgba(167, 139, 250, 0.2)',
+        morningEnergy: '#fbbf24',
+        morningEnergySoft: 'rgba(251, 191, 36, 0.2)',
         grid: 'rgba(255, 255, 255, 0.08)',
         text: '#94a3b8',
     };
@@ -378,11 +380,15 @@ export function renderDailyTable(dateStr: string): void {
     wrap.style.display = "";
     empty.style.display = "none";
 
-    // Mental UI update
+    // Energy UI update
     const dailyState = (dataCache.dailyStates || {})[dateStr] as DailyState | undefined;
-    const currentMental = dailyState?.mental;
-    document.querySelectorAll("#dailyMentalBtns .rating-btn").forEach(btn => {
-        btn.classList.toggle("selected", parseInt((btn as HTMLButtonElement).dataset.value || "0") === currentMental);
+    const currentMorningEnergy = dailyState?.morningEnergy;
+    const currentNightEnergy = dailyState?.nightEnergy;
+    document.querySelectorAll("#dailyMorningEnergyBtns .rating-btn").forEach(btn => {
+        btn.classList.toggle("selected", parseInt((btn as HTMLButtonElement).dataset.value || "0") === currentMorningEnergy);
+    });
+    document.querySelectorAll("#dailyNightEnergyBtns .rating-btn").forEach(btn => {
+        btn.classList.toggle("selected", parseInt((btn as HTMLButtonElement).dataset.value || "0") === currentNightEnergy);
     });
 
     renderDiaryForDate(dateStr);
@@ -479,9 +485,13 @@ export function renderFlowChart(): void {
 
     const last30 = dates.slice(-30);
     const countData = last30.map(d => active.filter(e => e.date === d).length);
-    const mentalData = last30.map(d => {
+    const morningEnergyData = last30.map(d => {
         const ds = (dataCache.dailyStates || {})[d];
-        return ds?.mental ?? null;
+        return ds?.morningEnergy ?? null;
+    });
+    const nightEnergyData = last30.map(d => {
+        const ds = (dataCache.dailyStates || {})[d];
+        return ds?.nightEnergy ?? null;
     });
 
     if (chartFlow) chartFlow.destroy();
@@ -491,7 +501,8 @@ export function renderFlowChart(): void {
             labels: last30,
             datasets: [
                 { label: "日次アクション数", data: countData, borderColor: "#38bdf8", backgroundColor: "rgba(56,189,248,0.1)", fill: true, tension: 0.3, yAxisID: "y" },
-                { label: "メンタルスコア", data: mentalData, borderColor: "#a78bfa", backgroundColor: "transparent", borderDash: [5, 5], tension: 0.3, yAxisID: "y1", spanGaps: true },
+                { label: "朝の元気度", data: morningEnergyData, borderColor: "#fbbf24", backgroundColor: "transparent", borderDash: [5, 5], tension: 0.3, yAxisID: "y1", spanGaps: true },
+                { label: "夜の元気度", data: nightEnergyData, borderColor: "#a78bfa", backgroundColor: "transparent", borderDash: [5, 5], tension: 0.3, yAxisID: "y1", spanGaps: true },
             ],
         },
         options: {
@@ -500,7 +511,7 @@ export function renderFlowChart(): void {
             scales: {
                 x: { ticks: { color: "#6b7280", maxRotation: 45 }, grid: { color: "rgba(255,255,255,0.05)" } },
                 y: { ticks: { color: "#6b7280" }, grid: { color: "rgba(255,255,255,0.05)" }, position: "left" },
-                y1: { ticks: { color: "#a78bfa" }, grid: { display: false }, position: "right", min: 1, max: 5 },
+                y1: { ticks: { color: "#a78bfa" }, grid: { display: false }, position: "right", min: 1, max: 10 },
             },
         },
     });
@@ -618,7 +629,7 @@ export function renderKeywordChart(): void {
                 data: bubbles,
                 backgroundColor: (context: any) => {
                     const v = context.raw?.count || 0;
-                    return v > 5 ? colors.accentSoft : colors.mentalSoft;
+                    return v > 5 ? colors.accentSoft : colors.nightEnergySoft;
                 },
                 borderColor: colors.grid,
                 borderWidth: 1,

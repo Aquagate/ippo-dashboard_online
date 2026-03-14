@@ -143,35 +143,63 @@ export function buildEvidenceSummary(input: EvidenceSummaryInput): EvidenceSumma
     const fragileThemes = Array.from(singleDayCats)
         .filter(cat => !sustainedThemes.includes(cat));
 
-    // --- 避けるべき罠（メンタル低下日のパターン） ---
+    // --- 気力・リカバリ傾向分析（トラップ＆インサイト） ---
     const traps: string[] = [];
-    const lowMentalDates = Object.entries(dailyStates || {})
-        .filter(([_, s]) => s.mental !== undefined && s.mental <= 2)
+    
+    // 1. 朝低調: morningEnergy <= 3
+    const lowMorningDates = Object.entries(dailyStates || {})
+        .filter(([_, s]) => s.morningEnergy !== undefined && s.morningEnergy !== null && s.morningEnergy <= 3)
         .map(([date]) => date);
 
-    if (lowMentalDates.length > 0) {
-        // メンタル低下日のカテゴリ傾向
-        const lowDayCats: Record<string, number> = {};
-        const lowDayTods: Record<string, number> = {};
+    // 2. 日中消耗: morningEnergy - nightEnergy >= 3
+    const highDrainDates = Object.entries(dailyStates || {})
+        .filter(([_, s]) => s.morningEnergy && s.nightEnergy && (s.morningEnergy - s.nightEnergy >= 3))
+        .map(([date]) => date);
+        
+    // 3. 夜回復: nightEnergy - morningEnergy >= 2
+    const recoverDates = Object.entries(dailyStates || {})
+        .filter(([_, s]) => s.morningEnergy && s.nightEnergy && (s.nightEnergy - s.morningEnergy >= 2))
+        .map(([date]) => date);
+
+    // --- 避けるべき罠（消耗・低調パターン） ---
+    const problemDates = [...new Set([...lowMorningDates, ...highDrainDates])];
+    
+    if (problemDates.length > 0) {
+        const problemCats: Record<string, number> = {};
+        const problemTods: Record<string, number> = {};
         recent.forEach(e => {
-            if (lowMentalDates.includes(e.date)) {
+            if (problemDates.includes(e.date)) {
                 const cat = e.category || "その他";
-                lowDayCats[cat] = (lowDayCats[cat] || 0) + 1;
+                problemCats[cat] = (problemCats[cat] || 0) + 1;
                 if (e.tod) e.tod.forEach(t => {
-                    lowDayTods[t] = (lowDayTods[t] || 0) + 1;
+                    problemTods[t] = (problemTods[t] || 0) + 1;
                 });
             }
         });
 
-        const topLowCat = Object.entries(lowDayCats).sort((a, b) => b[1] - a[1])[0];
-        if (topLowCat) {
-            traps.push(`メンタル低下日に「${topLowCat[0]}」が集中（${topLowCat[1]}件）`);
+        const topProbCat = Object.entries(problemCats).sort((a, b) => b[1] - a[1])[0];
+        if (topProbCat) {
+            traps.push(`気力消耗・低調日に「${topProbCat[0]}」が集中（${topProbCat[1]}件）`);
         }
-
-        const topLowTod = Object.entries(lowDayTods).sort((a, b) => b[1] - a[1])[0];
-        if (topLowTod) {
+        const topProbTod = Object.entries(problemTods).sort((a, b) => b[1] - a[1])[0];
+        if (topProbTod) {
             const todLabels: Record<string, string> = { morning: "朝", afternoon: "昼", day: "昼", night: "夜" };
-            traps.push(`メンタル低下日は「${todLabels[topLowTod[0]] || topLowTod[0]}」の活動が多い`);
+            traps.push(`気力消耗・低調日は「${todLabels[topProbTod[0]] || topProbTod[0]}」の活動が多い`);
+        }
+    }
+    
+    // --- インサイト追加（回復パターン） ---
+    if (recoverDates.length > 0) {
+        const recoverCats: Record<string, number> = {};
+        recent.forEach(e => {
+            if (recoverDates.includes(e.date)) {
+                const cat = e.category || "その他";
+                recoverCats[cat] = (recoverCats[cat] || 0) + 1;
+            }
+        });
+        const topRecCat = Object.entries(recoverCats).sort((a, b) => b[1] - a[1])[0];
+        if (topRecCat) {
+            traps.push(`【インサイト】気力回復日は「${topRecCat[0]}」のアクションが多い傾向（${topRecCat[1]}件）`);
         }
     }
 
@@ -219,10 +247,10 @@ export function buildEvidenceSummary(input: EvidenceSummaryInput): EvidenceSumma
         });
     }
 
-    // 避けるべき罠
+    // 避けるべき罠とインサイト
     if (traps.length > 0) {
         sections.push("");
-        sections.push("## 避けるべき罠");
+        sections.push("## 避けるべき罠とインサイト");
         traps.forEach(t => {
             sections.push(`- ${t}`);
         });

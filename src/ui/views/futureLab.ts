@@ -242,22 +242,22 @@ async function copySimulationContext(days: number = 90): Promise<void> {
         to: recent[0].date
     } : { from: "", to: "" };
 
-    // 日次メンタルデータの抽出
-    const dailyMentalList: { date: string; mental: number }[] = [];
+    // 日次元気度データの抽出
+    const dailyEnergyList: { date: string; morning: number | null; night: number | null }[] = [];
     const visitedDates = new Set<string>();
     recent.forEach(e => {
         if (!e.date || visitedDates.has(e.date)) return;
         visitedDates.add(e.date);
         const state = (dataCache.dailyStates || {})[e.date];
-        if (state && state.mental) {
-            dailyMentalList.push({ date: e.date, mental: state.mental });
+        if (state && (state.morningEnergy != null || state.nightEnergy != null)) {
+            dailyEnergyList.push({ date: e.date, morning: state.morningEnergy ?? null, night: state.nightEnergy ?? null });
         }
     });
-    dailyMentalList.sort((a, b) => a.date.localeCompare(b.date));
+    dailyEnergyList.sort((a, b) => a.date.localeCompare(b.date));
 
-    const dailyMentalContext = dailyMentalList.length > 0
-        ? dailyMentalList.map(d => `- ${d.date}: Mental Lv.${d.mental}`).join("\n")
-        : "No daily mental records available.";
+    const dailyEnergyContext = dailyEnergyList.length > 0
+        ? dailyEnergyList.map(d => `- ${d.date}: 朝 ${d.morning ?? '-'}, 夜 ${d.night ?? '-'}`).join("\n")
+        : "No daily energy records available.";
 
     const userLogs = recent.map(e => {
         const tods = (e.tod || []).map(k => {
@@ -316,8 +316,8 @@ ${topCategories.map(c => `- ${c.category}: ${c.count}件`).join("\n")}
 Top Keywords:
 ${topKeywords.map(k => `- ${k.keyword}: ${k.count}回`).join("\n")}
 
-Daily Mental (optional, 1=Low, 5=High, 未入力は不明として扱う):
-${dailyMentalContext}
+Daily Energy (optional, 1=Low, 10=High, 朝/夜ごと、未入力は不明として扱う):
+${dailyEnergyContext}
 
 Time-of-day tags (optional, morning/afternoon/night の割合。無いなら不明):
 ${todContext}

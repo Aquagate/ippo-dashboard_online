@@ -72,18 +72,42 @@
             </div>
           </div>
           <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <div style="display:flex; flex-direction:column; gap:6px;">
             <div class="rating-group"
               style="margin:0; background:rgba(0,0,0,0.2); padding:2px 8px; border-radius:999px;">
-              <span class="rating-label" style="font-size:10px;">今日のメンタル:</span>
-              <div class="rating-btns" id="dailyMentalBtns">
+              <span class="rating-label" style="font-size:10px;" title="起床後〜午前中の体感">朝の元気度:</span>
+              <div class="rating-btns" id="dailyMorningEnergyBtns">
                 <button type="button" class="rating-btn small" data-value="1">1</button>
                 <button type="button" class="rating-btn small" data-value="2">2</button>
                 <button type="button" class="rating-btn small" data-value="3">3</button>
                 <button type="button" class="rating-btn small" data-value="4">4</button>
                 <button type="button" class="rating-btn small" data-value="5">5</button>
+                <button type="button" class="rating-btn small" data-value="6">6</button>
+                <button type="button" class="rating-btn small" data-value="7">7</button>
+                <button type="button" class="rating-btn small" data-value="8">8</button>
+                <button type="button" class="rating-btn small" data-value="9">9</button>
+                <button type="button" class="rating-btn small" data-value="10">10</button>
               </div>
-              <button type="button" class="rating-clear" id="dailyMentalClear" style="font-size:10px;">×</button>
+              <button type="button" class="rating-clear" id="dailyMorningEnergyClear" style="font-size:10px;">×</button>
             </div>
+            <div class="rating-group"
+              style="margin:0; background:rgba(0,0,0,0.2); padding:2px 8px; border-radius:999px;">
+              <span class="rating-label" style="font-size:10px;" title="就寝前の総合的な体感">夜の元気度:</span>
+              <div class="rating-btns" id="dailyNightEnergyBtns">
+                <button type="button" class="rating-btn small" data-value="1">1</button>
+                <button type="button" class="rating-btn small" data-value="2">2</button>
+                <button type="button" class="rating-btn small" data-value="3">3</button>
+                <button type="button" class="rating-btn small" data-value="4">4</button>
+                <button type="button" class="rating-btn small" data-value="5">5</button>
+                <button type="button" class="rating-btn small" data-value="6">6</button>
+                <button type="button" class="rating-btn small" data-value="7">7</button>
+                <button type="button" class="rating-btn small" data-value="8">8</button>
+                <button type="button" class="rating-btn small" data-value="9">9</button>
+                <button type="button" class="rating-btn small" data-value="10">10</button>
+              </div>
+              <button type="button" class="rating-clear" id="dailyNightEnergyClear" style="font-size:10px;">×</button>
+            </div>
+          </div>
             <select id="dateSelect"></select>
             <div class="score-pill">
               <span>前進率</span>

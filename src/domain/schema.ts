@@ -6,7 +6,8 @@ export interface Entry {
     text: string;
     category: string;
     energy?: number | null;
-    mental?: number | null;
+    morningEnergy?: number | null;
+    nightEnergy?: number | null;
     starred?: boolean;
     tod: string[];
     ts: number;
@@ -132,7 +133,8 @@ export interface Simulation {
 }
 
 export interface DailyState {
-    mental?: number;
+    morningEnergy?: number | null;
+    nightEnergy?: number | null;
     updatedAt?: number;
     rev: number;
     deviceId: string;

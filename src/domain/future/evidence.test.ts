@@ -68,16 +68,16 @@ describe('buildEvidenceSummary', () => {
         expect(result.text).toContain('時間帯の偏り')
     })
 
-    it('メンタル低下日の罠が検出される', () => {
+    it('気力消耗・低調日の罠が検出される', () => {
         const entries = [
             makeEntry({ id: '1', date: '2026-01-10', category: '仕事', tod: ['night'], ts: Date.now() }),
             makeEntry({ id: '2', date: '2026-01-11', category: '仕事', tod: ['night'], ts: Date.now() }),
             makeEntry({ id: '3', date: '2026-01-12', category: '遊び', tod: ['morning'], ts: Date.now() }),
         ]
         const dailyStates: Record<string, DailyState> = {
-            '2026-01-10': { mental: 1, rev: 0, deviceId: 'test' },
-            '2026-01-11': { mental: 2, rev: 0, deviceId: 'test' },
-            '2026-01-12': { mental: 4, rev: 0, deviceId: 'test' },
+            '2026-01-10': { morningEnergy: 2, rev: 0, deviceId: 'test' },
+            '2026-01-11': { morningEnergy: 7, nightEnergy: 2, rev: 0, deviceId: 'test' },
+            '2026-01-12': { morningEnergy: 6, nightEnergy: 7, rev: 0, deviceId: 'test' },
         }
         const result = buildEvidenceSummary({
             entries,
@@ -85,7 +85,7 @@ describe('buildEvidenceSummary', () => {
             windowDays: 30,
         })
         expect(result.traps.length).toBeGreaterThan(0)
-        expect(result.text).toContain('避けるべき罠')
+        expect(result.text).toContain('避けるべき罠とインサイト')
     })
 
     it('文字数上限を超えない', () => {

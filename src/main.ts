@@ -27,7 +27,8 @@ import { bootstrap } from './app/bootstrap';
 
 function setupEvents(): void {
     let currentEnergy: number | null = null;
-    let currentMental: number | null = null;
+    let currentMorningEnergy: number | null = null;
+    let currentNightEnergy: number | null = null;
 
     function setupRatingBtns(containerId: string, clearId: string, _getValue: () => number | null, setValue: (v: number | null) => void): void {
         const container = document.getElementById(containerId);
@@ -52,7 +53,8 @@ function setupEvents(): void {
     }
 
     setupRatingBtns("energyBtns", "energyClear", () => currentEnergy, v => currentEnergy = v);
-    setupRatingBtns("mentalBtns", "mentalClear", () => currentMental, v => currentMental = v);
+    setupRatingBtns("morningEnergyBtns", "morningEnergyClear", () => currentMorningEnergy, v => currentMorningEnergy = v);
+    setupRatingBtns("nightEnergyBtns", "nightEnergyClear", () => currentNightEnergy, v => currentNightEnergy = v);
 
     // Date select
     const select = document.getElementById("dateSelect") as HTMLSelectElement;
@@ -140,8 +142,9 @@ function setupEvents(): void {
 
             addText.value = "";
             currentEnergy = null;
-            currentMental = null;
-            document.querySelectorAll("#energyBtns .rating-btn, #mentalBtns .rating-btn").forEach(b => b.classList.remove("selected"));
+            currentMorningEnergy = null;
+            currentNightEnergy = null;
+            document.querySelectorAll("#energyBtns .rating-btn, #morningEnergyBtns .rating-btn, #nightEnergyBtns .rating-btn").forEach(b => b.classList.remove("selected"));
 
             addMsg.textContent = "一歩を追加しました。";
             addMsg.className = "message ok";
@@ -207,8 +210,8 @@ function setupEvents(): void {
         downloadCsv("ippo-all-entries.csv", rows);
     });
 
-    // Mental UI
-    document.getElementById("dailyMentalBtns")?.addEventListener("click", (e) => {
+    // Energy UI
+    document.getElementById("dailyMorningEnergyBtns")?.addEventListener("click", (e) => {
         if (!(e.target as HTMLElement).classList.contains("rating-btn")) return;
         const val = parseInt((e.target as HTMLElement).dataset.value || "0");
         const dateSelect = document.getElementById("dateSelect") as HTMLSelectElement;
@@ -217,30 +220,68 @@ function setupEvents(): void {
 
         dataCache.dailyStates = dataCache.dailyStates || {};
         if (!dataCache.dailyStates[dateStr]) dataCache.dailyStates[dateStr] = { rev: 0, deviceId: getDeviceId() };
-        dataCache.dailyStates[dateStr].mental = val;
+        dataCache.dailyStates[dateStr].morningEnergy = val;
         dataCache.dailyStates[dateStr].updatedAt = Date.now();
         storageSaveData(dataCache);
 
-        document.querySelectorAll("#dailyMentalBtns .rating-btn").forEach(btn => {
+        document.querySelectorAll("#dailyMorningEnergyBtns .rating-btn").forEach(btn => {
             btn.classList.toggle("selected", parseInt((btn as HTMLElement).dataset.value || "0") === val);
         });
         renderFlowChart();
     });
 
-    document.getElementById("dailyMentalClear")?.addEventListener("click", () => {
+    document.getElementById("dailyMorningEnergyClear")?.addEventListener("click", () => {
         const dateSelect = document.getElementById("dateSelect") as HTMLSelectElement;
         const dateStr = dateSelect?.value;
         if (!dateStr || dateStr === "-") return;
 
         if (dataCache.dailyStates && dataCache.dailyStates[dateStr]) {
-            delete dataCache.dailyStates[dateStr].mental;
+            dataCache.dailyStates[dateStr].morningEnergy = null;
             dataCache.dailyStates[dateStr].updatedAt = Date.now();
             dataCache.dailyStates[dateStr].rev = (dataCache.dailyStates[dateStr].rev || 0) + 1;
             dataCache.dailyStates[dateStr].deviceId = getDeviceId();
             storageSaveData(dataCache);
         }
 
-        document.querySelectorAll("#dailyMentalBtns .rating-btn").forEach(btn => {
+        document.querySelectorAll("#dailyMorningEnergyBtns .rating-btn").forEach(btn => {
+            btn.classList.remove("selected");
+        });
+        renderFlowChart();
+    });
+
+    document.getElementById("dailyNightEnergyBtns")?.addEventListener("click", (e) => {
+        if (!(e.target as HTMLElement).classList.contains("rating-btn")) return;
+        const val = parseInt((e.target as HTMLElement).dataset.value || "0");
+        const dateSelect = document.getElementById("dateSelect") as HTMLSelectElement;
+        const dateStr = dateSelect?.value;
+        if (!dateStr || dateStr === "-") return;
+
+        dataCache.dailyStates = dataCache.dailyStates || {};
+        if (!dataCache.dailyStates[dateStr]) dataCache.dailyStates[dateStr] = { rev: 0, deviceId: getDeviceId() };
+        dataCache.dailyStates[dateStr].nightEnergy = val;
+        dataCache.dailyStates[dateStr].updatedAt = Date.now();
+        storageSaveData(dataCache);
+
+        document.querySelectorAll("#dailyNightEnergyBtns .rating-btn").forEach(btn => {
+            btn.classList.toggle("selected", parseInt((btn as HTMLElement).dataset.value || "0") === val);
+        });
+        renderFlowChart();
+    });
+
+    document.getElementById("dailyNightEnergyClear")?.addEventListener("click", () => {
+        const dateSelect = document.getElementById("dateSelect") as HTMLSelectElement;
+        const dateStr = dateSelect?.value;
+        if (!dateStr || dateStr === "-") return;
+
+        if (dataCache.dailyStates && dataCache.dailyStates[dateStr]) {
+            dataCache.dailyStates[dateStr].nightEnergy = null;
+            dataCache.dailyStates[dateStr].updatedAt = Date.now();
+            dataCache.dailyStates[dateStr].rev = (dataCache.dailyStates[dateStr].rev || 0) + 1;
+            dataCache.dailyStates[dateStr].deviceId = getDeviceId();
+            storageSaveData(dataCache);
+        }
+
+        document.querySelectorAll("#dailyNightEnergyBtns .rating-btn").forEach(btn => {
             btn.classList.remove("selected");
         });
         renderFlowChart();
