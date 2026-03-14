@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="今日の一歩ダッシュボード - 毎日の記録を可視化して次の一歩を決めるための個人用モニタ">
   <title>今日の一歩ダッシュボード</title>
-  <script type="module" crossorigin src="./assets/index-gDA020yY.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-C1_Zm7Ut.css">
+  <script type="module" crossorigin src="./assets/index-Y7vqfR15.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-CUQModtQ.css">
 </head>
 
 <body>
@@ -211,6 +211,19 @@
         <!-- Debug Log Area -->
         <details class="onedrive-box">
           <summary>Debug Logs</summary>
+          <div style="padding:8px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+              <input id="odDebugLogging" type="checkbox" />
+              <span>デバッグログを有効にする</span>
+              <span id="odDebugBadge"
+                style="display:none; background:#e53e3e; color:white; font-size:10px; padding:2px 6px; border-radius:8px;">DEBUG
+                ON</span>
+            </label>
+            <div id="odDebugWarning"
+              style="display:none; margin-top:6px; padding:6px 8px; background:rgba(229,62,62,0.15); border:1px solid rgba(229,62,62,0.3); border-radius:4px; font-size:11px; color:#feb2b2;">
+              ⚠️ デバッグ用です。MSAL認証の詳細ログがこの領域に表示されます。通常運用ではOFFにしてください。
+            </div>
+          </div>
           <textarea id="debugLogArea"
             style="width:100%; height:120px; background:#111; color:#0f0; font-family:monospace; font-size:10px; border:none; padding:8px;"
             readonly></textarea>

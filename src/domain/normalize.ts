@@ -11,8 +11,12 @@ export function normalizeEntry(entry: any): Entry {
     }
     category = normalizeCategory(category);
 
+    if (!entry.id) {
+        entry.id = uuid();
+    }
+
     return {
-        id: entry.id || uuid(),
+        id: entry.id,
         date: entry.date || "",
         text: entry.text || "",
         category: category,
@@ -29,8 +33,14 @@ export function normalizeEntry(entry: any): Entry {
 }
 
 export function normalizeMemo(memo: any): Memo {
+    if (!memo.id) {
+        memo.id = uuid();
+    }
+    
+    // Also fix the case where old `done: true` needs to map to `deleted: true`
+    // or we just preserve both cleanly.
     return {
-        id: memo.id || uuid(),
+        id: memo.id,
         text: memo.text || "",
         createdAt: memo.createdAt || Date.now(),
         updatedAt: memo.updatedAt || memo.createdAt || 0,
@@ -42,8 +52,11 @@ export function normalizeMemo(memo: any): Memo {
 }
 
 export function normalizeSimulationV2(sim: any): Simulation {
+    if (!sim.id) {
+        sim.id = uuid();
+    }
     return {
-        id: sim.id || uuid(),
+        id: sim.id,
         createdAt: sim.createdAt || Date.now(),
         updatedAt: sim.updatedAt || sim.createdAt || 0,
         promptVersion: sim.promptVersion || "SEED_v5",
@@ -62,8 +75,11 @@ export function normalizeSimulationV2(sim: any): Simulation {
 }
 
 export function normalizeSimulation(sim: any): Simulation {
+    if (!sim.id) {
+        sim.id = uuid();
+    }
     return {
-        id: sim.id || uuid(),
+        id: sim.id,
         createdAt: sim.createdAt || Date.now(),
         updatedAt: sim.updatedAt || Date.now(),
         promptVersion: sim.promptVersion || 'unknown',

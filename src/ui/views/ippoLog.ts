@@ -98,6 +98,7 @@ export function renderNextMemos(): void {
             const ok = window.confirm("このメモは『終わった』として削除して大丈夫？");
             if (!ok) { checkbox.checked = false; return; }
             touchMemo(memo);
+            memo.done = true;
             memo.deleted = true;
             setNextMemos(nextMemos.filter(x => x.id !== memo.id));
             saveNextMemosToStorage(memo);

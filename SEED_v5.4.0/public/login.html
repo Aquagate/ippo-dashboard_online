@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Ops OS</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Noto+Sans+JP:wght@400;500;700&display=swap"
+        rel="stylesheet">
+    <style>
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: radial-gradient(circle at top right, #1e293b, #0f172a);
+        }
+
+        .login-card {
+            background: var(--card-bg);
+            border: 1px solid var(--glass-border);
+            padding: 40px;
+            border-radius: 16px;
+            width: 400px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            text-align: center;
+        }
+
+        .role-group {
+            margin-top: 20px;
+            text-align: left;
+        }
+
+        .role-label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            display: block;
+            border-bottom: 1px solid var(--glass-border);
+            padding-bottom: 4px;
+        }
+
+        .user-btn {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--glass-border);
+            color: var(--text-primary);
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: all 0.2s;
+        }
+
+        .user-btn:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateY(-1px);
+        }
+
+        .user-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.3);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="login-card">
+        <div class="logo" style="margin-bottom: 20px; font-size: 1.5rem;">Ops OS <span class="badge">v6.0</span></div>
+        <p style="color: var(--text-secondary); margin-bottom: 30px;">Select a user to simulate login</p>
+
+        <div id="user-list">
+            <!-- Populated by JS -->
+            Loading...
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            try {
+                const res = await fetch('/api/data/employees');
+                const employees = await res.json();
+
+                const roles = {
+                    'REQUESTER': [],
+                    'OPERATOR': [],
+                    'SV': [],
+                    'PM': []
+                };
+
+                employees.forEach(e => {
+                    if (roles[e.role]) roles[e.role].push(e);
+                });
+
+                const container = document.getElementById('user-list');
+                container.innerHTML = '';
+
+                Object.keys(roles).forEach(role => {
+                    if (roles[role].length === 0) return;
+
+                    const group = document.createElement('div');
+                    group.className = 'role-group';
+
+                    const label = document.createElement('label');
+                    label.className = 'role-label';
+                    label.textContent = role;
+                    group.appendChild(label);
+
+                    roles[role].forEach(user => {
+                        const btn = document.createElement('button');
+                        btn.className = 'user-btn';
+                        btn.innerHTML = `
+                            <span>${user.name}</span>
+                            <span class="user-badge">${user.dept}</span>
+                        `;
+                        btn.onclick = () => login(user);
+                        group.appendChild(btn);
+                    });
+
+                    container.appendChild(group);
+                });
+
+            } catch (e) {
+                console.error(e);
+                document.getElementById('user-list').innerText = 'Failed to load employees.';
+            }
+        });
+
+        async function login(user) {
+            try {
+                const res = await fetch('/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ userId: user.id })
+                });
+
+                if (res.ok) {
+                    const data = await res.json();
+
+                    // Note: We still optionally keep currentUser in localStorage for pure UI display purposes if needed,
+                    // but the SECURITY is now handled by the HttpOnly cookie.
+                    localStorage.setItem('currentUser', JSON.stringify(user));
+
+                    // Redirect based on role
+                    let dest = '/reception.html';
+                    if (data.role === 'OPERATOR') dest = '/dashboard_op.html';
+                    if (data.role === 'SV') dest = '/dashboard_sv.html';
+                    if (data.role === 'PM') dest = '/dashboard_pm.html';
+
+                    window.location.href = dest;
+                } else {
+                    alert('Login Failed: ' + res.statusText);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Login Error');
+            }
+        }
+    </script>
+</body>
+
+</html>
