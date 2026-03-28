@@ -1,4 +1,5 @@
 // ===== Utility Functions =====
+import { getHolidayName } from './holidays';
 
 export function uuid(): string {
     if (window.crypto?.randomUUID) return window.crypto.randomUUID();
@@ -22,6 +23,32 @@ export function formatDate(date: Date): string {
     const m = String(date.getMonth() + 1).padStart(2, "0");
     const d = String(date.getDate()).padStart(2, "0");
     return `${y}-${m}-${d}`;
+}
+
+export function getDayOfWeek(date: Date): string {
+    const days = ["日", "月", "火", "水", "木", "金", "土"];
+    return days[date.getDay()];
+}
+
+/**
+ * 日付文字列 (YYYY-MM-DD) に曜日と祝日情報を付加する。
+ * 例: "2026-03-20" -> "2026-03-20(金・祝)"
+ */
+export function formatDateWithContext(dateStr: string): string {
+    if (!dateStr || dateStr === "-") return "-";
+    
+    // データ初期の入力ミスやバグによる "202603-xx" 形式の救済
+    let cleanDateStr = dateStr;
+    if (dateStr.length >= 10 && dateStr.startsWith("202603-")) {
+        cleanDateStr = dateStr.replace(/^202603-/, "2026-03-");
+    }
+
+    const date = parseDateStr(cleanDateStr);
+    if (!date) return cleanDateStr; // If parsing fails, return the clean string without context
+
+    const day = getDayOfWeek(date);
+    const holiday = getHolidayName(cleanDateStr);
+    return `${cleanDateStr}(${day}${holiday ? '・祝' : ''})`;
 }
 
 export function formatDateTimeForRecord(date: Date): string {

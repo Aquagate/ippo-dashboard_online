@@ -3,6 +3,7 @@
 // FutureLab のプロンプトに注入し、「踏襲」の安定供給を実現。
 
 import type { Entry, DailyState } from '../schema';
+import { isOffDay } from '../../utils/holidays';
 
 /** evidence_summary の最大文字数 */
 const MAX_CHARS = 2000;
@@ -200,6 +201,28 @@ export function buildEvidenceSummary(input: EvidenceSummaryInput): EvidenceSumma
         const topRecCat = Object.entries(recoverCats).sort((a, b) => b[1] - a[1])[0];
         if (topRecCat) {
             traps.push(`【インサイト】気力回復日は「${topRecCat[0]}」のアクションが多い傾向（${topRecCat[1]}件）`);
+        }
+    }
+
+    // 4. 休日（土日祝）の活動傾向
+    const offDayEntries = recent.filter(e => e.date && isOffDay(e.date));
+    const weekDayEntries = recent.filter(e => e.date && !isOffDay(e.date));
+
+    if (offDayEntries.length > 0) {
+        const offDayCats: Record<string, number> = {};
+        offDayEntries.forEach(e => {
+            const cat = e.category || "その他";
+            offDayCats[cat] = (offDayCats[cat] || 0) + 1;
+        });
+        const topOffCat = Object.entries(offDayCats).sort((a, b) => b[1] - a[1])[0];
+        if (topOffCat) {
+            const percentage = Math.round((offDayEntries.length / recent.length) * 100);
+            traps.push(`【分析】全ログの${percentage}%が休日（土日祝）の活動。「${topOffCat[0]}」が中心です。`);
+            
+            // 休日なのに仕事ばかりしているか？
+            if (topOffCat[0] === "仕事" && offDayEntries.length >= 3) {
+                traps.push(`【警告】休日も「仕事」カテゴリの活動が目立ちます。意識的なオフが必要です。`);
+            }
         }
     }
 

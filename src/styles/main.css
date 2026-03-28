@@ -1030,3 +1030,742 @@ button.primary:hover {
     font-size: 11px !important;
   }
 }
+
+/* ===== 編纂室 (Henzan Room) ===== */
+
+/* サマリバー */
+.henzan-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(99, 102, 241, 0.15));
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  flex-wrap: wrap;
+}
+
+.henzan-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.henzan-summary-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-right: 4px;
+}
+
+.henzan-summary-value {
+  font-size: 24px;
+  font-weight: 700;
+  background: linear-gradient(90deg, #8b5cf6, #6366f1);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.henzan-summary-unit {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.henzan-summary-icon {
+  font-size: 16px;
+}
+
+.henzan-review-badge {
+  margin-left: auto;
+}
+
+.henzan-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+/* セクション */
+.henzan-section {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(8px);
+}
+
+.henzan-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.henzan-section-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* フィルタ */
+.henzan-filters {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.henzan-filters select {
+  font-size: 11px;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: #020617;
+  color: var(--text);
+  border: 1px solid rgba(148, 163, 184, 0.5);
+}
+
+/* 資産テーブル */
+.henzan-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.henzan-asset-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.henzan-asset-row:hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.henzan-asset-name {
+  font-weight: 500;
+}
+
+.henzan-evidence-count {
+  text-align: center;
+  color: var(--muted);
+}
+
+.henzan-date {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* 規模バッジ */
+.henzan-scale-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: var(--muted);
+}
+
+/* 状態バッジ */
+.henzan-status-badge {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.status-candidate {
+  background: rgba(148, 163, 184, 0.15);
+  border: 1px solid rgba(148, 163, 184, 0.4);
+  color: #94a3af;
+}
+
+.status-active {
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  color: #4ade80;
+}
+
+.status-dormant {
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.4);
+  color: #fbbf24;
+}
+
+.status-inprogress {
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+}
+
+/* 要確認トレイ */
+.henzan-review-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.henzan-review-card {
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  transition: border-color 0.2s;
+}
+
+.henzan-review-card:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+/* 確信度別の強調ボーダー */
+.confidence-high {
+  border-left: 4px solid #10b981 !important;
+}
+
+.confidence-medium {
+  border-left: 4px solid #f59e0b !important;
+}
+
+.confidence-low {
+  border-left: 4px solid #94a3b8 !important;
+}
+
+/* 解決時のアニメーション */
+.henzan-card-solving {
+  animation: henzanSolve 0.4s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes henzanSolve {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+
+.henzan-review-card-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  margin-bottom: 4px;
+}
+
+.henzan-review-type {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: #a78bfa;
+}
+
+.henzan-review-card-summary {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.henzan-review-card-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.henzan-btn-accept {
+  border-color: rgba(74, 222, 128, 0.5) !important;
+  color: #4ade80 !important;
+}
+
+.henzan-btn-accept:hover {
+  background: rgba(74, 222, 128, 0.1) !important;
+}
+
+.henzan-btn-reject {
+  border-color: rgba(249, 115, 115, 0.5) !important;
+  color: #f97373 !important;
+}
+
+.henzan-btn-reject:hover {
+  background: rgba(249, 115, 115, 0.1) !important;
+}
+
+/* 資産詳細パネル */
+.henzan-detail-panel {
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.95), rgba(139, 92, 246, 0.08));
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  animation: fadeIn 0.3s ease;
+}
+
+.henzan-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.henzan-detail-header h4 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.henzan-detail-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.henzan-detail-summary {
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 12px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.henzan-detail-evidence h5 {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+
+.henzan-evidence-item {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 4px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+}
+
+.henzan-evidence-date {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.henzan-evidence-text {
+  word-break: break-word;
+}
+
+/* 抽出ブリッジ */
+.henzan-bridge {
+  border-color: rgba(139, 92, 246, 0.2);
+  background: rgba(15, 23, 42, 0.7);
+}
+
+/* レスポンシブ対応 */
+@media (max-width: 600px) {
+  .henzan-summary-bar {
+    gap: 10px;
+    padding: 10px 12px;
+  }
+
+  .henzan-summary-value {
+    font-size: 20px;
+  }
+
+  .henzan-filters {
+    width: 100%;
+  }
+
+  .henzan-filters select {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .henzan-section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .henzan-review-card-actions {
+    flex-direction: column;
+  }
+}
+
+/* ===== ホビーフォートレス (Compass Fortress / 羅針盤) ===== */
+
+.compass-header-panel {
+  margin-bottom: 12px;
+}
+
+.compass-track-name {
+  margin-top: 12px;
+}
+
+.compass-track-label {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.compass-track-desc {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+/* カード共通 */
+.compass-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  backdrop-filter: blur(8px);
+  transition: border-color 0.2s;
+}
+
+.compass-card:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+}
+
+.compass-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+
+.compass-card-body {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+/* 現在地カード */
+.compass-current-status {
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.compass-status-start {
+  background: rgba(148, 163, 184, 0.1);
+  border-left: 4px solid #94a3b8;
+}
+
+.compass-status-progress {
+  background: rgba(245, 158, 11, 0.1);
+  border-left: 4px solid #f59e0b;
+}
+
+.compass-status-ready {
+  background: rgba(16, 185, 129, 0.1);
+  border-left: 4px solid #10b981;
+}
+
+.compass-status-complete {
+  background: rgba(139, 92, 246, 0.15);
+  border-left: 4px solid #8b5cf6;
+}
+
+.compass-level-indicator {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.compass-status-msg {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin: 4px 0;
+}
+
+.compass-unlock-text {
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-style: italic;
+  margin-top: 8px;
+}
+
+.compass-next-hint {
+  color: var(--muted);
+  font-size: 0.85rem;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(56, 189, 248, 0.05);
+  border-radius: 6px;
+}
+
+.compass-next-hint strong {
+  color: var(--accent);
+}
+
+/* プログレスバー */
+.compass-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 3px;
+  margin: 8px 0;
+  overflow: hidden;
+}
+
+.compass-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #10b981, #38bdf8);
+  border-radius: 3px;
+  transition: width 0.5s ease;
+}
+
+/* 条件リスト */
+.compass-req-level-label {
+  font-weight: 600;
+  color: var(--accent);
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.compass-req-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.compass-req-list li {
+  padding: 8px 10px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+
+.compass-req-satisfied {
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.compass-req-missing {
+  background: rgba(245, 158, 11, 0.08);
+}
+
+.compass-req-icon {
+  flex-shrink: 0;
+  font-size: 1rem;
+}
+
+.compass-req-label {
+  color: var(--text);
+  flex: 1;
+}
+
+.compass-req-note {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.compass-req-optional {
+  color: var(--muted);
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+/* ミッションカード */
+.compass-mission-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.compass-mission-item {
+  padding: 10px 12px;
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  transition: border-color 0.2s, transform 0.15s;
+}
+
+.compass-mission-item:hover {
+  border-color: rgba(56, 189, 248, 0.3);
+  transform: translateX(3px);
+}
+
+.compass-mission-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.compass-mission-number {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--bg);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.compass-mission-icon {
+  font-size: 1rem;
+}
+
+.compass-mission-label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.compass-mission-summary {
+  color: var(--muted);
+  font-size: 0.8rem;
+  margin-left: 30px;
+  line-height: 1.4;
+}
+
+/* 根拠資産リスト */
+.compass-evidence-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.compass-evidence-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin-bottom: 4px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.05);
+  font-size: 0.85rem;
+}
+
+.compass-evidence-icon {
+  font-size: 1rem;
+}
+
+.compass-evidence-name {
+  color: var(--text);
+  font-weight: 500;
+  flex: 1;
+}
+
+.compass-evidence-meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+/* 制約資源カード (Phase 2B) */
+.compass-constraints-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.compass-constraint-item {
+  flex: 1 1 calc(50% - 6px);
+  background: rgba(15, 23, 42, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.compass-const-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compass-const-icon {
+  font-size: 1.1rem;
+}
+
+.compass-const-label {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.compass-const-value {
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.compass-const-strict {
+  color: #fb7185; /* rose-400 */
+  background: rgba(251, 113, 133, 0.1);
+}
+
+.compass-const-mid {
+  color: #fbbf24; /* amber-400 */
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.compass-const-loose {
+  color: #34d399; /* emerald-400 */
+  background: rgba(52, 211, 153, 0.1);
+}
+
+.compass-const-note, .compass-mission-note {
+  font-size: 0.75rem;
+  color: var(--muted);
+  text-align: right;
+  margin-top: 12px;
+  opacity: 0.8;
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+  .compass-mission-summary {
+    margin-left: 0;
+  }
+
+  .compass-req-list li {
+    flex-wrap: wrap;
+  }
+
+  .compass-req-note {
+    width: 100%;
+    margin-top: 2px;
+  }
+}

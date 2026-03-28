@@ -2,9 +2,10 @@
 // All rendering functions for the main dashboard tab
 
 import type { Entry, DailyState } from '../../domain/schema';
-import { uuid, formatDate, formatDateTimeForRecord, parseDateStr } from '../../utils/helpers';
+import { uuid, formatDate, formatDateTimeForRecord, parseDateStr, formatDateWithContext } from '../../utils/helpers';
+import { isOffDay } from '../../utils/holidays';
 import { inferCategory, normalizeCategory, CATEGORY_LIST, CATEGORY_KEYWORDS } from '../../domain/categories';
-import { dataCache, entries, nextMemos, setEntries, setNextMemos, getActiveEntries } from '../../app/store';
+import { dataCache, entries, nextMemos, setEntries, setNextMemos, getActiveEntries, setDataCache } from '../../app/store';
 import {
     loadEntriesFromCache, loadNextMemosFromCache,
     saveEntriesToStorage, saveNextMemosToStorage, deleteEntryById,
@@ -137,7 +138,7 @@ export function renderDateSelect(): void {
     sortedDesc.forEach(d => {
         const opt = document.createElement("option");
         opt.value = d;
-        opt.textContent = d;
+        opt.textContent = formatDateWithContext(d);
         select.appendChild(opt);
     });
     const current = select.getAttribute("data-current");
@@ -264,7 +265,7 @@ export function renderDailyTable(dateStr: string): void {
     }
 
     const list = getEntriesForDate(dateStr);
-    label.textContent = dateStr || "-";
+    label.textContent = formatDateWithContext(dateStr);
     countLabel.textContent = list.length + "件";
     const score = Math.min(list.length * 0.2, 5);
     scoreEl.textContent = score.toFixed(1);

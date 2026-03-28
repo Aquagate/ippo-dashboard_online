@@ -33,6 +33,9 @@ export function mergeData(base: any, incoming: any): DataCache {
         memos: [],
         simulations: [],
         dailyStates: {},
+        henzanAssets: base?.henzanAssets || incoming?.henzanAssets || [],
+        reviewEvents: base?.reviewEvents || incoming?.reviewEvents || [],
+        compassState: base?.compassState || incoming?.compassState || {}
     };
 
     // Entries merge

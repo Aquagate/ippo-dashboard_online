@@ -3,7 +3,7 @@
 
 import type { Simulation, SimulationResult, Worldline, AssetCommit } from '../../domain/schema';
 import { MAX_SIMULATION_HISTORY } from '../../domain/schema';
-import { uuid, formatDate, formatDateTimeForRecord, simpleHash, parseDateStr } from '../../utils/helpers';
+import { uuid, formatDate, formatDateTimeForRecord, simpleHash, parseDateStr, formatDateWithContext, getDayOfWeek } from '../../utils/helpers';
 import { inferCategory } from '../../domain/categories';
 import { normalizeSimulationV2 } from '../../domain/normalize';
 import { dataCache, setDataCache, getActiveEntries } from '../../app/store';
@@ -260,12 +260,13 @@ async function copySimulationContext(days: number = 90): Promise<void> {
         : "No daily energy records available.";
 
     const userLogs = recent.map(e => {
+        const dateWithCtx = formatDateWithContext(e.date);
         const tods = (e.tod || []).map(k => {
             const icon = todMap[k] || "";
             return icon ? `${icon}(${k})` : "";
         }).join(" ");
         const todStr = tods ? ` ${tods}` : "";
-        return `${e.date}${todStr} [${e.category}]: ${e.text}`;
+        return `${dateWithCtx}${todStr} [${e.category}]: ${e.text}`;
     }).join("\n");
 
     // 前回シミュレーション情報の取得
@@ -293,6 +294,7 @@ async function copySimulationContext(days: number = 90): Promise<void> {
 **「活動時間帯（Time of Day）」と「行動内容」の相関**にも注目し、生活リズムの観点からも分析を行ってください。
 
 ## 大前提（守るルール）
+- 曜日の考慮：曜日のリズム（週明け、週末、祝日前後）に基づいた現実的な一歩を提案すること。
 - 占い化禁止：未来は「当てる」のではなく「選択肢を増やす」ための未来地図
 - 世界線は固定3本（迷宮化防止）
   - Baseline（現状延長）
@@ -306,9 +308,12 @@ async function copySimulationContext(days: number = 90): Promise<void> {
 ## Evidence Summary（アプリ側で事前生成・事実ベース）
 ${evidenceSummary.text}
 
+## Simulation Metadata
+シミュレーション基準日: ${formatDate(new Date())} (${getDayOfWeek(new Date())})
+ログ期間: ${dateRange.from} 〜 ${dateRange.to}
+ログ件数: ${recent.length}件
+
 ## Context (User Logs & Optional States)
-期間: ${dateRange.from} 〜 ${dateRange.to}
-件数: ${recent.length}件
 
 Top Categories:
 ${topCategories.map(c => `- ${c.category}: ${c.count}件`).join("\n")}
@@ -467,7 +472,7 @@ title, narrative, micro_steps, roadmap, asset_steps, risks, guardrails, evidence
 
     try {
         await navigator.clipboard.writeText(prompt);
-        showToast(`📋 SEED v5 Context (${days} days) copied! LLMに貼り付けて未来をシミュレート`, "ok");
+        showToast(`📋 SEED v5 Context (${days}日分) をコピーしました！LLMに貼り付けて未来をシミュレートしてください`, "ok");
     } catch (e) {
         console.error(e);
         showToast("コピー失敗（SSLが必要な場合があります）", "err");

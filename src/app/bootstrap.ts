@@ -12,6 +12,8 @@ import { syncAutoConnect, syncFlush } from '../services/sync/syncManager';
 import { odEnsureMsal } from '../services/sync/onedrive';
 import { renderAll, renderNextMemos } from '../ui/views/ippoLog';
 import { initFutureLab } from '../ui/views/futureLab';
+import { initHenzanRoom } from '../ui/views/henzanRoom';
+import { initCompass } from '../ui/views/compassView';
 import { initSettings } from '../ui/views/settings';
 import { initSyncUI } from '../ui/views/syncSettings';
 import { initSyncStatus } from '../ui/components/syncStatus';
@@ -124,9 +126,17 @@ export function switchTab(tabName: string): void {
     });
     document.getElementById("tabIppo")?.classList.toggle("active", tabName === "ippo");
     document.getElementById("tabFuture")?.classList.toggle("active", tabName === "future");
+    document.getElementById("tabHenzan")?.classList.toggle("active", tabName === "henzan");
+    document.getElementById("tabCompass")?.classList.toggle("active", tabName === "compass");
     document.getElementById("tabSettings")?.classList.toggle("active", tabName === "settings");
     if (tabName === "future") {
         initFutureLab();
+    }
+    if (tabName === "henzan") {
+        initHenzanRoom();
+    }
+    if (tabName === "compass") {
+        initCompass();
     }
 }
 

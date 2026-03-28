@@ -1,5 +1,8 @@
 // ===== Data Model Types =====
 
+import type { HenzanAsset, ReviewEvent } from './henzan/schema';
+import type { CompassState } from './compass/schema';
+
 export interface Entry {
     id: string;
     date: string;
@@ -146,6 +149,12 @@ export interface DataCache {
     memos: Memo[];
     simulations: Simulation[];
     dailyStates: Record<string, DailyState>;
+    /** 編纂室: 資産データ */
+    henzanAssets: HenzanAsset[];
+    /** 編纂室: 要確認トレイのイベント */
+    reviewEvents: ReviewEvent[];
+    /** 羅針盤: 状態 */
+    compassState?: CompassState;
 }
 
 export const MAX_SIMULATION_HISTORY = 20;

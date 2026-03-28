@@ -9,6 +9,8 @@ export let dataCache: DataCache = {
     memos: [],
     simulations: [],
     dailyStates: {},
+    henzanAssets: [],
+    reviewEvents: [],
 };
 
 // In-memory working arrays

@@ -3,6 +3,7 @@
 
 import { showToast } from '../toast';
 import { dataCache, setDataCache } from '../../app/store';
+import type { DataCache } from '../../domain/schema';
 import {
     saveLastGood, restoreFromLastGood, storageSaveData, odLoadSettings, odSaveSettings
 } from '../../services/storage/localStorage';
@@ -41,7 +42,7 @@ export function initSettings(): void {
             if (!confirm("⚠️ 【危険】本当に全データを削除しますか？\nこの操作は取り消せません。\n(OneDrive上のデータは消えません)")) return;
 
             // Clear in-memory
-            const empty = { schemaVersion: 2, entries: [], memos: [], simulations: [], dailyStates: {} };
+            const empty: DataCache = { schemaVersion: 2, entries: [], memos: [], simulations: [], dailyStates: {}, henzanAssets: [], reviewEvents: [], compassState: {} };
             setDataCache(empty);
 
             // Clear storage

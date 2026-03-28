@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bridge_foundry_response.schema.json",
+  "type": "object",
+  "required": [
+    "packet_type",
+    "forge",
+    "upgrades",
+    "retires"
+  ],
+  "properties": {
+    "packet_type": {
+      "const": "foundry_response"
+    },
+    "forge": {
+      "type": "array",
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "upgrades": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    },
+    "retires": {
+      "type": "array",
+      "maxItems": 10,
+      "items": {
+        "type": "object",
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

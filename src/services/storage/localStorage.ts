@@ -33,6 +33,15 @@ export function validateDataCache(data: unknown): DataCache {
     if (!Array.isArray(d.memos)) d.memos = [];
     if (!Array.isArray(d.simulations)) d.simulations = [];
     if (!d.dailyStates || typeof d.dailyStates !== "object") d.dailyStates = {};
+    // 編纂室フィールド（マイグレーション対応: 既存データに無い場合は空配列初期化）
+    if (!Array.isArray(d.henzanAssets)) d.henzanAssets = [];
+    if (!Array.isArray(d.reviewEvents)) d.reviewEvents = [];
+    // ホビーフォートレス（マイグレーション対応）
+    if (d.hobbyFortressState) {
+        d.compassState = d.hobbyFortressState;
+        delete d.hobbyFortressState;
+    }
+    if (!d.compassState || typeof d.compassState !== 'object') d.compassState = {};
 
     // Entries validation (minimal)
     d.entries = d.entries.filter((e: any) => e && typeof e.id === "string" && typeof e.text === "string" && typeof e.date === "string");
@@ -180,7 +189,7 @@ export async function storageLoadData(): Promise<DataCache> {
     }
 
     // 4. Fallback to fresh
-    const fresh: DataCache = { schemaVersion: 2, entries: [], memos: [], simulations: [], dailyStates: {} };
+    const fresh: DataCache = { schemaVersion: 2, entries: [], memos: [], simulations: [], dailyStates: {}, henzanAssets: [], reviewEvents: [], compassState: {} };
     setDataCache(fresh);
     await odSaveCache(fresh);
     return fresh;

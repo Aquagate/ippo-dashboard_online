@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "node.schema.json",
+  "type": "object",
+  "required": [
+    "node_id",
+    "node_type",
+    "branch_id",
+    "title",
+    "duration_min",
+    "instruction",
+    "close_template"
+  ],
+  "properties": {
+    "node_id": {
+      "type": "string"
+    },
+    "node_type": {
+      "type": "string",
+      "enum": [
+        "spark",
+        "tool",
+        "workshop",
+        "explore",
+        "guild",
+        "council"
+      ]
+    },
+    "branch_id": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string"
+    },
+    "duration_min": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 60
+    },
+    "instruction": {
+      "type": "string"
+    },
+    "close_template": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 10
+    },
+    "prerequisite": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "rewards": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

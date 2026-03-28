@@ -1,0 +1,37 @@
+{
+  "packet_type": "foundry_response",
+  "forge": [
+    {
+      "new_card": {
+        "card_id": "card_C2",
+        "version": "1.0",
+        "node_id": "workshop_walk_001",
+        "label": "継続",
+        "duration_min": 15,
+        "one_line_command": "15分散歩して写真3枚。説明は1行でOK。",
+        "close_template": "【写真】→【気分】→【次】",
+        "conditions": {
+          "time_of_day": [
+            "morning",
+            "noon"
+          ],
+          "energy_min": 1
+        },
+        "tags": [
+          "continuation",
+          "recovery"
+        ]
+      },
+      "why": "快感効率が高く、再現性がある"
+    }
+  ],
+  "upgrades": [
+    {
+      "card_id": "card_R1",
+      "upgrade_type": "shorten_text",
+      "proposal": "命令文短縮：『7分で切る。止めて勝ち。』",
+      "why": "読む負担が減ると実行率が上がる"
+    }
+  ],
+  "retires": []
+}
