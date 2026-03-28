@@ -2,9 +2,9 @@
 // サマリバー、要確認トレイ、資産一覧テーブル、
 // 資産詳細パネル、抽出ブリッジを管理する。
 
-import { dataCache } from '../../app/store';
+import { getDataCache } from '../../app/store';
 import { storageSaveData } from '../../services/storage/localStorage';
-import { getActiveEntries } from '../../app/store';
+import { getActiveEntries, dataCache } from '../../app/store';
 import {
     ASSET_TYPE_ICONS, ASSET_STATUS_COLORS,
     type HenzanAsset, type ReviewEvent,
@@ -128,6 +128,20 @@ function renderReviewTray(): void {
         const icon = asset?.type ? (ASSET_TYPE_ICONS[asset.type] || '') : '📋';
         const name = asset?.name || '（名称不明）';
 
+        // 親子関係のコンテキスト表示
+        let contextHtml = '';
+        if (proposal.parent_temp_id) {
+            const parentProposal = pending.find(p => p.run_id === proposal.run_id && p.temp_id === proposal.parent_temp_id);
+            if (parentProposal) {
+                contextHtml = `<div class="henzan-review-card-context">↳ ${escapeHtml(parentProposal.candidate?.name || '親候補')} の構成要素</div>`;
+            }
+        } else if (proposal.candidate?.parent_id) {
+            const parentAsset = getAssets().find(a => a.id === proposal.candidate?.parent_id);
+            if (parentAsset) {
+                contextHtml = `<div class="henzan-review-card-context">↳ 既存資産: ${escapeHtml(parentAsset.name)} の子として</div>`;
+            }
+        }
+
         // 証拠数と内容
         const evidenceCount = proposal.evidence_log_ids?.length || 0;
 
@@ -136,6 +150,7 @@ function renderReviewTray(): void {
                 <span class="henzan-review-type">${opLabel}</span>
                 <span>${icon} ${escapeHtml(name)}</span>
             </div>
+            ${contextHtml}
             <div class="henzan-review-card-summary">
                 ${escapeHtml(asset?.summary || '')}
             </div>
@@ -189,7 +204,12 @@ function renderAssetTable(): void {
     if (tableWrap) tableWrap.style.display = 'block';
 
     tbody.innerHTML = '';
-    assets.forEach(asset => {
+    
+    // 階層構造の描画
+    // フィルタされた資産リストの中で、親がリスト内にいないものを「ルート」とする
+    const roots = assets.filter(a => !a.parent_id || !assets.some(p => p.id === a.parent_id));
+    
+    const renderRow = (asset: HenzanAsset, depth: number) => {
         const tr = document.createElement('tr');
         tr.className = 'henzan-asset-row';
         tr.dataset.assetId = asset.id;
@@ -198,8 +218,18 @@ function renderAssetTable(): void {
         const statusClass = ASSET_STATUS_COLORS[asset.status] || '';
         const dateStr = new Date(asset.updated_at).toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
 
+        // インデントとノード線の生成
+        let indentHtml = '';
+        for (let i = 0; i < depth; i++) {
+            const isLast = i === depth - 1;
+            indentHtml += `<span class="henzan-asset-indent">${isLast ? '<span class="henzan-asset-node-line"></span>' : ''}</span>`;
+        }
+
         tr.innerHTML = `
-            <td class="henzan-asset-name">${icon} ${escapeHtml(asset.name)}</td>
+            <td class="henzan-asset-name">
+                ${indentHtml}
+                <span>${icon} ${escapeHtml(asset.name)}</span>
+            </td>
             <td><span class="henzan-scale-badge">${asset.scale}</span></td>
             <td><span class="henzan-status-badge ${statusClass}">${asset.status}</span></td>
             <td class="henzan-evidence-count">${asset.evidence_log_ids.length}</td>
@@ -208,7 +238,13 @@ function renderAssetTable(): void {
 
         tr.addEventListener('click', () => showDetail(asset.id));
         tbody.appendChild(tr);
-    });
+
+        // 子資産の再帰描画
+        const children = assets.filter(a => a.parent_id === asset.id);
+        children.forEach(child => renderRow(child, depth + 1));
+    };
+
+    roots.forEach(root => renderRow(root, 0));
 }
 
 // ===== 資産詳細パネル =====
@@ -235,6 +271,38 @@ function showDetail(assetId: string): void {
 
     const summary = el('henzanDetailSummary');
     if (summary) summary.textContent = asset.summary || '（説明なし）';
+
+    // 階層表示
+    const hierarchyDiv = el('henzanDetailHierarchy');
+    if (hierarchyDiv) {
+        const assets = getAssets();
+        const parent = asset.parent_id ? assets.find(a => a.id === asset.parent_id) : null;
+        const children = assets.filter(a => a.parent_id === asset.id);
+
+        if (!parent && children.length === 0) {
+            hierarchyDiv.style.display = 'none';
+        } else {
+            hierarchyDiv.style.display = 'block';
+            let html = '';
+            if (parent) {
+                html += `<div><h5>親資産</h5><span class="henzan-hierarchy-link" data-id="${parent.id}">${ASSET_TYPE_ICONS[parent.type]} ${escapeHtml(parent.name)}</span></div>`;
+            }
+            if (children.length > 0) {
+                html += `<div style="margin-top:8px;"><h5>子資産（構成要素）</h5>`;
+                html += children.map(c => `<div class="henzan-hierarchy-link" data-id="${c.id}" style="margin-bottom:2px;">${ASSET_TYPE_ICONS[c.type]} ${escapeHtml(c.name)}</div>`).join('');
+                html += `</div>`;
+            }
+            hierarchyDiv.innerHTML = html;
+
+            // リンクにイベントリスナー追加
+            hierarchyDiv.querySelectorAll('.henzan-hierarchy-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    const id = (e.currentTarget as HTMLElement).dataset.id;
+                    if (id) showDetail(id);
+                });
+            });
+        }
+    }
 
     // 根拠ログ表示
     const evidenceDiv = el('henzanDetailEvidence');
@@ -398,14 +466,17 @@ function handleAiImport(): void {
                 evidence_quotes: Array.isArray(rawP.evidence_quotes) ? rawP.evidence_quotes : [],
                 reason: rawP.reason || '',
                 confidence: mapAiConfidence(String(rawP.confidence || '中')),
+                temp_id: rawP.temp_id ? String(rawP.temp_id) : undefined,
+                parent_temp_id: rawP.parent_temp_id ? String(rawP.parent_temp_id) : undefined,
                 resolved: false,
                 created_at: now,
             };
 
             const val = validateHenzanProposal(proposal);
             if (val.valid) {
-                if (!dataCache.henzanProposals) dataCache.henzanProposals = [];
-                dataCache.henzanProposals.push(proposal);
+                const currentCache = getDataCache();
+                if (!currentCache.henzanProposals) currentCache.henzanProposals = [];
+                currentCache.henzanProposals.push(proposal);
                 proposalIds.push(pid);
             } else {
                 console.warn('Skipping invalid proposal:', val.errors, proposal);
@@ -423,11 +494,12 @@ function handleAiImport(): void {
 
         const runVal = validateHenzanBridgeRun(run);
         if (runVal.valid) {
-            if (!dataCache.henzanBridgeRuns) dataCache.henzanBridgeRuns = [];
-            dataCache.henzanBridgeRuns.push(run);
+            const currentCache = getDataCache();
+            if (!currentCache.henzanBridgeRuns) currentCache.henzanBridgeRuns = [];
+            currentCache.henzanBridgeRuns.push(run);
         }
 
-        storageSaveData(dataCache);
+        storageSaveData(getDataCache());
         renderAll();
 
         textarea.value = '';
@@ -448,8 +520,9 @@ function resolveProposal(proposalId: string, resolution: 'accepted' | 'rejected'
     }
 
     setTimeout(() => {
-        if (!dataCache.henzanProposals) return;
-        const proposal = dataCache.henzanProposals.find(p => p.id === proposalId);
+        const currentCache = getDataCache();
+        if (!currentCache.henzanProposals) return;
+        const proposal = currentCache.henzanProposals.find(p => p.id === proposalId);
         if (!proposal) return;
 
         proposal.resolved = true;
@@ -457,19 +530,36 @@ function resolveProposal(proposalId: string, resolution: 'accepted' | 'rejected'
         proposal.resolution = resolution;
 
         if (resolution === 'accepted') {
-            applyProposalToAssets(proposal);
+            const newAssetId = applyProposalToAssets(proposal);
+            
+            // 親子紐付けの伝搬: この提案が temp_id を持っている場合、
+            // 同一Run内の子提案（parent_temp_id が一致するもの）の candidate.parent_id を、
+            // 今作られた(または更新された) Asset ID に書き換える。
+            if (proposal.temp_id && newAssetId) {
+                const sameRunChildren = currentCache.henzanProposals.filter(p => 
+                    p.run_id === proposal.run_id && 
+                    p.parent_temp_id === proposal.temp_id && 
+                    !p.resolved
+                );
+                sameRunChildren.forEach(child => {
+                    if (!child.candidate) child.candidate = {};
+                    child.candidate.parent_id = newAssetId;
+                });
+            }
+
             showToast(`✅ 提案を採択しました。`, 'ok');
         } else {
             showToast('❌ 提案を却下しました。', 'ok');
         }
 
-        storageSaveData(dataCache);
+        storageSaveData(getDataCache());
         renderAll();
     }, 400);
 }
 
-function applyProposalToAssets(proposal: HenzanProposal): void {
+function applyProposalToAssets(proposal: HenzanProposal): string | null {
     const now = Date.now();
+    let resultAssetId: string | null = null;
     
     if (proposal.operation === 'create') {
         const newAsset: HenzanAsset = {
@@ -479,29 +569,33 @@ function applyProposalToAssets(proposal: HenzanProposal): void {
             scale: proposal.candidate.scale || '小',
             summary: proposal.candidate.summary || '',
             evidence_log_ids: [...proposal.evidence_log_ids],
-            status: '活性', // 新規作成時は活性
+            parent_id: proposal.candidate.parent_id || null, 
+            status: '活性',
             created_at: now,
             updated_at: now,
         };
-        dataCache.henzanAssets.push(newAsset);
+        getDataCache().henzanAssets.push(newAsset);
+        resultAssetId = newAsset.id;
     } 
     else if (proposal.operation === 'update_existing' && proposal.target_asset_id) {
-        const asset = dataCache.henzanAssets.find(a => a.id === proposal.target_asset_id);
+        const asset = getDataCache().henzanAssets.find(a => a.id === proposal.target_asset_id);
         if (asset) {
+            if (proposal.candidate.name) asset.name = proposal.candidate.name;
             if (proposal.candidate.summary) asset.summary = proposal.candidate.summary;
             if (proposal.candidate.scale) asset.scale = proposal.candidate.scale;
             if (proposal.candidate.type) asset.type = proposal.candidate.type;
+            if (proposal.candidate.parent_id !== undefined) asset.parent_id = proposal.candidate.parent_id;
             
-            // 証拠ログの追記
             const newIds = proposal.evidence_log_ids.filter(id => !asset.evidence_log_ids.includes(id));
             asset.evidence_log_ids.push(...newIds);
             
             asset.status = '活性';
             asset.updated_at = now;
+            resultAssetId = asset.id;
         }
     }
     else if (proposal.operation === 'rename_existing' && proposal.target_asset_id) {
-        const asset = dataCache.henzanAssets.find(a => a.id === proposal.target_asset_id);
+        const asset = getDataCache().henzanAssets.find(a => a.id === proposal.target_asset_id);
         if (asset) {
             if (proposal.candidate.name) asset.name = proposal.candidate.name;
             if (proposal.candidate.summary) asset.summary = proposal.candidate.summary;
@@ -511,32 +605,31 @@ function applyProposalToAssets(proposal: HenzanProposal): void {
             
             asset.status = '活性';
             asset.updated_at = now;
+            resultAssetId = asset.id;
         }
     }
     else if (proposal.operation === 'merge_into_existing' && proposal.target_asset_id && proposal.merge_target_id) {
-        const sourceAsset = dataCache.henzanAssets.find(a => a.id === proposal.target_asset_id);
-        const targetAsset = dataCache.henzanAssets.find(a => a.id === proposal.merge_target_id);
+        const sourceAsset = getDataCache().henzanAssets.find(a => a.id === proposal.target_asset_id);
+        const targetAsset = getDataCache().henzanAssets.find(a => a.id === proposal.merge_target_id);
         
         if (sourceAsset && targetAsset) {
-            // ソースからターゲットへ証拠を移す
             const newIds = sourceAsset.evidence_log_ids.filter(id => !targetAsset.evidence_log_ids.includes(id));
             targetAsset.evidence_log_ids.push(...newIds);
             
-            // 名前や要約の更新指定があれば反映
             if (proposal.candidate.name) targetAsset.name = proposal.candidate.name;
             if (proposal.candidate.summary) targetAsset.summary = proposal.candidate.summary;
             
             targetAsset.status = '活性';
             targetAsset.updated_at = now;
             
-            // ソース資産は削除するか休眠にするが、ここでは履歴として「休眠」かつ summary に統合先をメモ
             sourceAsset.status = '休眠';
             sourceAsset.summary = `[統合済: ${targetAsset.name}] ` + sourceAsset.summary;
             sourceAsset.updated_at = now;
+            resultAssetId = targetAsset.id;
         }
     }
     else if (proposal.operation === 'promote_scale' && proposal.target_asset_id) {
-        const asset = dataCache.henzanAssets.find(a => a.id === proposal.target_asset_id);
+        const asset = getDataCache().henzanAssets.find(a => a.id === proposal.target_asset_id);
         if (asset) {
             if (proposal.candidate.scale) asset.scale = proposal.candidate.scale;
             if (proposal.candidate.name) asset.name = proposal.candidate.name;
@@ -544,8 +637,10 @@ function applyProposalToAssets(proposal: HenzanProposal): void {
             
             asset.status = '活性';
             asset.updated_at = now;
+            resultAssetId = asset.id;
         }
     }
+    return resultAssetId;
 }
 
 // AIインポート時の正規化マッピング
@@ -576,12 +671,12 @@ function mapAiConfidence(raw: string): Confidence {
 
 // ===== ヘルパー関数 =====
 
-function getAssets(): HenzanAsset[] {
-    return dataCache.henzanAssets || [];
+function getPendingProposals(): HenzanProposal[] {
+    return (getDataCache().henzanProposals || []).filter(p => !p.resolved);
 }
 
-function getPendingProposals(): HenzanProposal[] {
-    return (dataCache.henzanProposals || []).filter(p => !p.resolved);
+function getAssets(): HenzanAsset[] {
+    return getDataCache().henzanAssets || [];
 }
 
 function getFilteredAssets(): HenzanAsset[] {

@@ -191,6 +191,12 @@ export interface HenzanProposal {
     /** 判定の確信度 */
     confidence: Confidence;
     
+    // --- 原子分解/親子構造用 一時ID (インポート時のみ使用) ---
+    /** 同一Run内での参照用一時ID（例: "p1"） */
+    temp_id?: string;
+    /** 同一Run内の別提案への参照用一時ID（例: "p1"） */
+    parent_temp_id?: string;
+    
     // --- 人間レビュー用状態 ---
     resolved: boolean;
     resolution?: 'accepted' | 'rejected' | 'snoozed';

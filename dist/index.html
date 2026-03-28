@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="今日の一歩ダッシュボード - 毎日の記録を可視化して次の一歩を決めるための個人用モニタ">
   <title>今日の一歩ダッシュボード</title>
-  <script type="module" crossorigin src="./assets/index-DcB6h5WU.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-CUQModtQ.css">
+  <script type="module" crossorigin src="./assets/index-B8YC1DXo.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-WuOULhvA.css">
 </head>
 
 <body>
@@ -20,6 +20,8 @@
   <nav class="tab-nav">
     <button type="button" class="tab-btn active" data-tab="ippo">一歩ログ</button>
     <button type="button" class="tab-btn" data-tab="future">未来ラボ</button>
+    <button type="button" class="tab-btn" data-tab="henzan">編纂室</button>
+    <button type="button" class="tab-btn" data-tab="compass">羅針盤</button>
     <button type="button" class="tab-btn" data-tab="settings">設定</button>
   </nav>
 
@@ -440,6 +442,210 @@
       </div>
     </main>
   </div><!-- /tabFuture -->
+
+  <!-- 編纂室タブ -->
+  <div id="tabHenzan" class="tab-content">
+    <main style="padding: 12px 20px 20px;">
+
+      <!-- サマリバー -->
+      <div class="henzan-summary-bar" id="henzanSummaryBar">
+        <div class="henzan-summary-item">
+          <span class="henzan-summary-label">あなたの資産</span>
+          <span class="henzan-summary-value" id="henzanTotalCount">0</span>
+          <span class="henzan-summary-unit">件</span>
+        </div>
+        <div class="henzan-summary-item">
+          <span class="henzan-summary-icon">⚡</span>
+          <span id="henzanCountSkill">0</span>
+        </div>
+        <div class="henzan-summary-item">
+          <span class="henzan-summary-icon">🏠</span>
+          <span id="henzanCountEnv">0</span>
+        </div>
+        <div class="henzan-summary-item">
+          <span class="henzan-summary-icon">💡</span>
+          <span id="henzanCountInsight">0</span>
+        </div>
+        <div class="henzan-summary-item">
+          <span class="henzan-summary-icon">🚀</span>
+          <span id="henzanCountProgress">0</span>
+        </div>
+        <div class="henzan-summary-item henzan-review-badge" id="henzanReviewBadge" style="display:none;">
+          <span>要確認</span>
+          <span class="henzan-badge" id="henzanReviewCount">0</span>
+        </div>
+      </div>
+
+      <!-- 要確認トレイ -->
+      <details class="henzan-section" id="henzanReviewSection">
+        <summary class="henzan-section-title">
+          📥 要確認トレイ
+          <span class="henzan-badge" id="henzanReviewCount2">0</span>
+        </summary>
+        <div id="henzanReviewList" class="henzan-review-list">
+          <div class="empty-state">現在、確認待ちの候補はありません。</div>
+        </div>
+      </details>
+
+      <!-- 資産一覧 -->
+      <div class="henzan-section">
+        <div class="henzan-section-header">
+          <h3 class="henzan-section-title">📚 資産一覧</h3>
+          <div class="henzan-filters">
+            <select id="henzanFilterType">
+              <option value="">全種別</option>
+              <option value="技能">⚡ 技能</option>
+              <option value="環境">🏠 環境</option>
+              <option value="知見">💡 知見</option>
+              <option value="進行資産">🚀 進行資産</option>
+            </select>
+            <select id="henzanFilterScale">
+              <option value="">全規模</option>
+              <option value="小">小</option>
+              <option value="中">中</option>
+              <option value="大">大</option>
+            </select>
+            <select id="henzanFilterStatus">
+              <option value="">全状態</option>
+              <option value="候補">候補</option>
+              <option value="活性">活性</option>
+              <option value="休眠">休眠</option>
+              <option value="進行中">進行中</option>
+            </select>
+          </div>
+        </div>
+        <div id="henzanAssetTableWrap">
+          <table class="henzan-table">
+            <thead>
+              <tr>
+                <th>資産名</th>
+                <th style="width:70px;">規模</th>
+                <th style="width:70px;">状態</th>
+                <th style="width:60px;">根拠</th>
+                <th style="width:90px;">更新日</th>
+              </tr>
+            </thead>
+            <tbody id="henzanAssetTbody"></tbody>
+          </table>
+        </div>
+        <div id="henzanNoAssets" class="empty-state">
+          まだ資産がありません。下の「資産抽出ブリッジ」から一歩ログを解析して、資産候補を生成しましょう。
+        </div>
+      </div>
+
+      <!-- 資産詳細パネル -->
+      <div id="henzanDetailPanel" class="henzan-detail-panel" style="display:none;">
+        <div class="henzan-detail-header">
+          <h4 id="henzanDetailName"></h4>
+          <button type="button" class="btn-ghost" id="henzanDetailClose">×</button>
+        </div>
+        <div class="henzan-detail-meta" id="henzanDetailMeta"></div>
+        <div class="henzan-detail-summary" id="henzanDetailSummary"></div>
+        <div class="henzan-detail-hierarchy" id="henzanDetailHierarchy"></div>
+        <div class="henzan-detail-evidence">
+          <h5>根拠ログ</h5>
+          <div id="henzanDetailEvidence"></div>
+        </div>
+      </div>
+
+      <!-- 資産抽出ブリッジ -->
+      <div class="henzan-section henzan-bridge">
+        <h3 class="henzan-section-title">🔬 AIブリッジ</h3>
+
+        <!-- AIコピペ補助 -->
+        <div class="bridge-step" style="margin-top:12px;">
+          <div style="font-size:12px; opacity:0.7; margin-bottom:4px;">AI補助: プロンプト生成 → LLM出力取り込み</div>
+          <p style="font-size:13px; margin:0 0 8px;">目的に合わせたプロンプトを生成し、外部LLMで実行してください。</p>
+          <div style="display:flex; gap:8px;">
+            <button id="btnHenzanPromptDiscovery" class="btn-primary" type="button"
+              style="background:var(--bg-soft); border:1px solid #10b981; color:#10b981; flex:1;">
+              🔭 Discovery (新規発見)
+            </button>
+            <button id="btnHenzanPromptCurate" class="btn-primary" type="button"
+              style="background:var(--bg-soft); border:1px solid #3b82f6; color:#3b82f6; flex:1;">
+              ✂️ Curate (更新・統合)
+            </button>
+            <button id="btnHenzanPromptPromote" class="btn-primary" type="button"
+              style="background:var(--bg-soft); border:1px solid #8b5cf6; color:#8b5cf6; flex:1;">
+              ⭐ Promote (昇格考察)
+            </button>
+          </div>
+          <textarea id="henzanAiInput" placeholder='LLMからのJSON出力をここに貼り付け...'
+            style="width:100%; height:80px; background:rgba(0,0,0,0.3); border:1px solid var(--border); color:var(--text); padding:8px; border-radius:4px; font-size:12px; font-family:monospace; margin-top:8px;"></textarea>
+          <button id="btnHenzanAiImport" class="btn-primary" type="button"
+            style="background:#8b5cf6; color:white; width:100%; margin-top:8px;">
+            📥 AI結果を取り込み
+          </button>
+          <div id="henzanAiImportMsg" class="form-note" style="margin-top:6px;"></div>
+        </div>
+      </div>
+
+    </main>
+  </div><!-- /tabHenzan -->
+
+  <!-- 羅針盤タブ（ホビーフォートレス） -->
+  <div id="tabCompass" class="tab-content">
+    <main>
+      <!-- ヘッダ -->
+      <section class="panel compass-header-panel">
+        <div class="panel-header">
+          <div class="panel-title">
+            🧭 羅針盤
+          </div>
+          <small>目指したい方向と、次の小さな一歩を静かに示す地図。</small>
+        </div>
+        <div id="compassTrackName" class="compass-track-name"></div>
+      </section>
+
+      <div class="two-col">
+        <!-- 左カラム -->
+        <section class="panel" id="compassLeftCol">
+          <!-- 制約資源カード（新設） -->
+          <div class="compass-card" id="compassConstraintsCard">
+            <div class="compass-card-title">⚖️ 現在の制約資源</div>
+            <div id="compassConstraintsBody" class="compass-card-body">
+              読み込み中...
+            </div>
+          </div>
+
+          <!-- 現在地カード -->
+          <div class="compass-card" id="compassCurrentCard">
+            <div class="compass-card-title">📍 現在の立ち位置</div>
+            <div id="compassCurrentBody" class="compass-card-body">
+              読み込み中...
+            </div>
+          </div>
+
+          <!-- ミッションカード -->
+          <div class="compass-card" id="compassMissionCard">
+            <div class="compass-card-title">🌱 次の小さな一歩</div>
+            <div id="compassMissionBody" class="compass-card-body">
+              読み込み中...
+            </div>
+          </div>
+        </section>
+
+        <!-- 右カラム -->
+        <section class="panel" id="compassRightCol">
+          <!-- 条件カード -->
+          <div class="compass-card" id="compassRequirementsCard">
+            <div class="compass-card-title">🗺 次の風景の条件</div>
+            <div id="compassRequirementsBody" class="compass-card-body">
+              読み込み中...
+            </div>
+          </div>
+
+          <!-- 根拠資産カード -->
+          <div class="compass-card" id="compassEvidenceCard">
+            <div class="compass-card-title">🏷 判定の根拠資産</div>
+            <div id="compassEvidenceBody" class="compass-card-body">
+              読み込み中...
+            </div>
+          </div>
+        </section>
+      </div>
+    </main>
+  </div><!-- /tabCompass -->
 
   <!-- 設定タブ -->
   <div id="tabSettings" class="tab-content">

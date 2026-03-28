@@ -1160,6 +1160,27 @@ button.primary:hover {
 
 .henzan-asset-name {
   font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.henzan-asset-indent {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.henzan-asset-node-line {
+  position: absolute;
+  left: 10px;
+  top: -10px;
+  width: 10px;
+  height: 20px;
+  border-left: 1px solid rgba(148, 163, 184, 0.4);
+  border-bottom: 1px solid rgba(148, 163, 184, 0.4);
 }
 
 .henzan-evidence-count {
@@ -1170,6 +1191,27 @@ button.primary:hover {
 .henzan-date {
   font-size: 11px;
   color: var(--muted);
+}
+
+.henzan-detail-hierarchy {
+  padding: 8px 12px;
+  background: rgba(148, 163, 184, 0.05);
+  border-left: 3px solid var(--accent);
+  margin-bottom: 12px;
+  font-size: 11px;
+}
+
+.henzan-detail-hierarchy h5 {
+  margin: 0 0 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.henzan-hierarchy-link {
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
 }
 
 /* 規模バッジ */
@@ -1282,6 +1324,14 @@ button.primary:hover {
   background: rgba(139, 92, 246, 0.15);
   border: 1px solid rgba(139, 92, 246, 0.3);
   color: #a78bfa;
+}
+
+.henzan-review-card-context {
+  font-size: 10px;
+  color: var(--muted);
+  margin-bottom: 4px;
+  padding-left: 8px;
+  border-left: 1px solid rgba(148, 163, 184, 0.3);
 }
 
 .henzan-review-card-summary {

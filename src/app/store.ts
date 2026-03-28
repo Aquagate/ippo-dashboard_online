@@ -18,6 +18,10 @@ export let entries: Entry[] = [];
 export let nextMemos: Memo[] = [];
 
 // Setters (for mutable global state)
+export function getDataCache(): DataCache {
+    return dataCache;
+}
+
 export function setDataCache(newCache: DataCache): void {
     dataCache = newCache;
 }

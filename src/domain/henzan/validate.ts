@@ -140,6 +140,10 @@ export function validateHenzanProposal(data: unknown): ValidationResult {
     if (typeof d.run_id !== 'string' || !d.run_id) errors.push('run_id がありません');
     if (!HENZAN_PROPOSAL_OPERATIONS.includes(d.operation as any)) errors.push(`operation "${d.operation}" が無効です`);
 
+    // オプションのインポート一時ID
+    if (d.temp_id && typeof d.temp_id !== 'string') errors.push('temp_id が文字列ではありません');
+    if (d.parent_temp_id && typeof d.parent_temp_id !== 'string') errors.push('parent_temp_id が文字列ではありません');
+
     if (typeof d.candidate !== 'object' || !d.candidate) {
         errors.push('candidate がオブジェクトではありません');
     } else {

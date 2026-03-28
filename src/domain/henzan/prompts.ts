@@ -12,6 +12,7 @@ const COMMON_RULES = `
 - 根拠ログの引用 (evidence_quotes) は一歩ログの原文をそのまま切り出してください（捏造禁止）。
 - 抽象的すぎる名前は禁止です（「成長力」「問題解決力」「継続力」など）。
 - 具体的な行為、実装された導線・道具、再現可能な経験・理解を優先してください。
+- **原子分解 (Atomic Decomposition)**: 複合的な概念（「〜の手法と〜の実装」など）はそのまま一つの資産にせず、論理的に分割して、複数の【小さな規模（小）】の資産として抽出してください。
 - 以下の「禁止語」を含む候補は生成しないでください。
 
 ## 禁止語リスト
@@ -32,8 +33,9 @@ ${COMMON_RULES}
 ## Discovery特別ルール
 - 主な目的は「新しく生まれた技能・環境・知見」を拾い上げることです（operation: "create"）。
 - 既存資産と類似・重複するものは拾わないでください。それはCurateモードの仕事です。
+- **原子分解の徹底**: 一つのトピックに「前提条件」「手法」「道具」が混在する場合、それぞれ別々の資産（小規模）として抽出することを推奨します。その際、上位概念を「中規模」として抽出し、個別の構成要素を「小規模」として \`parent_temp_id\`（新規親子時）または \`parent_id\`（既存親子時）で紐付けてください。
 - 各ログIDと紐づけて、なぜそれを独立した資産とみなすか明確な理由を提示してください。
-- 提案は1〜5件までとします。
+- 提案は1〜8件までとします（分解を推奨するため上限を緩和）。
 
 ## 既存資産リスト（重複を避けるための参考）
 ${assetList}
@@ -54,10 +56,12 @@ ${logSummary}
       "operation": "create",
       "target_asset_id": null,
       "merge_target_id": null,
+      "temp_id": "p1",
+      "parent_temp_id": null,
       "candidate": {
         "name": "資産名",
         "type": "技能|環境|知見|進行資産",
-        "scale": "小",
+        "scale": "小|中",
         "summary": "資産の短い要約"
       },
       "evidence_log_ids": ["entry_123", "entry_456"],
@@ -65,6 +69,17 @@ ${logSummary}
       "reason": "なぜこれを新規資産として提案するかの理由",
       "confidence": "高|中|低"
     }
+  ]
+}
+\`\`\`
+※ 同一Run内の別の提案を親に指定する場合は \`parent_temp_id\` を使用してください。
+
+## 構成要素の抽出例
+\`\`\`json
+{
+  "proposals": [
+    { "temp_id": "p1", "candidate": { "name": "親となる知見", "scale": "中" }, ... },
+    { "temp_id": "p2", "parent_temp_id": "p1", "candidate": { "name": "子となる具体的技能", "scale": "小" }, ... }
   ]
 }
 \`\`\`
@@ -85,8 +100,9 @@ ${COMMON_RULES}
 ## Curate特別ルール
 - 既存資産のアップデート（operation: "update_existing"）や、名前の変更（operation: "rename_existing"）を提案してください。
 - 複数の既存資産が実は同じ概念を指している場合は、片方への統合（operation: "merge_into_existing"）を提案してください。
+- **階層化の提案**: 独立していた複数の既存資産が、実は親子関係にある（一方が他方の構成要素である）と判断される場合、\`update_existing\` を使い \`candidate.parent_id\` に親のIDを設定するか、\`link_related\` を提案してください。
 - 新規の資産（create）は提案しないでください。必ず target_asset_id または merge_target_id を指定します。
-- 提案は1〜5件までとします。
+- 提案は1〜8件までとします。
 
 ## 既存資産リスト
 ${assetList}
