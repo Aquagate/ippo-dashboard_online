@@ -4,8 +4,9 @@
 
 import {
     ASSET_TYPES, ASSET_SCALES, ASSET_STATUSES, CONFIDENCE_LEVELS,
-    REVIEW_EVENT_TYPES,
+    REVIEW_EVENT_TYPES, HENZAN_PROPOSAL_OPERATIONS,
     type HenzanAsset, type ReviewEvent,
+    type HenzanBridgeRun, type HenzanProposal,
 } from './schema';
 
 /** バリデーション結果 */
@@ -103,4 +104,68 @@ export function filterValidAssets(assets: unknown[]): HenzanAsset[] {
 export function filterValidEvents(events: unknown[]): ReviewEvent[] {
     if (!Array.isArray(events)) return [];
     return events.filter(e => validateReviewEvent(e).valid) as ReviewEvent[];
+}
+
+/**
+ * HenzanBridgeRun のバリデーション
+ */
+export function validateHenzanBridgeRun(data: unknown): ValidationResult {
+    const errors: string[] = [];
+    if (!data || typeof data !== 'object') {
+        return { valid: false, errors: ['Runデータがオブジェクトではありません'] };
+    }
+    const d = data as Record<string, unknown>;
+
+    if (typeof d.id !== 'string' || !d.id) errors.push('id がありません');
+    if (typeof d.prompt_version !== 'string' || !d.prompt_version) errors.push('prompt_version がありません');
+    if (!['discovery', 'curate', 'promote'].includes(d.mode as string)) errors.push(`mode "${d.mode}" が無効です`);
+    if (typeof d.window_days !== 'number') errors.push('window_days が数値ではありません');
+    if (typeof d.created_at !== 'number') errors.push('created_at が数値ではありません');
+    if (!Array.isArray(d.proposal_ids)) errors.push('proposal_ids が配列ではありません');
+
+    return { valid: errors.length === 0, errors };
+}
+
+/**
+ * HenzanProposal のバリデーション
+ */
+export function validateHenzanProposal(data: unknown): ValidationResult {
+    const errors: string[] = [];
+    if (!data || typeof data !== 'object') {
+        return { valid: false, errors: ['Proposalデータがオブジェクトではありません'] };
+    }
+    const d = data as Record<string, unknown>;
+
+    if (typeof d.id !== 'string' || !d.id) errors.push('id がありません');
+    if (typeof d.run_id !== 'string' || !d.run_id) errors.push('run_id がありません');
+    if (!HENZAN_PROPOSAL_OPERATIONS.includes(d.operation as any)) errors.push(`operation "${d.operation}" が無効です`);
+
+    if (typeof d.candidate !== 'object' || !d.candidate) {
+        errors.push('candidate がオブジェクトではありません');
+    } else {
+        const c = d.candidate as Record<string, any>;
+        if (d.operation === 'create') {
+            if (!c.name || typeof c.name !== 'string') errors.push('operation: "create" needs candidate.name and candidate.type');
+        }
+    }
+
+    if (d.operation !== 'create') {
+        if (typeof d.target_asset_id !== 'string' || !d.target_asset_id) {
+            errors.push(`operation: "${d.operation}" needs target_asset_id`);
+        }
+    }
+    
+    if (d.operation === 'merge_into_existing') {
+        if (typeof d.merge_target_id !== 'string' || !d.merge_target_id) {
+            errors.push(`operation: "${d.operation}" needs target_asset_id and merge_target_id`);
+        }
+    }
+
+    if (!Array.isArray(d.evidence_log_ids)) errors.push('evidence_log_ids が配列ではありません');
+    if (!Array.isArray(d.evidence_quotes)) errors.push('evidence_quotes が配列ではありません');
+    if (typeof d.reason !== 'string') errors.push('reason が文字列ではありません');
+    if (!CONFIDENCE_LEVELS.includes(d.confidence as any)) errors.push(`confidence "${d.confidence}" が無効です`);
+    if (typeof d.resolved !== 'boolean') errors.push('resolved がbooleanではありません');
+
+    return { valid: errors.length === 0, errors };
 }

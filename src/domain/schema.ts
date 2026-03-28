@@ -1,6 +1,6 @@
 // ===== Data Model Types =====
 
-import type { HenzanAsset, ReviewEvent } from './henzan/schema';
+import type { HenzanAsset, ReviewEvent, HenzanBridgeRun, HenzanProposal } from './henzan/schema';
 import type { CompassState } from './compass/schema';
 
 export interface Entry {
@@ -153,6 +153,10 @@ export interface DataCache {
     henzanAssets: HenzanAsset[];
     /** 編纂室: 要確認トレイのイベント */
     reviewEvents: ReviewEvent[];
+    /** AI編纂ブリッジ: 実行履歴 */
+    henzanBridgeRuns?: HenzanBridgeRun[];
+    /** AI編纂ブリッジ: 提案プール */
+    henzanProposals?: HenzanProposal[];
     /** 羅針盤: 状態 */
     compassState?: CompassState;
 }

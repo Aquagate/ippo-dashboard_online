@@ -35,7 +35,10 @@ export function validateDataCache(data: unknown): DataCache {
     if (!d.dailyStates || typeof d.dailyStates !== "object") d.dailyStates = {};
     // 編纂室フィールド（マイグレーション対応: 既存データに無い場合は空配列初期化）
     if (!Array.isArray(d.henzanAssets)) d.henzanAssets = [];
-    if (!Array.isArray(d.reviewEvents)) d.reviewEvents = [];
+    // 編纂室の要確認トレイはvNext Plusで新スキーマ(Proposals)へ移行するため強制クリア
+    d.reviewEvents = [];
+    if (!Array.isArray(d.henzanBridgeRuns)) d.henzanBridgeRuns = [];
+    if (!Array.isArray(d.henzanProposals)) d.henzanProposals = [];
     // ホビーフォートレス（マイグレーション対応）
     if (d.hobbyFortressState) {
         d.compassState = d.hobbyFortressState;

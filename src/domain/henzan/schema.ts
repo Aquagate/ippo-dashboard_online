@@ -125,6 +125,14 @@ export function generateEventId(): string {
     return `evt_${crypto.randomUUID()}`;
 }
 
+export function generateRunId(): string {
+    return `run_${crypto.randomUUID()}`;
+}
+
+export function generateProposalId(): string {
+    return `pro_${crypto.randomUUID()}`;
+}
+
 /** 新規資産のデフォルト値を生成する */
 export function createDefaultAsset(overrides: Partial<HenzanAsset> = {}): HenzanAsset {
     const now = Date.now();
@@ -150,3 +158,56 @@ export function formatAssetLabel(asset: HenzanAsset): string {
     const icon = ASSET_TYPE_ICONS[asset.type] || '';
     return `${icon} ${asset.type}: ${asset.name}（${asset.scale}）`;
 }
+
+// ===== AIブリッジ 新スキーマ (vNext Plus) =====
+
+export const HENZAN_PROPOSAL_OPERATIONS = [
+    'create',
+    'update_existing',
+    'merge_into_existing',
+    'rename_existing',
+    'promote_scale',
+    'link_related',
+] as const;
+export type HenzanProposalOperation = typeof HENZAN_PROPOSAL_OPERATIONS[number];
+
+/** AIによる編纂提案の単体 */
+export interface HenzanProposal {
+    id: string;
+    run_id: string;
+    operation: HenzanProposalOperation;
+    /** 操作対象の既存資産ID（update / promote / rename / link 等） */
+    target_asset_id: string | null;
+    /** 統合先の既存資産ID（merge の場合のみ使用） */
+    merge_target_id: string | null;
+    /** 新規または更新対象となるプロパティのみを保持 */
+    candidate: Partial<HenzanAsset>;
+    /** この提案の根拠となった一歩ログID一覧 */
+    evidence_log_ids: string[];
+    /** 根拠ログから抽出された証拠フレーズ一覧 */
+    evidence_quotes: string[];
+    /** AIによる提案理由の説明 */
+    reason: string;
+    /** 判定の確信度 */
+    confidence: Confidence;
+    
+    // --- 人間レビュー用状態 ---
+    resolved: boolean;
+    resolution?: 'accepted' | 'rejected' | 'snoozed';
+    created_at: number;
+    resolved_at?: number;
+}
+
+export type BridgeMode = 'discovery' | 'curate' | 'promote';
+
+/** 1回のAIプロンプト実行（＝Bridge出力の取り込み）の単位情報 */
+export interface HenzanBridgeRun {
+    id: string;
+    prompt_version: string;
+    mode: BridgeMode;
+    window_days: number;
+    created_at: number;
+    /** このRun由来のProposal ID群 */
+    proposal_ids: string[];
+}
+

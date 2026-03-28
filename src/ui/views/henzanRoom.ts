@@ -8,10 +8,12 @@ import { getActiveEntries } from '../../app/store';
 import {
     ASSET_TYPE_ICONS, ASSET_STATUS_COLORS,
     type HenzanAsset, type ReviewEvent,
+    type HenzanBridgeRun, type HenzanProposal,
     type AssetType, type AssetScale, type Confidence,
-    createDefaultAsset, generateEventId,
+    createDefaultAsset, generateEventId, generateRunId, generateProposalId
 } from '../../domain/henzan/schema';
-import { filterValidAssets, filterValidEvents } from '../../domain/henzan/validate';
+import { filterValidAssets, filterValidEvents, validateHenzanBridgeRun, validateHenzanProposal } from '../../domain/henzan/validate';
+import { generateDiscoveryPrompt, generateCuratePrompt, generatePromotePrompt } from '../../domain/henzan/prompts';
 import { showToast } from '../toast';
 
 // --- 初期化フラグ ---
@@ -30,6 +32,8 @@ function el(id: string): HTMLElement | null {
 export function initHenzanRoom(): void {
     if (!initialized) {
         bindEvents();
+        // expose to window for inline onclicks
+        (window as any).showProposalDetail = showProposalDetail;
         initialized = true;
     }
     renderAll();
@@ -49,12 +53,12 @@ function bindEvents(): void {
         if (panel) panel.style.display = 'none';
     });
 
-    // ルールベース自動抽出
-    el('btnHenzanAutoExtract')?.addEventListener('click', handleAutoExtract);
+    // （旧）ルールベース自動抽出はvNext Plusで完全削除されました
 
     // AIプロンプト生成
-    el('btnHenzanPrompt30')?.addEventListener('click', () => handlePromptGenerate(30));
-    el('btnHenzanPrompt90')?.addEventListener('click', () => handlePromptGenerate(90));
+    el('btnHenzanPromptDiscovery')?.addEventListener('click', () => handlePromptGeneration('discovery'));
+    el('btnHenzanPromptCurate')?.addEventListener('click', () => handlePromptGeneration('curate'));
+    el('btnHenzanPromptPromote')?.addEventListener('click', () => handlePromptGeneration('promote'));
 
     // AI結果取り込み
     el('btnHenzanAiImport')?.addEventListener('click', handleAiImport);
@@ -80,7 +84,7 @@ function renderSummaryBar(): void {
     setText('henzanCountInsight', String(assets.filter(a => a.type === '知見').length));
     setText('henzanCountProgress', String(assets.filter(a => a.type === '進行資産').length));
 
-    const pendingCount = getPendingEvents().length;
+    const pendingCount = getPendingProposals().length;
     const badge = el('henzanReviewBadge');
     if (badge) {
         badge.style.display = pendingCount > 0 ? 'flex' : 'none';
@@ -89,13 +93,13 @@ function renderSummaryBar(): void {
     setText('henzanReviewCount2', String(pendingCount));
 }
 
-// ===== 要確認トレイ =====
+// ===== 編集トレイ (要確認トレイの刷新) =====
 
 function renderReviewTray(): void {
     const container = el('henzanReviewList');
     if (!container) return;
 
-    const pending = getPendingEvents();
+    const pending = getPendingProposals();
 
     if (pending.length === 0) {
         container.innerHTML = '<div class="empty-state">現在、確認待ちの候補はありません。</div>';
@@ -103,35 +107,62 @@ function renderReviewTray(): void {
     }
 
     container.innerHTML = '';
-    pending.forEach(event => {
+    pending.forEach(proposal => {
         const card = document.createElement('div');
-        const asset = event.suggested_data;
+        const asset = proposal.candidate;
 
-        // 確信度に応じたクラス付与
-        const confidenceClass = asset?.confidence === '高' ? 'confidence-high' :
-                                asset?.confidence === '中' ? 'confidence-medium' :
-                                asset?.confidence === '低' ? 'confidence-low' : '';
+        // 確信度バッジ
+        const confidenceClass = proposal.confidence === '高' ? 'confidence-high' :
+                                proposal.confidence === '中' ? 'confidence-medium' :
+                                proposal.confidence === '低' ? 'confidence-low' : '';
         card.className = `henzan-review-card ${confidenceClass}`;
+        
+        // 操作種別に応じたバッジ
+        let opLabel: string = proposal.operation;
+        if (opLabel === 'create') opLabel = '✨ 新規発見';
+        if (opLabel === 'update_existing') opLabel = '🔄 既存更新';
+        if (opLabel === 'merge_into_existing') opLabel = '🔗 既存へ統合';
+        if (opLabel === 'rename_existing') opLabel = '✏️ 改名提案';
+        if (opLabel === 'promote_scale') opLabel = '⭐ 規模昇格';
 
         const icon = asset?.type ? (ASSET_TYPE_ICONS[asset.type] || '') : '📋';
         const name = asset?.name || '（名称不明）';
-        const typeBadge = event.type;
+
+        // 証拠数と内容
+        const evidenceCount = proposal.evidence_log_ids?.length || 0;
 
         card.innerHTML = `
             <div class="henzan-review-card-header">
-                <span class="henzan-review-type">${typeBadge}</span>
+                <span class="henzan-review-type">${opLabel}</span>
                 <span>${icon} ${escapeHtml(name)}</span>
             </div>
-            <div class="henzan-review-card-summary">${escapeHtml(asset?.summary || '')}</div>
-            <div class="henzan-review-card-actions">
-                <button type="button" class="btn-ghost henzan-btn-accept" data-event-id="${event.id}">✅ 採択</button>
-                <button type="button" class="btn-ghost henzan-btn-reject" data-event-id="${event.id}">❌ 却下</button>
+            <div class="henzan-review-card-summary">
+                ${escapeHtml(asset?.summary || '')}
+            </div>
+            <div class="henzan-proposal-reason" style="font-size: 11px; margin: 6px 0; color: #a1a1aa; background: rgba(0,0,0,0.2); padding: 4px; border-left: 2px solid #8b5cf6;">
+                <strong>理由:</strong> ${escapeHtml(proposal.reason || '')}
+            </div>
+            <div class="henzan-review-card-actions" style="margin-top: 8px;">
+                <button type="button" class="btn-ghost" onclick="window.showProposalDetail('${proposal.id}')">🔍 詳細・根拠 (${evidenceCount}件)</button>
+                <div style="flex:1"></div>
+                <button type="button" class="btn-ghost henzan-btn-accept" data-proposal-id="${proposal.id}">✅ 採択</button>
+                <button type="button" class="btn-ghost henzan-btn-reject" data-proposal-id="${proposal.id}">❌ 却下</button>
             </div>
         `;
 
-        // イベントリスナー
-        card.querySelector('.henzan-btn-accept')?.addEventListener('click', () => resolveEvent(event.id, 'accepted'));
-        card.querySelector('.henzan-btn-reject')?.addEventListener('click', () => resolveEvent(event.id, 'rejected'));
+        card.querySelector('.henzan-btn-accept')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resolveProposal(proposal.id, 'accepted');
+        });
+        card.querySelector('.henzan-btn-reject')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resolveProposal(proposal.id, 'rejected');
+        });
+
+        // カードクリックで詳細表示
+        card.addEventListener('click', () => {
+            (window as any).showProposalDetail(proposal.id);
+        });
 
         container.appendChild(card);
     });
@@ -226,204 +257,98 @@ function showDetail(assetId: string): void {
     }
 }
 
-// ===== ルールベース自動抽出 =====
+function showProposalDetail(proposalId: string): void {
+    const proposal = dataCache.henzanProposals?.find(p => p.id === proposalId);
+    if (!proposal) return;
 
-function handleAutoExtract(): void {
-    const entries = getActiveEntries();
-    if (entries.length === 0) {
-        showMessage('henzanAutoExtractMsg', '一歩ログがありません。先にログを追加してください。');
-        return;
+    const panel = el('henzanDetailPanel');
+    if (panel) panel.style.display = 'block';
+
+    const asset = proposal.candidate;
+    const icon = asset?.type ? (ASSET_TYPE_ICONS[asset.type] || '') : '📋';
+    
+    setText('henzanDetailName', `【提案詳細】 ${icon} ${asset?.name || '名称未設定'}`);
+
+    const meta = el('henzanDetailMeta');
+    if (meta) {
+        let opLabel: string = proposal.operation;
+        if (opLabel === 'create') opLabel = '✨ 新規発見';
+        if (opLabel === 'update_existing') opLabel = '🔄 既存更新';
+        if (opLabel === 'merge_into_existing') opLabel = '🔗 既存へ統合';
+        if (opLabel === 'rename_existing') opLabel = '✏️ 改名提案';
+        if (opLabel === 'promote_scale') opLabel = '⭐ 規模昇格';
+
+        meta.innerHTML = `
+            <span class="henzan-scale-badge">${asset?.scale || '-'}</span>
+            <span class="henzan-review-type" style="margin-left: 8px;">${opLabel}</span>
+            <span style="margin-left: 8px;">確信度: ${proposal.confidence}</span>
+            <span style="margin-left: 8px;">根拠: ${proposal.evidence_log_ids?.length || 0}件</span>
+        `;
     }
 
-    const existingAssets = getAssets();
-    const existingNames = new Set(existingAssets.map(a => a.name.toLowerCase()));
-
-    // 過去60日のエントリを対象
-    const border = Date.now() - 60 * 24 * 60 * 60 * 1000;
-    const recent = entries.filter(e => e.ts >= border);
-    if (recent.length === 0) {
-        showMessage('henzanAutoExtractMsg', '過去60日のログがありません。');
-        return;
+    const summary = el('henzanDetailSummary');
+    if (summary) {
+        summary.innerHTML = `
+            <div style="margin-bottom: 8px;"><strong>理由:</strong> ${escapeHtml(proposal.reason || '')}</div>
+            <div><strong>要約:</strong> ${escapeHtml(asset?.summary || '（説明なし）')}</div>
+        `;
     }
 
-    // カテゴリ頻度集計
-    const catCount: Record<string, number> = {};
-    recent.forEach(e => {
-        const cat = e.category || 'その他';
-        catCount[cat] = (catCount[cat] || 0) + 1;
-    });
+    // 根拠ログ表示
+    const evidenceDiv = el('henzanDetailEvidence');
+    if (evidenceDiv) {
+        const entries = getActiveEntries();
+        const evidenceLogs = (proposal.evidence_log_ids || [])
+            .map(id => entries.find(e => e.id === id))
+            .filter(Boolean);
 
-    // キーワード抽出（頻出単語）
-    const wordCount: Record<string, number> = {};
-    recent.forEach(e => {
-        const words = extractKeywords(e.text);
-        words.forEach(w => {
-            wordCount[w] = (wordCount[w] || 0) + 1;
-        });
-    });
-
-    // 候補生成
-    const newEvents: ReviewEvent[] = [];
-    const now = Date.now();
-
-    // 1. カテゴリベースの技能候補
-    const topCats = Object.entries(catCount)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-
-    topCats.forEach(([cat, count]) => {
-        if (count >= 3) {
-            const skillName = `${cat}関連の活動`;
-            if (!existingNames.has(skillName.toLowerCase())) {
-                const asset = createDefaultAsset({
-                    name: skillName,
-                    type: '技能',
-                    summary: `過去60日で${count}件の${cat}カテゴリのログあり`,
-                    confidence: count >= 10 ? '高' : count >= 5 ? '中' : '低',
-                    evidence_log_ids: recent.filter(e => e.category === cat).slice(0, 5).map(e => e.id),
-                });
-                newEvents.push({
-                    id: generateEventId(),
-                    type: '新規候補',
-                    target_asset_id: asset.id,
-                    suggested_data: asset,
-                    created_at: now,
-                    resolved: false,
-                });
-            }
+        if (evidenceLogs.length === 0) {
+            evidenceDiv.innerHTML = '<div class="empty-state">紐づく一歩ログはありません。</div>';
+        } else {
+            // proposal に紐づく証拠引用 (quotes) があればそれを強調するなど
+            evidenceDiv.innerHTML = evidenceLogs.map(e => `
+                <div class="henzan-evidence-item" style="border-left: 2px solid #8b5cf6;">
+                    <span class="henzan-evidence-date">${e!.date}</span>
+                    <span class="henzan-evidence-text">${escapeHtml(e!.text)}</span>
+                </div>
+            `).join('');
         }
-    });
-
-    // 2. 頻出キーワードベースの知見候補
-    const topWords = Object.entries(wordCount)
-        .filter(([w]) => w.length >= 2)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5);
-
-    topWords.forEach(([word, count]) => {
-        if (count >= 3 && !existingNames.has(word.toLowerCase())) {
-            const matchingEntries = recent.filter(e => e.text.includes(word)).slice(0, 3);
-            const asset = createDefaultAsset({
-                name: word,
-                type: '知見',
-                summary: `「${word}」が過去60日で${count}回出現`,
-                confidence: '低',
-                evidence_log_ids: matchingEntries.map(e => e.id),
-            });
-            newEvents.push({
-                id: generateEventId(),
-                type: '新規候補',
-                target_asset_id: asset.id,
-                suggested_data: asset,
-                created_at: now,
-                resolved: false,
-            });
-        }
-    });
-
-    // 3. 既存資産への根拠追記候補
-    existingAssets.forEach(existing => {
-        const newEvidence = recent.filter(e => {
-            const text = e.text.toLowerCase();
-            return text.includes(existing.name.toLowerCase()) &&
-                !existing.evidence_log_ids.includes(e.id);
-        });
-        if (newEvidence.length > 0) {
-            // 自動反映（要確認に回さない）
-            existing.evidence_log_ids.push(...newEvidence.map(e => e.id));
-            existing.updated_at = now;
-            if (existing.status === '休眠') {
-                existing.status = '活性';
-            }
-        }
-    });
-
-    if (newEvents.length > 0) {
-        dataCache.reviewEvents.push(...newEvents);
     }
-
-    // 保存
-    storageSaveData(dataCache);
-    renderAll();
-
-    const msg = newEvents.length > 0
-        ? `✅ ${newEvents.length}件の新規候補を要確認トレイに追加しました。`
-        : '✅ 抽出完了。新規候補はありませんでした（既存資産への根拠追記は自動反映済み）。';
-    showMessage('henzanAutoExtractMsg', msg);
-    showToast(msg, 'ok');
 }
+
+
+// ===== 旧ルールベース抽出 =====
+// vNext Plus にて handleAutoExtract() は廃止されました。
 
 // ===== AIプロンプト生成 =====
 
-function handlePromptGenerate(days: number): void {
+function handlePromptGeneration(mode: 'discovery' | 'curate' | 'promote'): void {
     const entries = getActiveEntries();
-    const border = Date.now() - days * 24 * 60 * 60 * 1000;
+    // デフォルトで過去60日とする（より柔軟な設定は今後の課題）
+    const windowDays = 60;
+    const border = Date.now() - windowDays * 24 * 60 * 60 * 1000;
     const recent = entries.filter(e => e.ts >= border);
 
     if (recent.length === 0) {
-        showToast(`過去${days}日のログがありません。`, 'err');
+        showToast(`過去${windowDays}日のログがありません。`, 'err');
         return;
     }
 
     const existingAssets = getAssets();
+    let prompt = '';
 
-    // ログの要約（最大50件）
-    const logSummary = recent.slice(0, 50).map(e =>
-        `- [${e.date}] [${e.category}] ${e.text}`
-    ).join('\n');
-
-    // 既存資産リスト
-    const assetList = existingAssets.length > 0
-        ? existingAssets.map(a => `- ${ASSET_TYPE_ICONS[a.type]} ${a.type}: ${a.name}（${a.scale}）[${a.status}]`).join('\n')
-        : '（まだ資産はありません）';
-
-    const prompt = `# 編纂室: 資産候補抽出プロンプト
-
-## あなたの役割
-一歩ログ（日々の行動記録）を分析し、再利用可能な「資産」を抽出してください。
-
-## 資産の種別
-- 技能: 自分が扱える能力、手法、実践力
-- 環境: 実装済みの装備、導線、道具
-- 知見: 経験から得た再利用可能な理解
-- 進行資産: 未完了だが進行中の対象
-
-## ルール
-- 1ログあたり0〜3件の候補
-- 抽象的すぎる名前は禁止（成長力、問題解決力、継続力 など）
-- 具体的な行為・実装・理解を優先
-- 既存資産と重複する場合は新規追加せず、根拠追記として扱う
-- 規模: 小（単独成立）/ 中（複数の小を束ねた実用単位）/ 大（体系・OS・構造）
-
-## 既存資産
-${assetList}
-
-## 過去${days}日の一歩ログ（${recent.length}件）
-${logSummary}
-
-## 出力形式（JSON）
-以下の形式で出力してください:
-\`\`\`json
-{
-  "assets": [
-    {
-      "name": "資産名",
-      "type": "技能|環境|知見|進行資産",
-      "scale": "小|中|大",
-      "summary": "短い説明",
-      "confidence": "高|中|低",
-      "evidence_entries": ["対応するログの日付や内容の一部"],
-      "is_new": true,
-      "similar_existing": null
+    if (mode === 'discovery') {
+        prompt = generateDiscoveryPrompt(recent, existingAssets, windowDays);
+    } else if (mode === 'curate') {
+        prompt = generateCuratePrompt(recent, existingAssets, windowDays);
+    } else if (mode === 'promote') {
+        prompt = generatePromotePrompt(recent, existingAssets, windowDays);
     }
-  ]
-}
-\`\`\``;
 
     navigator.clipboard.writeText(prompt).then(() => {
-        showToast('📋 プロンプトをクリップボードにコピーしました。外部LLMに貼り付けてください。', 'ok');
+        showToast(`📋 ${mode} モードのプロンプトをクリップボードにコピーしました。`, 'ok');
     }).catch(() => {
-        showToast('コピーに失敗しました。', 'err');
+        showToast('❌ クリップボードへのコピーに失敗しました', 'err');
     });
 }
 
@@ -437,67 +362,77 @@ function handleAiImport(): void {
     }
 
     try {
-        // JSON部分を抽出（```json ... ``` でラップされている場合も対応）
         let jsonStr = textarea.value.trim();
         const jsonMatch = jsonStr.match(/```json\s*([\s\S]*?)```/);
         if (jsonMatch) jsonStr = jsonMatch[1].trim();
 
         const parsed = JSON.parse(jsonStr);
-        if (!parsed.assets || !Array.isArray(parsed.assets)) {
-            throw new Error('assets 配列が見つかりません');
+        // 新スキーマ対応（run_meta と proposals）
+        if (!parsed.run_meta || !parsed.proposals || !Array.isArray(parsed.proposals)) {
+            // 後方互換性フォールバック（もし古い assets 配列しかなければエラーにする）
+            throw new Error('新しいJSON形式（run_meta, proposals）ではありません。新しいプロンプトを使用して生成してください。');
         }
 
         const now = Date.now();
-        const entries = getActiveEntries();
-        let importCount = 0;
+        const runId = generateRunId();
+        const proposalIds: string[] = [];
 
-        parsed.assets.forEach((raw: any) => {
-            if (!raw.name || !raw.type) return;
+        const mode = parsed.run_meta.mode || 'curate';
+        const windowDays = typeof parsed.run_meta.window_days === 'number' ? parsed.run_meta.window_days : 60;
 
-            // 正規化マッピング
-            const mappedType = mapAiType(String(raw.type));
-            const mappedScale = mapAiScale(String(raw.scale || ''));
-            const mappedConfidence = mapAiConfidence(String(raw.confidence || ''));
-
-            // エントリIDのマッチング（日付やテキストで）
-            const evidenceIds: string[] = [];
-            if (raw.evidence_entries && Array.isArray(raw.evidence_entries)) {
-                raw.evidence_entries.forEach((hint: string) => {
-                    const match = entries.find(e =>
-                        e.text.includes(hint) || e.date === hint
-                    );
-                    if (match) evidenceIds.push(match.id);
-                });
-            }
-
-            const asset = createDefaultAsset({
-                name: raw.name,
-                type: mappedType,
-                scale: mappedScale,
-                summary: raw.summary || '',
-                confidence: mappedConfidence,
-                evidence_log_ids: evidenceIds,
-            });
-
-            const event: ReviewEvent = {
-                id: generateEventId(),
-                type: '新規候補',
-                target_asset_id: asset.id,
-                suggested_data: asset,
-                created_at: now,
+        parsed.proposals.forEach((rawP: any) => {
+            const pid = generateProposalId();
+            const proposal: HenzanProposal = {
+                id: pid,
+                run_id: runId,
+                operation: rawP.operation || 'create',
+                target_asset_id: rawP.target_asset_id || null,
+                merge_target_id: rawP.merge_target_id || null,
+                candidate: {
+                    name: rawP.candidate?.name,
+                    type: mapAiType(String(rawP.candidate?.type || '')),
+                    scale: mapAiScale(String(rawP.candidate?.scale || '')),
+                    summary: rawP.candidate?.summary,
+                },
+                evidence_log_ids: Array.isArray(rawP.evidence_log_ids) ? rawP.evidence_log_ids : [],
+                evidence_quotes: Array.isArray(rawP.evidence_quotes) ? rawP.evidence_quotes : [],
+                reason: rawP.reason || '',
+                confidence: mapAiConfidence(String(rawP.confidence || '中')),
                 resolved: false,
+                created_at: now,
             };
 
-            dataCache.reviewEvents.push(event);
-            importCount++;
+            const val = validateHenzanProposal(proposal);
+            if (val.valid) {
+                if (!dataCache.henzanProposals) dataCache.henzanProposals = [];
+                dataCache.henzanProposals.push(proposal);
+                proposalIds.push(pid);
+            } else {
+                console.warn('Skipping invalid proposal:', val.errors, proposal);
+            }
         });
+
+        const run: HenzanBridgeRun = {
+            id: runId,
+            prompt_version: parsed.run_meta.prompt_version || 'unknown',
+            mode,
+            window_days: windowDays,
+            created_at: now,
+            proposal_ids: proposalIds,
+        };
+
+        const runVal = validateHenzanBridgeRun(run);
+        if (runVal.valid) {
+            if (!dataCache.henzanBridgeRuns) dataCache.henzanBridgeRuns = [];
+            dataCache.henzanBridgeRuns.push(run);
+        }
 
         storageSaveData(dataCache);
         renderAll();
 
         textarea.value = '';
-        showMessage('henzanAiImportMsg', `✅ ${importCount}件の候補を要確認トレイに追加しました。`);
-        showToast(`📥 ${importCount}件の資産候補を取り込みました。`, 'ok');
+        showMessage('henzanAiImportMsg', `✅ ${proposalIds.length}件の提案を編集トレイに追加しました。`);
+        showToast(`📥 ${proposalIds.length}件の提案を取り込みました。`, 'ok');
     } catch (e: any) {
         showMessage('henzanAiImportMsg', `❌ JSON解析エラー: ${e.message}`);
     }
@@ -505,40 +440,112 @@ function handleAiImport(): void {
 
 // ===== イベント解決（採択/却下） =====
 
-function resolveEvent(eventId: string, resolution: 'accepted' | 'rejected'): void {
-    // UX: 解決アニメーション開始
-    const btn = document.querySelector(`.henzan-btn-${resolution === 'accepted' ? 'accept' : 'reject'}[data-event-id="${eventId}"]`);
+function resolveProposal(proposalId: string, resolution: 'accepted' | 'rejected'): void {
+    const btn = document.querySelector(`.henzan-btn-${resolution === 'accepted' ? 'accept' : 'reject'}[data-proposal-id="${proposalId}"]`);
     const cardEl = btn?.closest('.henzan-review-card');
     if (cardEl) {
         cardEl.classList.add('henzan-card-solving');
     }
 
-    // アニメーション(400ms)後にステート更新と再描画
     setTimeout(() => {
-        const event = dataCache.reviewEvents.find(e => e.id === eventId);
-        if (!event) return;
+        if (!dataCache.henzanProposals) return;
+        const proposal = dataCache.henzanProposals.find(p => p.id === proposalId);
+        if (!proposal) return;
 
-        event.resolved = true;
-        event.resolved_at = Date.now();
-        event.resolution = resolution;
+        proposal.resolved = true;
+        proposal.resolved_at = Date.now();
+        proposal.resolution = resolution;
 
-        if (resolution === 'accepted' && event.suggested_data) {
-            // 新規候補の場合: 資産として正式追加、状態を「活性」に
-            const newAsset: HenzanAsset = {
-                ...createDefaultAsset(),
-                ...event.suggested_data,
-                status: '活性',
-                updated_at: Date.now(),
-            };
-            dataCache.henzanAssets.push(newAsset);
-            showToast(`✅ 「${newAsset.name}」を資産に追加しました。`, 'ok');
+        if (resolution === 'accepted') {
+            applyProposalToAssets(proposal);
+            showToast(`✅ 提案を採択しました。`, 'ok');
         } else {
-            showToast('❌ 候補を却下しました。', 'ok');
+            showToast('❌ 提案を却下しました。', 'ok');
         }
 
         storageSaveData(dataCache);
         renderAll();
     }, 400);
+}
+
+function applyProposalToAssets(proposal: HenzanProposal): void {
+    const now = Date.now();
+    
+    if (proposal.operation === 'create') {
+        const newAsset: HenzanAsset = {
+            ...createDefaultAsset(),
+            name: proposal.candidate.name || '名称未設定',
+            type: proposal.candidate.type || '知見',
+            scale: proposal.candidate.scale || '小',
+            summary: proposal.candidate.summary || '',
+            evidence_log_ids: [...proposal.evidence_log_ids],
+            status: '活性', // 新規作成時は活性
+            created_at: now,
+            updated_at: now,
+        };
+        dataCache.henzanAssets.push(newAsset);
+    } 
+    else if (proposal.operation === 'update_existing' && proposal.target_asset_id) {
+        const asset = dataCache.henzanAssets.find(a => a.id === proposal.target_asset_id);
+        if (asset) {
+            if (proposal.candidate.summary) asset.summary = proposal.candidate.summary;
+            if (proposal.candidate.scale) asset.scale = proposal.candidate.scale;
+            if (proposal.candidate.type) asset.type = proposal.candidate.type;
+            
+            // 証拠ログの追記
+            const newIds = proposal.evidence_log_ids.filter(id => !asset.evidence_log_ids.includes(id));
+            asset.evidence_log_ids.push(...newIds);
+            
+            asset.status = '活性';
+            asset.updated_at = now;
+        }
+    }
+    else if (proposal.operation === 'rename_existing' && proposal.target_asset_id) {
+        const asset = dataCache.henzanAssets.find(a => a.id === proposal.target_asset_id);
+        if (asset) {
+            if (proposal.candidate.name) asset.name = proposal.candidate.name;
+            if (proposal.candidate.summary) asset.summary = proposal.candidate.summary;
+            
+            const newIds = proposal.evidence_log_ids.filter(id => !asset.evidence_log_ids.includes(id));
+            asset.evidence_log_ids.push(...newIds);
+            
+            asset.status = '活性';
+            asset.updated_at = now;
+        }
+    }
+    else if (proposal.operation === 'merge_into_existing' && proposal.target_asset_id && proposal.merge_target_id) {
+        const sourceAsset = dataCache.henzanAssets.find(a => a.id === proposal.target_asset_id);
+        const targetAsset = dataCache.henzanAssets.find(a => a.id === proposal.merge_target_id);
+        
+        if (sourceAsset && targetAsset) {
+            // ソースからターゲットへ証拠を移す
+            const newIds = sourceAsset.evidence_log_ids.filter(id => !targetAsset.evidence_log_ids.includes(id));
+            targetAsset.evidence_log_ids.push(...newIds);
+            
+            // 名前や要約の更新指定があれば反映
+            if (proposal.candidate.name) targetAsset.name = proposal.candidate.name;
+            if (proposal.candidate.summary) targetAsset.summary = proposal.candidate.summary;
+            
+            targetAsset.status = '活性';
+            targetAsset.updated_at = now;
+            
+            // ソース資産は削除するか休眠にするが、ここでは履歴として「休眠」かつ summary に統合先をメモ
+            sourceAsset.status = '休眠';
+            sourceAsset.summary = `[統合済: ${targetAsset.name}] ` + sourceAsset.summary;
+            sourceAsset.updated_at = now;
+        }
+    }
+    else if (proposal.operation === 'promote_scale' && proposal.target_asset_id) {
+        const asset = dataCache.henzanAssets.find(a => a.id === proposal.target_asset_id);
+        if (asset) {
+            if (proposal.candidate.scale) asset.scale = proposal.candidate.scale;
+            if (proposal.candidate.name) asset.name = proposal.candidate.name;
+            if (proposal.candidate.summary) asset.summary = proposal.candidate.summary;
+            
+            asset.status = '活性';
+            asset.updated_at = now;
+        }
+    }
 }
 
 // AIインポート時の正規化マッピング
@@ -573,8 +580,8 @@ function getAssets(): HenzanAsset[] {
     return dataCache.henzanAssets || [];
 }
 
-function getPendingEvents(): ReviewEvent[] {
-    return (dataCache.reviewEvents || []).filter(e => !e.resolved);
+function getPendingProposals(): HenzanProposal[] {
+    return (dataCache.henzanProposals || []).filter(p => !p.resolved);
 }
 
 function getFilteredAssets(): HenzanAsset[] {
@@ -592,21 +599,6 @@ function getFilteredAssets(): HenzanAsset[] {
     return assets.sort((a, b) => b.updated_at - a.updated_at);
 }
 
-function extractKeywords(text: string): string[] {
-    // 基本的なキーワード抽出（日本語対応の簡易版）
-    // 不要語を除外して2文字以上の語を返す
-    const stopWords = new Set([
-        'した', 'する', 'ある', 'いる', 'なる', 'やる', 'できる',
-        'この', 'その', 'あの', 'ため', 'こと', 'もの', 'ところ',
-        'ない', 'ので', 'から', 'まで', 'など', 'として', 'について',
-    ]);
-
-    return text
-        .replace(/[、。！？「」（）\[\]【】・\n\r]/g, ' ')
-        .split(/\s+/)
-        .filter(w => w.length >= 2 && !stopWords.has(w))
-        .slice(0, 10);
-}
 
 function setText(id: string, text: string): void {
     const e = el(id);
