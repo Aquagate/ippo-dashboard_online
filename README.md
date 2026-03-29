@@ -18,12 +18,17 @@
 - Node.js 20系
 
 ### インストール & 起動
+
 ```bash
-git clone https://github.com/Aquagate/ippo-dashboard_online.git
-cd ippo-dashboard_online
-npm install
+# 依存関係のクリーンインストール (node_modules がある場合は一旦削除推奨)
+npm ci
+
+# 開発サーバ起動
 npm run dev
 ```
+
+ブラウザで `http://localhost:5173` を開いてください。
+※ `dist/` ディレクトリはビルド成果物のため Git 管理外です。本番相当を確認する場合は `npm run build` を実行してください。
 
 ブラウザで `http://localhost:5173` を開いてください。
 
