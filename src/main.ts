@@ -2,6 +2,8 @@
 // CSS読み込み + bootstrap呼び出し + イベントハンドラのみ
 
 import './styles/main.css';
+import './styles/henzan.css';
+import './styles/compass.css';
 import { uuid, formatDate, formatDateTimeForRecord } from './utils/helpers';
 import { dataCache, setDataCache, entries, nextMemos, setEntries, setNextMemos, getActiveEntries } from './app/store';
 import {
@@ -327,10 +329,24 @@ function setupEvents(): void {
     }
 }
 
-// ===== Online/Offline =====
+// ===== Online/Offline/Visibility =====
 
 window.addEventListener("online", () => {
-    syncFlush();
+    // オンライン復帰 → キューに溜まった変更を送信
+    syncFlush().catch(() => {});
+});
+
+window.addEventListener("offline", () => {
+    // オフライン検知（UIはsyncStatusインジケーターで自動反映）
+    console.info("Network offline. Running in local mode.");
+});
+
+// タブ復帰 or スマホでアプリ切り替え戻り時に同期を試みる
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && navigator.onLine) {
+        // 少し待ってからフラッシュ（連続トリガー防止）
+        setTimeout(() => syncFlush().catch(() => {}), 1000);
+    }
 });
 
 // ===== Bootstrap =====
