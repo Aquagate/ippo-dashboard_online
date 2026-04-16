@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ledger_event.schema.json",
+  "type": "object",
+  "required": [
+    "id",
+    "ts",
+    "type",
+    "ref_id",
+    "branch_id",
+    "duration_min"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 8
+    },
+    "ts": {
+      "type": "string",
+      "minLength": 10
+    },
+    "type": {
+      "type": "string",
+      "enum": [
+        "spark",
+        "tool",
+        "workshop",
+        "explore",
+        "guild",
+        "council"
+      ]
+    },
+    "ref_id": {
+      "type": "string"
+    },
+    "branch_id": {
+      "type": "string"
+    },
+    "duration_min": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 240
+    },
+    "metrics": {
+      "type": "object",
+      "properties": {
+        "joy": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        },
+        "strain": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 3
+        }
+      },
+      "additionalProperties": true
+    },
+    "note": {
+      "type": "string"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 10
+    },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

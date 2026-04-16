@@ -1,0 +1,57 @@
+{
+  "packet_type": "foundry_request",
+  "range": {
+    "from": "2026-02-04",
+    "to": "2026-02-11"
+  },
+  "ledger_digest": {
+    "events_count": 18,
+    "top_branches": [
+      "branch_walk",
+      "branch_future",
+      "branch_guild"
+    ]
+  },
+  "events": [
+    {
+      "type": "workshop",
+      "ref_id": "workshop_walk_001",
+      "branch_id": "branch_walk",
+      "duration_min": 15,
+      "metrics": {
+        "joy": 3,
+        "strain": 1
+      },
+      "note": "戻ってこれた"
+    },
+    {
+      "type": "explore",
+      "ref_id": "explore_short_001",
+      "branch_id": "branch_meta",
+      "duration_min": 7,
+      "metrics": {
+        "joy": 2,
+        "strain": 0
+      },
+      "note": "勢いが出た"
+    }
+  ],
+  "armory_cards": [
+    {
+      "card_id": "card_R1",
+      "version": "1.0",
+      "uses": 4,
+      "avg_joy": 2.2,
+      "avg_strain": 0.8
+    }
+  ],
+  "limits": {
+    "forge_new_cards": 1,
+    "upgrades": 2,
+    "retires": 3
+  },
+  "thresholds": {
+    "efficiency_min": 1.5,
+    "repeat_min": 2
+  }
+}

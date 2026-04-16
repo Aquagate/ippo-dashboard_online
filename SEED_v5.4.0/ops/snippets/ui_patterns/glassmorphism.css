@@ -1,0 +1,59 @@
+/* 
+ * Glassmorphism UI Pattern (Neon Pastel)
+ * Extracted from Ippo Dashboard v2.0 (Future Lab)
+ */
+
+/* Container: Bento Grid Layout */
+.lab-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+/* Responsive: Mobile Stack */
+@media (max-width: 768px) {
+  .lab-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Global Spans */
+.span-full { grid-column: 1 / -1; }
+.span-2 { grid-column: span 2; }
+.span-1 { grid-column: span 1; }
+
+/* Card Style: Glassmorphism */
+.lab-card {
+  background: rgba(255, 255, 255, 0.05); /* Ultra transparent */
+  backdrop-filter: blur(10px);           /* The Blur Effect */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle Border */
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  color: #fff;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.lab-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.2);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Neon Text Colors */
+.text-neon-blue { color: #38bdf8; text-shadow: 0 0 10px rgba(56, 189, 248, 0.3); }
+.text-neon-pink { color: #d946ef; text-shadow: 0 0 10px rgba(217, 70, 239, 0.3); }
+.text-neon-green { color: #22c55e; text-shadow: 0 0 10px rgba(34, 197, 94, 0.3); }
+.text-neon-amber { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.3); }
+
+/* Collapsible Details */
+details summary {
+  cursor: pointer;
+  transition: color 0.2s;
+}
+details summary:hover {
+  color: #fff !important;
+}

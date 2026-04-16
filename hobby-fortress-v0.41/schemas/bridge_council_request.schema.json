@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bridge_council_request.schema.json",
+  "type": "object",
+  "required": [
+    "packet_type",
+    "date",
+    "time_of_day",
+    "available_min",
+    "energy",
+    "mood",
+    "recent_events",
+    "armory_cards",
+    "rules"
+  ],
+  "properties": {
+    "packet_type": {
+      "const": "council_request"
+    },
+    "date": {
+      "type": "string"
+    },
+    "time_of_day": {
+      "type": "string",
+      "enum": [
+        "morning",
+        "noon",
+        "night"
+      ]
+    },
+    "available_min": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 120
+    },
+    "energy": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "mood": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 3
+    },
+    "stall_flag": {
+      "type": "boolean"
+    },
+    "recent_events": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "minItems": 0,
+      "maxItems": 100
+    },
+    "armory_cards": {
+      "type": "array",
+      "items": {
+        "type": "object"
+      },
+      "minItems": 1,
+      "maxItems": 50
+    },
+    "rules": {
+      "type": "object",
+      "required": [
+        "max_recommendations",
+        "execute_max",
+        "autopick"
+      ],
+      "properties": {
+        "max_recommendations": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3
+        },
+        "execute_max": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 1
+        },
+        "autopick": {
+          "type": "string",
+          "enum": [
+            "A",
+            "B",
+            "C"
+          ]
+        }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

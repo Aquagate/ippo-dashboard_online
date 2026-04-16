@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "card.schema.json",
+  "type": "object",
+  "required": [
+    "card_id",
+    "version",
+    "node_id",
+    "label",
+    "duration_min",
+    "one_line_command",
+    "close_template"
+  ],
+  "properties": {
+    "card_id": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "node_id": {
+      "type": "string"
+    },
+    "label": {
+      "type": "string",
+      "enum": [
+        "回復",
+        "継続",
+        "探索",
+        "積み上げ",
+        "閉じ"
+      ]
+    },
+    "duration_min": {
+      "type": "integer",
+      "enum": [
+        7,
+        15,
+        25
+      ]
+    },
+    "one_line_command": {
+      "type": "string",
+      "maxLength": 200
+    },
+    "close_template": {
+      "type": "string"
+    },
+    "conditions": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "stats": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "maxItems": 10
+    }
+  },
+  "additionalProperties": true
+}

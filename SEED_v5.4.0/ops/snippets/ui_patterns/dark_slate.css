@@ -1,0 +1,158 @@
+/* 
+ * Dark Slate Theme (Professional Compact)
+ * Extracted from Project Hub v2.0
+ * 
+ * When to Use: 
+ * - プロ・ビジネス向けのダークUI
+ * - Glassmorphism (Neon) より落ち着いた印象が欲しい時
+ * - コンパクトで情報密度の高いUIが必要な時
+ */
+
+:root {
+    /* Color Palette: Dark Slate */
+    --bg-primary: #0f172a;
+    --bg-secondary: #1e293b;
+    --bg-tertiary: #334155;
+
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --text-muted: #64748b;
+
+    /* Accent Colors */
+    --accent-primary: #3b82f6;
+    --accent-success: #10b981;
+    --accent-warning: #f59e0b;
+    --accent-danger: #ef4444;
+
+    /* Status Colors */
+    --status-idea: #a78bfa;
+    --status-active: #3b82f6;
+    --status-stuck: #ef4444;
+    --status-done: #10b981;
+    --status-showcase: #d97706;
+
+    /* Compact Spacing */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 12px;
+    --spacing-lg: 16px;
+
+    /* Sharp Borders */
+    --border-radius-sm: 4px;
+    --border-radius-md: 6px;
+    --border-radius-lg: 8px;
+}
+
+/* Base Styles */
+body {
+    background: linear-gradient(135deg, var(--bg-primary), var(--bg-secondary));
+    color: var(--text-primary);
+    font-family: 'Inter', -apple-system, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+}
+
+/* Card: Solid, Not Transparent */
+.card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--border-radius-md);
+    padding: var(--spacing-md);
+}
+
+.card:hover {
+    border-color: var(--accent-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Compact Button */
+.btn {
+    padding: 6px 12px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: var(--border-radius-sm);
+    transition: all 0.15s ease;
+}
+
+.btn-primary {
+    background: var(--accent-primary);
+    color: white;
+}
+
+.btn-ghost {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--bg-tertiary);
+}
+
+.btn-ghost:hover {
+    background: var(--bg-tertiary);
+    color: var(--text-primary);
+}
+
+/* Status Pills */
+.status-pill {
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.status-idea {
+    background: rgba(167, 139, 250, 0.15);
+    color: var(--status-idea);
+}
+
+.status-active {
+    background: rgba(59, 130, 246, 0.15);
+    color: var(--status-active);
+}
+
+.status-stuck {
+    background: rgba(239, 68, 68, 0.15);
+    color: var(--status-stuck);
+}
+
+.status-done {
+    background: rgba(16, 185, 129, 0.15);
+    color: var(--status-done);
+}
+
+.status-showcase {
+    background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2));
+    color: var(--status-showcase);
+}
+
+/* Compact Form */
+.form-grid {
+    display: grid;
+    gap: var(--spacing-sm);
+}
+
+.form-grid input,
+.form-grid select {
+    padding: 6px 10px;
+    font-size: 0.85rem;
+    background: var(--bg-primary);
+    border: 1px solid var(--bg-tertiary);
+    border-radius: var(--border-radius-sm);
+    color: var(--text-primary);
+}
+
+.form-grid input:focus,
+.form-grid select:focus {
+    border-color: var(--accent-primary);
+    outline: none;
+}
+
+/* Collapsible Details */
+details summary {
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    padding: var(--spacing-xs) 0;
+}
+
+details summary:hover {
+    color: var(--text-secondary);
+}

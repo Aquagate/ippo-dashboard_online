@@ -8,7 +8,7 @@ import {
 import {
     loadEntriesFromCache, loadNextMemosFromCache, migrateLegacyData,
 } from './actions';
-import { syncAutoConnect, syncFlush, startPeriodicSync } from '../services/sync/syncManager';
+import { syncAutoConnect, syncFlush } from '../services/sync/syncManager';
 import { odEnsureMsal } from '../services/sync/onedrive';
 import { renderAll, renderNextMemos } from '../ui/views/ippoLog';
 import { initFutureLab } from '../ui/views/futureLab';
@@ -176,14 +176,9 @@ export async function bootstrap(): Promise<void> {
     initSyncUI();
     initSyncStatus();
 
-    // 5. 同期接続（バックグラウンド、fire-and-forget）
-    // → 認証が失敗してもアプリは完全に使える（オフラインファースト）
-    syncAutoConnect().then(() => {
-        if (navigator.onLine) syncFlush().catch(() => {});
-        startPeriodicSync(); // 5分間隔の定期同期を開始
-    }).catch(() => {
-        console.info("Sync unavailable. Running in offline mode.");
-    });
+    // 5. 同期接続
+    await syncAutoConnect();
+    if (navigator.onLine) syncFlush();
 
     // 6. LastGoodバックアップ（復旧直後はスキップ）
     if (!wasRecoveredFromLastGood()) {

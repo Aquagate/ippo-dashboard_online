@@ -15,12 +15,6 @@ node_modules/
 # package-lock.json is usually OK to commit, but adding just in case user wants to ignore
 # package-lock.json
 
-# Build Artifacts
-dist/
-build/
-*.exe
-*.zip
-
 # System
 .DS_Store
 Thumbs.db

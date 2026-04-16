@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "badge.schema.json",
+  "type": "object",
+  "required": [
+    "badge_id",
+    "tier",
+    "direction",
+    "name",
+    "unlock_rule"
+  ],
+  "properties": {
+    "badge_id": {
+      "type": "string"
+    },
+    "tier": {
+      "type": "string",
+      "enum": [
+        "common",
+        "rare",
+        "epic",
+        "top"
+      ]
+    },
+    "direction": {
+      "type": "string",
+      "enum": [
+        "craft",
+        "mind",
+        "world"
+      ]
+    },
+    "name": {
+      "type": "string"
+    },
+    "unlock_rule": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": true
+}
