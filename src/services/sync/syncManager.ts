@@ -98,6 +98,18 @@ export async function syncSignOut(): Promise<void> {
 
 // ===== Sync Logic =====
 
+// 認証エラーを判定するヘルパー
+function isAuthError(e: any): boolean {
+    const msg = e?.message || String(e);
+    return msg === "auth_session_expired" || msg.includes("サインインしてません");
+}
+
+// 認証エラー時の統一通知
+function notifyAuthExpired(): void {
+    notify(cb => cb.onSyncStateChange?.("🔑 要・再認証"));
+    notify(cb => cb.onStatusChange?.("認証期限切れ (設定から再接続)"));
+}
+
 export async function syncFetchAndMerge(): Promise<void> {
     const config = getConfig();
     if (!config || !odGetAccountName() || !navigator.onLine) return;
@@ -121,7 +133,12 @@ export async function syncFetchAndMerge(): Promise<void> {
 
         notifySuccess();
     } catch (e: any) {
-        notify(cb => cb.onError?.(e.message || String(e)));
+        if (isAuthError(e)) {
+            // 認証期限切れ → リダイレクトせず、UI通知のみ（作業を中断しない）
+            notifyAuthExpired();
+        } else {
+            notify(cb => cb.onError?.(e.message || String(e)));
+        }
     } finally {
         _isSyncing = false;
     }
@@ -160,7 +177,10 @@ export async function syncFlush(): Promise<void> {
         notifySuccess();
 
     } catch (e: any) {
-        if (e.message === "etag_mismatch") {
+        if (isAuthError(e)) {
+            // 認証期限切れ → リダイレクトせず、UI通知のみ（作業を中断しない）
+            notifyAuthExpired();
+        } else if (e.message === "etag_mismatch") {
             // Retry once
             notify(cb => cb.onSyncStateChange?.("競合解決中..."));
             try {
@@ -177,7 +197,11 @@ export async function syncFlush(): Promise<void> {
                 await odSaveCache(retryMerged);
                 notifySuccess();
             } catch (inner: any) {
-                notify(cb => cb.onError?.(inner.message || String(inner)));
+                if (isAuthError(inner)) {
+                    notifyAuthExpired();
+                } else {
+                    notify(cb => cb.onError?.(inner.message || String(inner)));
+                }
             }
         } else {
             notify(cb => cb.onError?.(e.message || String(e)));
@@ -192,6 +216,29 @@ export async function syncAutoConnect(): Promise<void> {
     await syncInit(); // Ensure MSAL init
     if (odGetAccountName() && navigator.onLine) {
         await syncFetchAndMerge();
+    }
+}
+
+// ===== 定期同期（Tier 2: バックグラウンド同期） =====
+let _syncIntervalId: ReturnType<typeof setInterval> | null = null;
+const SYNC_INTERVAL_MS = 5 * 60 * 1000; // 5分
+
+/** 定期同期を開始（呼び出し側で fire-and-forget） */
+export function startPeriodicSync(intervalMs = SYNC_INTERVAL_MS): void {
+    stopPeriodicSync();
+    _syncIntervalId = setInterval(() => {
+        // 条件: オンライン ＆ 認証済み ＆ 既に同期中でない
+        if (navigator.onLine && odGetAccountName() && !_isSyncing) {
+            syncFlush().catch(() => {}); // 静かに失敗（UIには onError 経由で通知済み）
+        }
+    }, intervalMs);
+}
+
+/** 定期同期を停止 */
+export function stopPeriodicSync(): void {
+    if (_syncIntervalId) {
+        clearInterval(_syncIntervalId);
+        _syncIntervalId = null;
     }
 }
 
