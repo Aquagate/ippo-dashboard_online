@@ -17,6 +17,7 @@ import { initCompass } from '../ui/views/compassView';
 import { initSettings } from '../ui/views/settings';
 import { initSyncUI } from '../ui/views/syncSettings';
 import { initSyncStatus } from '../ui/components/syncStatus';
+import { initSyncBanner } from '../ui/components/syncBanner';
 import { showToast } from '../ui/toast';
 
 /**
@@ -175,6 +176,7 @@ export async function bootstrap(): Promise<void> {
     initSettings();
     initSyncUI();
     initSyncStatus();
+    initSyncBanner(); // ヘッダー直下のサインインバナー
 
     // 5. 同期接続（バックグラウンド、fire-and-forget）
     // → 認証が失敗してもアプリは完全に使える（オフラインファースト）

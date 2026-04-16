@@ -1819,3 +1819,4 @@ button.primary:hover {
     margin-top: 2px;
   }
 }
+@keyframes sync-spin { 100% { transform: rotate(360deg); } }
