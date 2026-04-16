@@ -82,9 +82,30 @@ export function odGetAccountName(): string | null {
 export async function odSignIn(config: OdAuthConfig): Promise<void> {
     await odEnsureMsal(config);
     if (!odMsalApp) return;
-    // Switch to Redirect Flow to avoid popup storage issues
-    await odMsalApp.loginRedirect({ scopes: OD_SCOPES, prompt: "select_account" });
-    // Note: This promise will likely not resolve because the page redirects.
+
+    // まずサイレント復帰を試みる（認証画面なしでセッション復元）
+    try {
+        const accounts = odMsalApp.getAllAccounts();
+        if (accounts.length > 0) {
+            // キャッシュ済みアカウントがあればサイレントでトークン取得
+            const result = await odMsalApp.acquireTokenSilent({
+                account: accounts[0],
+                scopes: OD_SCOPES,
+            });
+            odAccount = result.account;
+            return; // 認証画面なしで成功
+        }
+
+        // アカウント情報なし → ssoSilentでMicrosoftセッション検出を試みる
+        const ssoResult = await odMsalApp.ssoSilent({ scopes: OD_SCOPES });
+        odAccount = ssoResult.account;
+        return; // SSO検出成功、認証画面なし
+    } catch {
+        // サイレント/SSO失敗 → 初回のみリダイレクト認証（promptなし＝SSOセッション活用）
+        // ※ prompt: "select_account" を削除。既存セッションがあれば自動的にそれを使う
+        await odMsalApp.loginRedirect({ scopes: OD_SCOPES });
+        // リダイレクトのためここには戻らない
+    }
 }
 
 export async function odSignOut(config: OdAuthConfig): Promise<void> {
@@ -101,12 +122,11 @@ async function odGetToken(config: OdAuthConfig): Promise<string> {
         const r = await odMsalApp!.acquireTokenSilent({ account: odAccount, scopes: OD_SCOPES });
         return r.accessToken;
     } catch (e) {
-        // Fallback to Redirect (Popup is unreliable)
-        console.warn("Silent token acquisition failed. Redirecting to sign in...");
-        await odMsalApp!.acquireTokenRedirect({ scopes: OD_SCOPES });
-        // acquireTokenRedirect returns Promise<void> and redirects the page.
-        // We throw an error to stop the current operation (e.g. save/load) gracefully.
-        throw new Error("Authenticating... (Page will reload)");
+        // サイレント失敗 → リダイレクトせず、同期をスキップして通知に留める
+        // ユーザーは準備ができたときに手動で再サインインできる
+        console.warn("Silent token acquisition failed. Sync will be skipped until re-authentication.");
+        odAccount = null; // セッション無効化（再サインイン待ち）
+        throw new Error("auth_session_expired");
     }
 }
 
