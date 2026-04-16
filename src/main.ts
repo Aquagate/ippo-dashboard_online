@@ -2,8 +2,6 @@
 // CSS読み込み + bootstrap呼び出し + イベントハンドラのみ
 
 import './styles/main.css';
-import './styles/henzan.css';
-import './styles/compass.css';
 import { uuid, formatDate, formatDateTimeForRecord } from './utils/helpers';
 import { dataCache, setDataCache, entries, nextMemos, setEntries, setNextMemos, getActiveEntries } from './app/store';
 import {
