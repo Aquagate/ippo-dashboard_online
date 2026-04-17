@@ -199,7 +199,8 @@ export function initSyncBanner(): void {
             }
         },
         onSynced: () => {
-            setBannerState('connected');
+            // syncInit時の過去情報のリストアでも呼ばれるため、ここでは状態変更しない。
+            // 実際の同期成功時は onSyncStateChange("同期済み") が呼ばれるのでそちらに任せる。
         }
     });
 
