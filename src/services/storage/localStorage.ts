@@ -14,6 +14,7 @@ const OD_QUEUE_KEY = "ippoSyncQueue_v1";
 const OD_MIGRATION_KEY = "ippoMigrationDone_v1";
 const OD_SETTINGS_KEY = "ippoOneDriveSettings_v2";
 const OD_STATUS_KEY = "ippoSyncStatus_v1";
+const OD_LOGIN_HINT_KEY = "ippoOneDriveLoginHint_v1";
 export const STORAGE_KEY = "ippoLogEntries_v2"; // Very old legacy key
 export const NEXT_MEMO_KEY = "ippoNextMemo_v1"; // Very old legacy key
 
@@ -130,6 +131,14 @@ export function getMigrationDone(): boolean {
 
 export function setMigrationDone(): void {
     localStorage.setItem(OD_MIGRATION_KEY, "1");
+}
+
+export function odSaveLoginHint(username: string): void {
+    localStorage.setItem(OD_LOGIN_HINT_KEY, username);
+}
+
+export function odLoadLoginHint(): string | null {
+    return localStorage.getItem(OD_LOGIN_HINT_KEY);
 }
 
 // ===== Migration Logic =====

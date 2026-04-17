@@ -1,4 +1,5 @@
 import { PublicClientApplication, Configuration, RedirectRequest, IPublicClientApplication, AccountInfo, AuthenticationResult } from "@azure/msal-browser";
+import { odSaveLoginHint, odLoadLoginHint } from '../storage/localStorage';
 
 const DEFAULT_FILE_PATH = "/Apps/IppoDashboard/ippo_data.json";
 const OD_SCOPES = ["Files.ReadWrite.AppFolder", "offline_access"];
@@ -86,6 +87,8 @@ export async function odSignIn(config: OdAuthConfig): Promise<void> {
     // まずサイレント復帰を試みる（認証画面なしでセッション復元）
     try {
         const accounts = odMsalApp.getAllAccounts();
+        const loginHint = odLoadLoginHint();
+
         if (accounts.length > 0) {
             // キャッシュ済みアカウントがあればサイレントでトークン取得
             const result = await odMsalApp.acquireTokenSilent({
@@ -93,18 +96,30 @@ export async function odSignIn(config: OdAuthConfig): Promise<void> {
                 scopes: OD_SCOPES,
             });
             odAccount = result.account;
+            if (odAccount) odSaveLoginHint(odAccount.username);
             return; // 認証画面なしで成功
         }
 
         // アカウント情報なし → ssoSilentでMicrosoftセッション検出を試みる
-        const ssoResult = await odMsalApp.ssoSilent({ scopes: OD_SCOPES });
+        const ssoReq: any = { scopes: OD_SCOPES };
+        if (loginHint) ssoReq.loginHint = loginHint;
+
+        const ssoResult = await odMsalApp.ssoSilent(ssoReq);
         odAccount = ssoResult.account;
+        if (odAccount) odSaveLoginHint(odAccount.username);
         return; // SSO検出成功、認証画面なし
     } catch {
-        // サイレント/SSO失敗 → 初回のみリダイレクト認証（promptなし＝SSOセッション活用）
-        // ※ prompt: "select_account" を削除。既存セッションがあれば自動的にそれを使う
-        await odMsalApp.loginRedirect({ scopes: OD_SCOPES });
-        // リダイレクトのためここには戻らない
+        // サイレント/SSO失敗 → ポップアップによる認証
+        // loginHintがあれば渡すことで「アカウント選択画面」をスキップし、
+        // うまくいけばポップアップが一瞬開いて閉じるだけのフローになる
+        const loginHint = odLoadLoginHint();
+        const popupReq: any = { scopes: OD_SCOPES };
+        if (loginHint) popupReq.loginHint = loginHint;
+
+        const result = await odMsalApp.loginPopup(popupReq);
+        odAccount = result.account;
+        if (odAccount) odSaveLoginHint(odAccount.username);
+        // ポップアップのためここに戻ってくる
     }
 }
 
