@@ -55,6 +55,9 @@ function odBuildMsalConfig(config: OdAuthConfig): any {
     };
 }
 
+// MSAL初期化タイムアウト（秒）
+const MSAL_INIT_TIMEOUT_MS = 10_000;
+
 export async function odEnsureMsal(config: OdAuthConfig): Promise<AuthenticationResult | null> {
     // シングルトン: 初期化済みならキャッシュ済みアカウントを返す
     if (odMsalApp) {
@@ -67,11 +70,34 @@ export async function odEnsureMsal(config: OdAuthConfig): Promise<Authentication
     odMsalApp = new PublicClientApplication(msalConfig);
     await odMsalApp.initialize();
 
-    // Handle redirect callback (important for popup flow and redirect flow)
-    const authResult = await odMsalApp.handleRedirectPromise();
+    // リダイレクトコールバック処理（タイムアウト付き）
+    // ネットワーク不通時の永久ブロックを防止する
+    let authResult: AuthenticationResult | null = null;
+    try {
+        const timeoutPromise = new Promise<null>((resolve) =>
+            setTimeout(() => {
+                console.warn("[MSAL] handleRedirectPromise がタイムアウトしました。オフラインモードで継続します。");
+                resolve(null);
+            }, MSAL_INIT_TIMEOUT_MS)
+        );
+        authResult = await Promise.race([
+            odMsalApp.handleRedirectPromise(),
+            timeoutPromise,
+        ]);
+    } catch (e: any) {
+        // no_token_request_cache_error 等のリダイレクト関連エラーを吸収
+        // アプリの起動をブロックせず、オフラインモードで継続する
+        console.warn("[MSAL] handleRedirectPromise エラー（無視して継続）:", e.message || e);
+    }
 
     const accounts = odMsalApp.getAllAccounts();
     odAccount = accounts && accounts.length ? accounts[0] : null;
+
+    // リダイレクト認証が成功した場合、loginHintを保存
+    if (authResult?.account) {
+        odAccount = authResult.account;
+        odSaveLoginHint(authResult.account.username);
+    }
 
     return authResult;
 }
@@ -109,17 +135,19 @@ export async function odSignIn(config: OdAuthConfig): Promise<void> {
         if (odAccount) odSaveLoginHint(odAccount.username);
         return; // SSO検出成功、認証画面なし
     } catch {
-        // サイレント/SSO失敗 → ポップアップによる認証
-        // loginHintがあれば渡すことで「アカウント選択画面」をスキップし、
-        // うまくいけばポップアップが一瞬開いて閉じるだけのフローになる
+        // サイレント/SSO失敗 → リダイレクト方式で認証
+        // ポップアップはスマホで動作しないため、リダイレクト方式に統一。
+        // loginHintを渡すことでアカウント選択画面をスキップし、
+        // 既知のアカウントでの再認証がワンタップで完了する。
         const loginHint = odLoadLoginHint();
-        const popupReq: any = { scopes: OD_SCOPES };
-        if (loginHint) popupReq.loginHint = loginHint;
+        const redirectReq: any = { scopes: OD_SCOPES };
+        if (loginHint) redirectReq.loginHint = loginHint;
 
-        const result = await odMsalApp.loginPopup(popupReq);
-        odAccount = result.account;
-        if (odAccount) odSaveLoginHint(odAccount.username);
-        // ポップアップのためここに戻ってくる
+        // loginRedirect はページ遷移を起こす。
+        // 認証完了後、ブラウザがこのアプリに戻り、
+        // odEnsureMsal() の handleRedirectPromise() で結果を受け取る。
+        // ※ この行以降には到達しない（ページ遷移が発生するため）
+        await odMsalApp.loginRedirect(redirectReq);
     }
 }
 

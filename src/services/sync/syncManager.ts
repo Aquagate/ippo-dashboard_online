@@ -119,14 +119,15 @@ export async function syncFetchAndMerge(): Promise<void> {
 
     try {
         const remote = await odGetRemoteData(config, getFilePath());
-        _odEtag = remote.etag || _odEtag;
+        // 404時はetagをリセット（stale etagでのPUT失敗を防止）
+        _odEtag = remote.etag ?? null;
 
         if (remote.data) {
             const merged = mergeData(remote.data, dataCache);
             setDataCache(merged);
             await odSaveCache(merged);
         } else {
-            // No remote data, upload local
+            // リモートにファイルなし → ローカルデータを新規アップロード（etag=null）
             const newEtag = await odPutRemoteData(config, getFilePath(), dataCache, null);
             if (newEtag) _odEtag = newEtag;
         }
@@ -160,7 +161,8 @@ export async function syncFlush(): Promise<void> {
         // Since we are decoupling, let's stick to the robust fetch-merge-push logic
 
         const remote = await odGetRemoteData(config, getFilePath());
-        _odEtag = remote.etag || _odEtag;
+        // 404時はetagをリセット（stale etagでのPUT失敗を防止）
+        _odEtag = remote.etag ?? null;
 
         let toSave = dataCache;
 
@@ -169,6 +171,7 @@ export async function syncFlush(): Promise<void> {
             setDataCache(toSave);
         }
 
+        // remote.dataがnull（ファイル未作成）の場合、etag=nullで新規作成
         const newEtag = await odPutRemoteData(config, getFilePath(), toSave, _odEtag);
         if (newEtag) _odEtag = newEtag;
 
@@ -185,7 +188,7 @@ export async function syncFlush(): Promise<void> {
             notify(cb => cb.onSyncStateChange?.("競合解決中..."));
             try {
                 const retryRemote = await odGetRemoteData(config, getFilePath());
-                _odEtag = retryRemote.etag || _odEtag;
+                _odEtag = retryRemote.etag ?? null;
 
                 const retryMerged = mergeData(retryRemote.data || { schemaVersion: 2, entries: [], memos: [], simulations: [], dailyStates: {} }, dataCache);
                 setDataCache(retryMerged);

@@ -22,90 +22,46 @@ import { showToast } from '../ui/toast';
 
 /**
  * MSAL リダイレクトの処理（認証コールバック）。
- * URL に code= や error= が含まれている場合に呼ばれる。
+ * Microsoft からのリダイレクト復帰時に handleRedirectPromise() を呼ぶ。
+ * 認証失敗してもアプリの起動をブロックしない（オフラインファースト）。
  * @returns 認証処理が行われた場合は true
  */
 async function handleAuthRedirect(): Promise<boolean> {
-    const hash = window.location.hash;
-    const search = window.location.search;
-
-    if (!hash.includes("code=") && !hash.includes("error=") && !search.includes("code=") && !search.includes("error=")) {
-        return false;
-    }
-
-    // 認証処理中のUI表示
-    const loadingDiv = document.createElement("div");
-    loadingDiv.style.cssText = "position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); color:white; display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:9999;";
-    loadingDiv.innerHTML = `<h1>🔄 Processing Login...</h1><p>Please wait while we complete authentication.</p><div id="debug-status" style="margin-top:20px; font-family:monospace; font-size:12px; max-width:80%;">Initializing...</div>`;
-    document.body.appendChild(loadingDiv);
-
-    const statusDiv = document.getElementById("debug-status")!;
     const odSettings = odLoadSettings();
+    if (!odSettings?.clientId) return false;
 
-    if (odSettings?.clientId) {
-        statusDiv.innerHTML = "Settings found. Calling MSAL...";
-        try {
-            const result = await odEnsureMsal({
-                clientId: odSettings.clientId,
-                tenant: odSettings.tenant,
-                redirectUri: odSettings.redirectUri
-            });
+    try {
+        const result = await odEnsureMsal({
+            clientId: odSettings.clientId,
+            tenant: odSettings.tenant,
+            redirectUri: odSettings.redirectUri
+        });
 
-            if (result) {
-                statusDiv.innerHTML = "✅ Authentication Successful! Resuming app...";
-                const url = new URL(window.location.href);
-                url.hash = "";
-                url.search = "";
-                window.history.replaceState({}, document.title, url.pathname);
-                document.body.removeChild(loadingDiv);
-            } else {
-                statusDiv.innerHTML += "<br>⚠️ MSAL finished but returned no result. Proceeding...";
-                setTimeout(() => document.body.removeChild(loadingDiv), 1000);
-            }
-        } catch (e: any) {
-            loadingDiv.innerHTML = `
-                <div style="padding:20px; font-family:sans-serif; color:white; background:darkred; height:100vh; width:100%;">
-                    <h1>❌ Authentication Failed</h1>
-                    <p>Could not complete sign-in.</p>
-                    <div style="background:black; padding:10px; font-family:monospace;">
-                        Error: ${e.message || e}
-                    </div>
-                    <div id="diag-area"></div>
-                    <button onclick="window.location.reload()" style="margin-top:20px; padding:10px;">Reload App</button>
-                </div>
-            `;
-            const diagArea = loadingDiv.querySelector("#diag-area")!;
-
-            try {
-                const currentOrigin = new URL(window.location.href).origin;
-                const redirectOrigin = new URL(odSettings.redirectUri).origin;
-                if (currentOrigin !== redirectOrigin) {
-                    diagArea.innerHTML = `
-                        <div style="margin-top:15px; background:#500; padding:10px; border:1px solid red;">
-                            <strong>⚠️ CONFIG ERROR: Origin Mismatch</strong><br>
-                            Current: ${currentOrigin}<br>
-                            Config: ${redirectOrigin}<br>
-                            Update Redirect URI in settings to match Current.
-                        </div>`;
-                }
-            } catch { }
-
-            const msalKeys = Object.keys(localStorage).filter(k => k.toLowerCase().includes("msal"));
-            if (msalKeys.length === 0) {
-                diagArea.innerHTML += `
-                    <div style="margin-top:10px; border-top:1px solid #555; padding-top:5px;">
-                        <strong>⚠️ Storage Error:</strong> No MSAL keys found in LocalStorage.
-                    </div>`;
-            }
-
-            throw new Error("Authentication failed"); // 初期化を中断
+        if (result) {
+            // 認証コールバックが処理された → URLをクリーンアップ
+            const url = new URL(window.location.href);
+            url.hash = "";
+            url.search = "";
+            window.history.replaceState({}, document.title, url.pathname);
+            showToast("✅ サインインしました", "ok");
+            return true;
         }
-    } else {
-        statusDiv.innerHTML += "<br>⚠️ No settings found. Proceeding...";
-        setTimeout(() => document.body.removeChild(loadingDiv), 2000);
+    } catch (e: any) {
+        // 認証エラーが起きても、アプリは使い続けられる（オフラインファースト）
+        console.warn("[Bootstrap] 認証リダイレクト処理エラー:", e.message || e);
+
+        // URLにcode=やerror=が残っている場合はクリーンアップ
+        const href = window.location.href;
+        if (href.includes("code=") || href.includes("error=")) {
+            const url = new URL(href);
+            url.hash = "";
+            url.search = "";
+            window.history.replaceState({}, document.title, url.pathname);
+        }
+        // アプリの起動をブロックしない（throwしない）
     }
 
-    return true;
+    return false;
 }
 
 /**
@@ -147,11 +103,8 @@ export function switchTab(tabName: string): void {
  */
 export async function bootstrap(): Promise<void> {
     // 0. 認証リダイレクトの処理（コールバック）
-    try {
-        await handleAuthRedirect();
-    } catch {
-        return; // 認証失敗時は初期化を中断
-    }
+    // handleAuthRedirect は失敗してもアプリの起動をブロックしない
+    await handleAuthRedirect();
 
     // 1. ストレージからデータ読み込み
     await storageLoadData();
