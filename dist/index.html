@@ -6,8 +6,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="今日の一歩ダッシュボード - 毎日の記録を可視化して次の一歩を決めるための個人用モニタ">
   <title>今日の一歩ダッシュボード</title>
-  <script type="module" crossorigin src="./assets/index-B8YC1DXo.js"></script>
-  <link rel="stylesheet" crossorigin href="./assets/index-WuOULhvA.css">
+  <script type="module" crossorigin src="./assets/index-CPsq0otw.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DiGHuhLz.css">
 </head>
 
 <body>
@@ -16,12 +16,16 @@
     <p>うぜんの「一歩」を可視化して、偏りを見て次の一歩を決めるための、個人用モニタ。</p>
   </header>
 
+  <!-- 同期バナー: 未認証時にワンタップでサインインできるバナー（JSで制御） -->
+  <div id="sync-auth-banner" style="display:none;"></div>
+
   <!-- タブナビゲーション -->
   <nav class="tab-nav">
     <button type="button" class="tab-btn active" data-tab="ippo">一歩ログ</button>
     <button type="button" class="tab-btn" data-tab="future">未来ラボ</button>
     <button type="button" class="tab-btn" data-tab="henzan">編纂室</button>
     <button type="button" class="tab-btn" data-tab="compass">羅針盤</button>
+    <button type="button" class="tab-btn" data-tab="insight">分析室</button>
     <button type="button" class="tab-btn" data-tab="settings">設定</button>
   </nav>
 
@@ -646,6 +650,78 @@
       </div>
     </main>
   </div><!-- /tabCompass -->
+
+  <!-- 分析室タブ -->
+  <div id="tabInsight" class="tab-content">
+    <main style="padding: 20px; max-width: 900px; margin: 0 auto;">
+      <section class="panel">
+        <div class="panel-header" style="margin-bottom: 20px;">
+          <div class="panel-title">
+             🤖 分析室
+             <span class="badge">Local AI</span>
+          </div>
+          <small>ローカル環境のOllamaを使い、ログの傾向を安全に分析します。</small>
+        </div>
+
+        <div style="background: rgba(0,0,0,0.2); padding: 16px; border-radius: 8px; margin-bottom: 20px; border: 1px solid var(--border);">
+          <div style="display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px;">
+            <label style="flex: 1 1 200px;">
+              <span class="form-note">モデル選択（Ollama起動必須）</span>
+              <select id="insightModelSelect" style="width: 100%; margin-top: 4px; padding: 6px; background: #222; border: 1px solid #444; color: white; border-radius: 4px;">
+                <option value="">取得中...</option>
+              </select>
+            </label>
+            <label style="flex: 1 1 200px;">
+              <span class="form-note">手入力（リストにない場合）</span>
+              <input type="text" id="insightModelInput" placeholder="gemma4:e4b" style="width: 100%; margin-top: 4px; padding: 6px; background: #222; border: 1px solid #444; color: white; border-radius: 4px;">
+            </label>
+            <label style="flex: 0 1 120px;">
+              <span class="form-note">分析期間</span>
+              <select id="insightPeriodSelect" style="width: 100%; margin-top: 4px; padding: 6px; background: #222; border: 1px solid #444; color: white; border-radius: 4px;">
+                <option value="7">直近 7 日間</option>
+                <option value="14" selected>直近 14 日間</option>
+                <option value="30">直近 30 日間</option>
+              </select>
+            </label>
+          </div>
+          
+          <button type="button" id="btnRunInsight" class="btn-primary" style="background:#10b981; color:white; width: 100%; font-size: 14px; padding: 10px;">
+            🚀 分析レポートを生成
+          </button>
+          <div id="insightStatusMsg" class="form-note" style="margin-top: 8px; text-align: center;"></div>
+        </div>
+
+        <!-- 分析結果表示領域 -->
+        <div id="insightResultsArea" style="display: none; flex-direction: column; gap: 16px;">
+          <div class="henzan-section" style="margin:0; padding:16px;">
+            <h3 style="color:#10b981; margin-bottom:8px; border-bottom:1px solid rgba(16,185,129,0.3); padding-bottom:4px; font-size: 15px;">1. 今週の偏り</h3>
+            <div id="insightSlot1" style="font-size:13px; line-height:1.6; white-space: pre-wrap; color: #d1d5db;"></div>
+          </div>
+          <div class="henzan-section" style="margin:0; padding:16px;">
+            <h3 style="color:#f59e0b; margin-bottom:8px; border-bottom:1px solid rgba(245,158,11,0.3); padding-bottom:4px; font-size: 15px;">2. 連続未実施カテゴリ</h3>
+            <div id="insightSlot2" style="font-size:13px; line-height:1.6; white-space: pre-wrap; color: #d1d5db;"></div>
+          </div>
+          <div class="henzan-section" style="margin:0; padding:16px;">
+            <h3 style="color:#3b82f6; margin-bottom:8px; border-bottom:1px solid rgba(59,130,246,0.3); padding-bottom:4px; font-size: 15px;">3. 先週との差</h3>
+            <div id="insightSlot3" style="font-size:13px; line-height:1.6; white-space: pre-wrap; color: #d1d5db;"></div>
+          </div>
+          <div class="henzan-section" style="margin:0; padding:16px;">
+            <h3 style="color:#d946ef; margin-bottom:8px; border-bottom:1px solid rgba(217,70,239,0.3); padding-bottom:4px; font-size: 15px;">4. 再点火候補</h3>
+            <div id="insightSlot4" style="font-size:13px; line-height:1.6; white-space: pre-wrap; color: #d1d5db;"></div>
+          </div>
+          <div class="henzan-section" style="margin:0; padding:16px;">
+            <h3 style="color:#ef4444; margin-bottom:8px; border-bottom:1px solid rgba(239,68,68,0.3); padding-bottom:4px; font-size: 15px;">5. 気力の罠と回復のヒント</h3>
+            <div id="insightSlot5" style="font-size:13px; line-height:1.6; white-space: pre-wrap; color: #d1d5db;"></div>
+          </div>
+          <div class="henzan-section" style="margin:0; padding:16px;">
+            <h3 style="color:#8b5cf6; margin-bottom:8px; border-bottom:1px solid rgba(139,92,246,0.3); padding-bottom:4px; font-size: 15px;">6. 隠れた相乗効果（コンボ）</h3>
+            <div id="insightSlot6" style="font-size:13px; line-height:1.6; white-space: pre-wrap; color: #d1d5db;"></div>
+          </div>
+        </div>
+
+      </section>
+    </main>
+  </div><!-- /tabInsight -->
 
   <!-- 設定タブ -->
   <div id="tabSettings" class="tab-content">

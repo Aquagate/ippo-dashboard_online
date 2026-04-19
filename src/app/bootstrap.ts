@@ -14,6 +14,7 @@ import { renderAll, renderNextMemos } from '../ui/views/ippoLog';
 import { initFutureLab } from '../ui/views/futureLab';
 import { initHenzanRoom } from '../ui/views/henzanRoom';
 import { initCompass } from '../ui/views/compassView';
+import { initInsightTab } from '../ui/views/insight';
 import { initSettings } from '../ui/views/settings';
 import { initSyncUI } from '../ui/views/syncSettings';
 import { initSyncStatus } from '../ui/components/syncStatus';
@@ -85,6 +86,7 @@ export function switchTab(tabName: string): void {
     document.getElementById("tabFuture")?.classList.toggle("active", tabName === "future");
     document.getElementById("tabHenzan")?.classList.toggle("active", tabName === "henzan");
     document.getElementById("tabCompass")?.classList.toggle("active", tabName === "compass");
+    document.getElementById("tabInsight")?.classList.toggle("active", tabName === "insight");
     document.getElementById("tabSettings")?.classList.toggle("active", tabName === "settings");
     if (tabName === "future") {
         initFutureLab();
@@ -94,6 +96,9 @@ export function switchTab(tabName: string): void {
     }
     if (tabName === "compass") {
         initCompass();
+    }
+    if (tabName === "insight") {
+        initInsightTab();
     }
 }
 
